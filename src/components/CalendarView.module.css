@@ -1,0 +1,56 @@
+.calendarContainer {
+  height: 100%;
+}
+
+/* מעטפת גלובלית לשינוי סגנונות FullCalendar בתוך הקומפוננטה הזו בלבד */
+:global(.fc) {
+  height: 100%;
+  font-family: inherit;
+}
+
+:global(.fc-theme-standard td), 
+:global(.fc-theme-standard th) {
+  border-color: #e2e8f0; /* Thin borders for calendar cells */
+}
+
+:global(.fc-toolbar-title) {
+  font-size: 18px !important;
+  color: #1e3a8a; /* Deep corporate blue */
+  font-weight: 600;
+}
+
+/* עיצוב כפתורים ביומן */
+:global(.fc .fc-button-primary) {
+  background-color: #1e3a8a;
+  border-color: #1e3a8a;
+  box-shadow: none;
+}
+
+:global(.fc .fc-button-primary:hover) {
+  background-color: #153e75;
+  border-color: #153e75;
+}
+
+:global(.fc-newAppointmentBtn-button) {
+  background-color: #2563eb !important; /* Slightly brighter blue for CTA */
+  border-color: #2563eb !important;
+  font-weight: 500 !important;
+}
+
+:global(.fc-newAppointmentBtn-button:hover) {
+  background-color: #1d4ed8 !important;
+}
+
+/* טיפול בתורים קצרים */
+:global(.fc-timegrid-event) {
+  min-height: 22px !important;
+  border-radius: 4px;
+}
+
+:global(.fc-timegrid-event-short .fc-event-main) {
+  padding: 2px 4px !important;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
