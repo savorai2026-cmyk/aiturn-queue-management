@@ -1,0 +1,105 @@
+.calendarContainer {
+  height: 100%;
+}
+
+:global(.fc) {
+  height: 100%;
+  font-family: inherit;
+  color: var(--color-text);
+}
+
+:global(.fc-theme-standard td), 
+:global(.fc-theme-standard th) {
+  border-color: var(--color-line);
+}
+
+:global(.fc-theme-standard .fc-scrollgrid) {
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+:global(.fc .fc-col-header-cell) {
+  border-width: 0 0 1px 1px;
+  background: var(--color-navy-800);
+  color: #ffffff;
+}
+
+:global(.fc .fc-col-header-cell-cushion) {
+  padding: 8px 5px;
+  color: inherit;
+  text-decoration: none;
+}
+
+:global(.fc-toolbar-title) {
+  color: var(--color-navy-900);
+  font-size: 20px !important;
+  font-weight: 700;
+}
+
+:global(.fc .fc-button-primary) {
+  border: 0;
+  border-radius: 6px;
+  background-color: var(--color-navy-800);
+  box-shadow: none;
+  font-weight: 600;
+}
+
+:global(.fc .fc-button-primary:hover) {
+  background-color: var(--color-navy-900);
+}
+
+:global(.fc .fc-button-primary:disabled) {
+  background-color: #7f9aac;
+}
+
+:global(.fc .fc-button-primary:not(:disabled).fc-button-active) {
+  background-color: var(--color-navy-900);
+}
+
+:global(.fc-newAppointmentBtn-button) {
+  background-color: var(--color-teal-600) !important;
+  font-weight: 700 !important;
+}
+
+:global(.fc-newAppointmentBtn-button:hover) {
+  background-color: #0f766e !important;
+}
+
+:global(.fc-timegrid-event) {
+  min-height: 22px !important;
+  border: 0 !important;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(7, 63, 103, 0.14);
+}
+
+:global(.fc-timegrid-event-short .fc-event-main) {
+  padding: 2px 4px !important;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+:global(.fc .fc-day-today) {
+  background: rgba(20, 184, 166, 0.08) !important;
+}
+
+:global(.fc .fc-timegrid-slot-label-cushion),
+:global(.fc .fc-daygrid-day-number) {
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+@media (max-width: 700px) {
+  :global(.fc .fc-toolbar) {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  :global(.fc .fc-toolbar-chunk) {
+    display: flex;
+    justify-content: center;
+  }
+}

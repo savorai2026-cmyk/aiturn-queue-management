@@ -1,122 +1,146 @@
-import { useState, useEffect, useRef } from 'react';
-import { supabase } from './supabaseClient';
-import TopBar from './components/TopBar';
-import CalendarView from './components/CalendarView';
-import { SidePanel } from './components/SidePanel';
-import ClientManagement from './components/ClientManagement';
-import Settings from './components/Settings';
-import AddAppointmentModal from './components/AddAppointmentModal';
-import './App.css'; // הייבוא של העיצוב הגלובלי (הקונטיינר הראשי)
+import { useState } from 'react';
+import type { AppTab } from './app/navigation';
+import TopBar from './app/components/TopBar';
+import ClientManagement from './features/clients/components/ClientManagement';
+import Settings from './features/settings/components/Settings';
+import AppointmentsPage from './features/appointments/AppointmentsPage';
+import { useAuth } from './features/auth/AuthContextState';
+import { AuthProvider } from './features/auth/AuthProvider';
+import Login from './features/auth/Login';
+import BusinessOnboarding from './features/business/BusinessOnboarding';
+import { BusinessProvider } from './features/business/BusinessContext';
+import { useBusiness } from './features/business/BusinessContextState';
+import './App.css';
 
-type TabType = 'calendar' | 'clients' | 'settings' | 'modmed';
+function LoadingScreen({ message }: { message: string }) {
+  return (
+    <div className="centered-screen">
+      <div className="loading-card" role="status">
+        <span className="loading-indicator" aria-hidden="true" />
+        <div>{message}</div>
+      </div>
+    </div>
+  );
+}
 
-export default function App() {
-  const [session, setSession] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('calendar');
-  const [selectedAppt, setSelectedAppt] = useState<any>(null);
-  const [isAddAppointmentOpen, setIsAddAppointmentOpen] = useState(false);
-  
-  const calendarRef = useRef<any>(null);
+interface AuthenticatedAppProps {
+  userEmail?: string;
+  onLogout: () => void;
+}
 
-  // ניהול התחברות (Auth)
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
+function AuthenticatedApp({ userEmail, onLogout }: AuthenticatedAppProps) {
+  const {
+    activeBusiness,
+    memberships,
+    isLoading,
+    error,
+    setActiveBusiness,
+    refreshBusinesses,
+  } = useBusiness();
+  const [activeTab, setActiveTab] = useState<AppTab>('calendar');
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
+  if (isLoading) {
+    return <LoadingScreen message="טוען את פרטי העסק..." />;
+  }
 
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-  };
-
-  const handleUpdateAppointment = (updatedData: any) => {
-    // לוגיקת עדכון התור במסד הנתונים וביומן
-    // ...
-    setSelectedAppt(updatedData);
-  };
-
-  // מסך התחברות במידה ואין סשן
-  if (!session) {
+  if (error && memberships.length === 0) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', direction: 'rtl' }}>
-        <div>טוען מערכת או אנא התחבר...</div>
-        {/* כאן תבוא קומפוננטת ההתחברות שלך (Login) */}
+      <div className="centered-screen">
+        <div className="load-error-card">
+          <div>{error}</div>
+          <button type="button" onClick={() => void refreshBusinesses()}>
+            נסה שוב
+          </button>
+        </div>
       </div>
     );
   }
 
+  if (!activeBusiness) {
+    return <BusinessOnboarding />;
+  }
+
   return (
     <div className="layout-container">
-      {/* סרגל עליון מחזיק את הניווט המרכזי */}
       <TopBar 
         activeTab={activeTab} 
-        onTabChange={(tab: any) => setActiveTab(tab)} 
-        onLogout={handleLogout}
-        user={session.user} 
+        onTabChange={setActiveTab}
+        onLogout={onLogout}
+        businessName={activeBusiness.businessName}
+        userEmail={userEmail}
+        businesses={memberships}
+        activeBusinessCode={activeBusiness.businessCode}
+        onBusinessChange={setActiveBusiness}
       />
       
-      {/* אזור התוכן הדינמי */}
       <div className="main-content">
-        
         {activeTab === 'calendar' && (
-          <>
-            <aside className="side-panel-wrapper">
-              <SidePanel 
-                appointment={selectedAppt} 
-                onUpdate={handleUpdateAppointment} 
-              />
-            </aside>
-            <main className="calendar-area">
-              <CalendarView 
-                ref={calendarRef} 
-                onAddAppointment={() => setIsAddAppointmentOpen(true)} 
-                user={session.user} 
-                onEventClick={(appt: any) => setSelectedAppt(appt)} 
-              />
-            </main>
-          </>
+          <AppointmentsPage businessCode={activeBusiness.businessCode} />
         )}
 
         {activeTab === 'clients' && (
-          <main className="calendar-area">
-            <ClientManagement user={session.user} /> 
+          <main className="feature-area">
+            <ClientManagement
+              key={activeBusiness.businessCode}
+              businessCode={activeBusiness.businessCode}
+            />
           </main>
         )}
 
         {activeTab === 'settings' && (
-          <main className="calendar-area">
-            <Settings user={session.user} />
+          <main className="feature-area">
+            <Settings
+              businessCode={activeBusiness.businessCode}
+              onBusinessUpdated={refreshBusinesses}
+            />
           </main>
         )}
 
         {activeTab === 'modmed' && (
-          <main className="calendar-area">
-            <div style={{ padding: '20px', color: '#1e3a8a', fontWeight: 'bold' }}>
+          <main className="feature-area">
+            <div className="coming-soon">
               מסך מודמד (בפיתוח...)
             </div>
           </main>
         )}
-
       </div>
+    </div>
+  );
+}
 
-      {/* מודלים גלובליים */}
-      <AddAppointmentModal 
-        isOpen={isAddAppointmentOpen}
-        user={session.user}
-        onClose={() => setIsAddAppointmentOpen(false)}
-        onSuccess={() => {
-          setIsAddAppointmentOpen(false);
-          // במערכת אמיתית, נקרא כאן לפונקציה שמרעננת את היומן
+function AppContent() {
+  const { session, isLoading, error, signOut } = useAuth();
+
+  if (isLoading) {
+    return <LoadingScreen message="טוען מערכת..." />;
+  }
+
+  if (error && !session) {
+    return <LoadingScreen message={error} />;
+  }
+
+  if (!session) {
+    return <Login />;
+  }
+
+  return (
+    <BusinessProvider userId={session.user.id}>
+      <AuthenticatedApp
+        userEmail={session.user.email}
+        onLogout={() => {
+          void signOut().catch((signOutError: unknown) => {
+            console.error('שגיאה בהתנתקות:', signOutError);
+          });
         }}
       />
-    </div>
+    </BusinessProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

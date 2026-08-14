@@ -1,45 +1,201 @@
-/* --- עיצוב גלובלי (Reset & Root) --- */
-body, html {
+:root {
+  --color-navy-900: #073f67;
+  --color-navy-800: #0a527f;
+  --color-navy-700: #12648f;
+  --color-teal-600: #0d9488;
+  --color-teal-500: #14b8a6;
+  --color-canvas: #edf6f8;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f7fafb;
+  --color-line: #dce7eb;
+  --color-text: #132a3a;
+  --color-text-muted: #607482;
+  --shadow-card: 0 5px 18px rgba(7, 63, 103, 0.1);
+  --shadow-floating: 0 16px 45px rgba(7, 48, 75, 0.18);
+  --radius-card: 10px;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body, html, #root {
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: system-ui, -apple-system, sans-serif;
-  background-color: #f1f5f9; /* Soft gray for the main canvas, per mockup */
-  direction: rtl; /* יישור לימין לכל האפליקציה */
-  color: #0f172a; /* Slate 900 for high-contrast readable text */
+  min-width: 320px;
 }
 
-/* קונטיינר ראשי שתופס את כל גובה המסך */
+body {
+  font-family: Arial, "Segoe UI", system-ui, sans-serif;
+  background:
+    linear-gradient(180deg, rgba(20, 184, 166, 0.04), transparent 260px),
+    var(--color-canvas);
+  direction: rtl;
+  color: var(--color-text);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(20, 184, 166, 0.18);
+  outline-offset: 1px;
+}
+
+.centered-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+  direction: rtl;
+}
+
+.loading-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  color: var(--color-navy-900);
+  font-weight: 600;
+}
+
+.loading-indicator {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #cce2e6;
+  border-top-color: var(--color-teal-600);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.load-error-card {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  max-width: 440px;
+  padding: 24px;
+  border: 1px solid #f2c8c8;
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  color: #b91c1c;
+  text-align: center;
+}
+
+.load-error-card button {
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--color-navy-800);
+  color: #ffffff;
+  font: inherit;
+  cursor: pointer;
+}
+
 .layout-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
   overflow: hidden;
 }
 
-/* אזור תוכן תחתון - מתחלק לפאנל ימני ואזור מרכזי */
 .main-content {
   display: flex;
   flex: 1;
-  padding: 20px;
-  gap: 20px;
-  overflow: hidden; /* מונע גלילה כפולה במסך כולו */
+  padding: 22px;
+  gap: 22px;
+  overflow: hidden;
 }
 
-/* אזור היומן והלקוחות - תופס את שאר המקום הפנוי */
 .calendar-area {
   flex: 1;
-  background-color: #ffffff; /* White background for panels */
-  border: 1px solid #e2e8f0; /* Thin border */
-  border-radius: 6px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Subtle shadow */
+  min-width: 0;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   padding: 20px;
   overflow-y: auto;
 }
 
-/* פאנל צד - רוחב קבוע */
+.feature-area {
+  min-width: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
 .side-panel-wrapper {
-  width: 350px;
+  width: 320px;
+  flex: 0 0 320px;
   display: flex;
   flex-direction: column;
+}
+
+.coming-soon {
+  display: grid;
+  min-height: 240px;
+  place-items: center;
+  padding: 20px;
+  color: var(--color-navy-800);
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .layout-container {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .main-content {
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .calendar-area {
+    min-height: 620px;
+    overflow: visible;
+  }
+
+  .feature-area {
+    overflow: visible;
+  }
+
+  .side-panel-wrapper {
+    width: 100%;
+    flex-basis: auto;
+    min-height: 280px;
+  }
+}
+
+@media (max-width: 560px) {
+  .main-content {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .calendar-area {
+    min-height: 560px;
+    padding: 12px;
+  }
 }

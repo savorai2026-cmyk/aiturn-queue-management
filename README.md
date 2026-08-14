@@ -1,75 +1,80 @@
-# React + TypeScript + Vite
+# Featurn
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+מערכת SaaS רב־עסקית לניהול תורים. מנהלי עסקים עובדים דרך ממשק React,
+ולקוחות יקבעו תורים בהמשך דרך סוכן קולי או סוכן WhatsApp.
 
-Currently, two official plugins are available:
+## הרצה מקומית
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+דרישות:
 
-## React Compiler
+- Node.js
+- פרויקט Supabase
+- קובץ `.env` עם `VITE_SUPABASE_URL` ו-`VITE_SUPABASE_ANON_KEY`
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+בדיקות איכות:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm run build
+npm run lint
+npm test
 ```
+
+## מבנה הפרויקט
+
+```text
+src/
+├── features/
+│   ├── appointments/  # תורים, יומן, מיפוי ל-FullCalendar
+│   ├── auth/          # session, כניסה והרשמה
+│   ├── business/      # העסק הפעיל ו-onboarding
+│   ├── clients/       # לקוחות
+│   └── settings/      # הגדרות עסק ושירותים
+├── components/        # רכיבי UI קיימים; מועברים לפיצ'רים בהדרגה
+├── shared/            # hooks ורכיבים שאינם שייכים לדומיין יחיד
+├── types/
+│   └── database.ts    # נוצר אוטומטית מסכמת Supabase
+├── App.tsx            # providers ומעטפת הניווט
+└── supabaseClient.ts  # מופע Supabase יחיד ומטופס
+```
+
+## כללי ארכיטקטורה
+
+כל פיצ'ר מחולק לפי אחריות:
+
+- `*.types.ts` — טיפוסי domain וטיפוסים שמקורם במסד.
+- `*.api.ts` — הגישה היחידה של הפיצ'ר ל-Supabase.
+- `*.mappers.ts` — המרות בין שורות DB למודלים של המסך.
+- `use*.ts` — מצב אסינכרוני, טעינה ורענון.
+- `*.test.ts` — לוגיקה טהורה שניתנת לבדיקה ללא דפדפן.
+
+רכיב React לא אמור לבנות שאילתת Supabase בעצמו. הוא משתמש ב-hook או בפונקציית
+API של הפיצ'ר. כך שינוי במסד אינו מתפזר בין רכיבי UI.
+
+`businessCode` הוא מזהה העסק הפעיל. אין להחליף אותו ב-`user.id`: משתמש ועסק
+הם ישויות שונות, והקשר ביניהם מנוהל בטבלת `business_members`.
+
+## Supabase
+
+ההרשאות מבוססות RLS. גם אם הקוד מסנן לפי `business_code`, האבטחה חייבת
+להישאר במסד הנתונים.
+
+אחרי שינוי בסכמה יש לחדש את הטיפוסים:
+
+```bash
+npx --yes supabase gen types typescript \
+  --project-id <project-ref> > src/types/database.ts
+```
+
+שינויי מסד חדשים נשמרים תחת `supabase/migrations`. אין לשים `service_role`,
+טוקנים של ספקים או סודות אחרים בקוד React או בקובץ שמגיע לדפדפן.
+
+## הערות בקוד
+
+הקוד אמור להסביר מה הוא עושה באמצעות שמות ברורים וטיפוסים. מוסיפים הערה רק
+כאשר צריך להסביר החלטה, מגבלה או סיבה שאינן ברורות מהקוד עצמו. אין להשאיר
+הערות שמתארות שורה באופן מילולי או TODO ללא בעלות ותוכנית.

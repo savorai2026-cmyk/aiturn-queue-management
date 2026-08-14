@@ -1,0 +1,119 @@
+.container {
+  border: 1px solid var(--color-line);
+  background-color: var(--color-surface);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.header {
+  padding: 14px 17px;
+  border-bottom: 3px solid var(--color-teal-500);
+  background: linear-gradient(110deg, var(--color-navy-900), var(--color-navy-700));
+  color: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.content {
+  padding: 20px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.details {
+  margin-bottom: 20px;
+}
+
+.appointmentId {
+  margin-bottom: 12px;
+  color: var(--color-navy-800);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--color-line);
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.fieldLabel {
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 2px;
+}
+
+.fieldValue {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.actionsTitle {
+  font-weight: 600;
+  color: var(--color-text);
+  margin-top: 20px;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.btn {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  border-color: #a8c3cd;
+  background-color: var(--color-surface-muted);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.btn:disabled:hover {
+  border-color: #cbd5e1;
+  background-color: #ffffff;
+}
+
+.btnPrimary {
+  border-color: var(--color-navy-800);
+  background-color: var(--color-navy-800);
+  color: #ffffff;
+}
+
+.btnPrimary:hover {
+  background-color: var(--color-navy-900);
+}
