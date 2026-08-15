@@ -3,6 +3,7 @@ import type {
   BusinessSettings,
   EditableBusinessSettings,
   Service,
+  ServiceInsert,
 } from './settings.types';
 
 export async function getBusinessSettings(
@@ -33,6 +34,20 @@ export async function getServices(businessCode: string): Promise<Service[]> {
     .select('*')
     .eq('business_code', businessCode)
     .order('title', { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+export async function createService(service: ServiceInsert): Promise<Service> {
+  const { data, error } = await supabase
+    .from('services')
+    .insert(service)
+    .select()
+    .single();
 
   if (error) {
     throw new Error(error.message);

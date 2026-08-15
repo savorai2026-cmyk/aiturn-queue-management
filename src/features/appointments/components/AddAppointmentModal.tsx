@@ -1,15 +1,24 @@
-import React, { useState, useEffect } from 'react';
 import {
-  createAppointment,
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react';
+import {
+  createAppointmentWithServices,
   getAppointmentClients,
+  getAppointmentServiceOptions,
+  getAvailableAppointmentSlots,
 } from '../appointments.api';
 import {
   APPOINTMENT_STATUS_LABELS,
   isAppointmentStatus,
 } from '../appointments.mappers';
 import type {
+  AppointmentAvailabilitySlot,
   AppointmentClientOption,
-  AppointmentInsert,
+  AppointmentServiceOption,
   AppointmentStatus,
 } from '../appointments.types';
 import {
@@ -19,66 +28,154 @@ import {
 import styles from './AddAppointmentModal.module.css';
 
 interface AddAppointmentModalProps {
-  isOpen: boolean;
   businessCode: string;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-const CREATABLE_STATUSES: AppointmentStatus[] = ['waiting', 'scheduled'];
+interface AppointmentFormData {
+  client_id: string;
+  appointment_date: string;
+  start_time: string;
+  status: AppointmentStatus;
+  client_notes: string;
+  business_notes: string;
+}
 
-export default function AddAppointmentModal({ isOpen, businessCode, onClose, onSuccess }: AddAppointmentModalProps) {
+const CREATABLE_STATUSES: AppointmentStatus[] = ['waiting', 'scheduled'];
+const ILS_FORMATTER = new Intl.NumberFormat('he-IL', {
+  style: 'currency',
+  currency: 'ILS',
+});
+
+function addMinutesToTime(time: string, minutes: number) {
+  const [hours, minuteValue] = time.split(':').map(Number);
+  const totalMinutes = hours * 60 + minuteValue + minutes;
+
+  if (!Number.isFinite(totalMinutes) || totalMinutes >= 24 * 60) {
+    return null;
+  }
+
+  return `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
+}
+
+function formatTime(time: string) {
+  return time.slice(0, 5);
+}
+
+export default function AddAppointmentModal({
+  businessCode,
+  onClose,
+  onSuccess,
+}: AddAppointmentModalProps) {
   const [clients, setClients] = useState<AppointmentClientOption[]>([]);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [formData, setFormData] = useState({
+  const [services, setServices] = useState<AppointmentServiceOption[]>([]);
+  const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<
+    AppointmentAvailabilitySlot[]
+  >([]);
+  const [formData, setFormData] = useState<AppointmentFormData>({
     client_id: '',
     appointment_date: new Date().toISOString().split('T')[0],
-    start_time: '09:00:00',
-    end_time: '09:30:00',
-    price: 100,
-    currency: 'ILS',
+    start_time: '09:00',
     status: 'waiting',
-    channel: 'manual',
     client_notes: '',
-    business_notes: ''
+    business_notes: '',
   });
+  const [errorMessage, setErrorMessage] = useState('');
+  const [slotMessage, setSlotMessage] = useState('');
+  const [isLoadingOptions, setIsLoadingOptions] = useState(true);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) return;
-
     let isCancelled = false;
 
-    void getAppointmentClients(businessCode)
-      .then((data) => {
+    void Promise.all([
+      getAppointmentClients(businessCode),
+      getAppointmentServiceOptions(businessCode),
+    ])
+      .then(([clientOptions, serviceOptions]) => {
         if (isCancelled) return;
 
-        setClients(data);
-        if (data.length > 0) {
-          setFormData((previous) => ({
-            ...previous,
-            client_id: previous.client_id || String(data[0].id),
-          }));
-        }
+        setClients(clientOptions);
+        setServices(serviceOptions);
+        setFormData((previous) => ({
+          ...previous,
+          client_id: previous.client_id || String(clientOptions[0]?.id ?? ''),
+        }));
       })
       .catch((error: unknown) => {
         if (isCancelled) return;
 
         console.error(
-          'שגיאה בשליפת לקוחות למודל תור:',
+          'שגיאה בטעינת אפשרויות התור:',
           getErrorMessage(error),
         );
-        setErrorMessage('לא ניתן לטעון את רשימת הלקוחות.');
+        setErrorMessage('לא ניתן לטעון את הלקוחות והשירותים.');
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoadingOptions(false);
+        }
       });
 
     return () => {
       isCancelled = true;
     };
-  }, [isOpen, businessCode]);
+  }, [businessCode]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !isSaving) {
+        onClose();
+      }
+    };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSaving, onClose]);
+
+  const selectedServices = useMemo(
+    () =>
+      selectedServiceIds
+        .map((serviceId) =>
+          services.find((service) => service.id === serviceId),
+        )
+        .filter(
+          (service): service is AppointmentServiceOption =>
+            service !== undefined,
+        ),
+    [selectedServiceIds, services],
+  );
+
+  const totalDurationMinutes = selectedServices.reduce(
+    (total, service) =>
+      total +
+      service.duration_minutes +
+      (service.buffer_time_minutes ?? 0),
+    0,
+  );
+  const totalPrice = selectedServices.reduce(
+    (total, service) => total + service.price,
+    0,
+  );
+  const calculatedEndTime = addMinutesToTime(
+    formData.start_time,
+    totalDurationMinutes,
+  );
+
+  const clearSlotSuggestions = () => {
+    setAvailableSlots([]);
+    setSlotMessage('');
+  };
+
+  const handleChange = (
+    event: ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >,
+  ) => {
+    const { name, value } = event.target;
 
     if (name === 'status') {
       if (!isAppointmentStatus(value)) return;
@@ -86,44 +183,126 @@ export default function AddAppointmentModal({ isOpen, businessCode, onClose, onS
       return;
     }
 
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((previous) => ({ ...previous, [name]: value }));
+
+    if (name === 'appointment_date' || name === 'start_time') {
+      clearSlotSuggestions();
+    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage('');
+  const toggleService = (serviceId: number) => {
+    setSelectedServiceIds((previous) =>
+      previous.includes(serviceId)
+        ? previous.filter((id) => id !== serviceId)
+        : [...previous, serviceId],
+    );
+    clearSlotSuggestions();
+  };
 
-    if (formData.end_time <= formData.start_time) {
-      setErrorMessage('שעת הסיום חייבת להיות מאוחרת משעת ההתחלה.');
+  const loadAvailableSlots = async () => {
+    if (selectedServiceIds.length === 0) {
+      setSlotMessage('בחר לפחות שירות אחד כדי לחפש זמנים פנויים.');
       return;
     }
 
-    const payload: AppointmentInsert = {
-      ...formData,
-      business_code: businessCode,
-      client_id: Number(formData.client_id),
-      price: Number(formData.price),
-      metadata: {}
-    };
+    setIsLoadingSlots(true);
+    setSlotMessage('');
 
     try {
-      await createAppointment(payload);
-      onSuccess();
-      onClose();
-    } catch (error) {
-      console.error('שגיאה ביצירת תור:', getErrorMessage(error));
-      setErrorMessage(
-        errorIncludes(error, 'prevent_overlapping_appointments')
-          ? 'כבר קיים תור בטווח השעות שנבחר.'
-          : 'לא ניתן ליצור את התור. בדוק את הפרטים ונסה שוב.',
+      const slots = await getAvailableAppointmentSlots({
+        businessCode,
+        appointmentDate: formData.appointment_date,
+        serviceIds: selectedServiceIds,
+      });
+      setAvailableSlots(slots);
+      setSlotMessage(
+        slots.length === 0
+          ? 'לא נמצאו זמנים פנויים ביום שנבחר.'
+          : 'בחר זמן פנוי מהרשימה:',
       );
+    } catch (error) {
+      console.error('שגיאה בחיפוש זמנים פנויים:', getErrorMessage(error));
+      setSlotMessage('לא ניתן לחשב זמנים פנויים כרגע.');
+    } finally {
+      setIsLoadingSlots(false);
     }
   };
 
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setErrorMessage('');
+
+    if (!formData.client_id) {
+      setErrorMessage('יש לבחור לקוח לפני יצירת התור.');
+      return;
+    }
+
+    if (selectedServiceIds.length === 0) {
+      setErrorMessage('יש לבחור לפחות שירות אחד.');
+      return;
+    }
+
+    if (!calculatedEndTime) {
+      setErrorMessage('השירותים שנבחרו חורגים מסוף היום.');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      await createAppointmentWithServices({
+        businessCode,
+        clientId: Number(formData.client_id),
+        appointmentDate: formData.appointment_date,
+        startTime: formData.start_time,
+        serviceIds: selectedServiceIds,
+        status: formData.status,
+        clientNotes: formData.client_notes,
+        businessNotes: formData.business_notes,
+      });
+      onSuccess();
+    } catch (error) {
+      console.error('שגיאה ביצירת תור:', getErrorMessage(error));
+
+      if (errorIncludes(error, 'prevent_overlapping_appointments')) {
+        setErrorMessage(
+          'הזמן שנבחר מתנגש בתור קיים. מוצגים זמנים פנויים חלופיים.',
+        );
+        await loadAvailableSlots();
+      } else {
+        setErrorMessage(
+          'לא ניתן ליצור את התור. בדוק את הפרטים ונסה שוב.',
+        );
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const canSubmit =
+    !isLoadingOptions &&
+    !isSaving &&
+    clients.length > 0 &&
+    selectedServiceIds.length > 0;
+
   return (
-    <div className={styles.overlay}>
-      <div className={styles.content}>
-        <h2 className={styles.title}>קביעת תור חדש</h2>
+    <div
+      className={styles.overlay}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !isSaving) {
+          onClose();
+        }
+      }}
+    >
+      <section
+        className={styles.content}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-appointment-title"
+      >
+        <h2 id="add-appointment-title" className={styles.title}>
+          קביעת תור חדש
+        </h2>
 
         {errorMessage && (
           <div role="alert" className={styles.error}>
@@ -131,106 +310,239 @@ export default function AddAppointmentModal({ isOpen, businessCode, onClose, onS
           </div>
         )}
 
+        {clients.length === 0 && !isLoadingOptions && (
+          <div className={styles.notice}>
+            אין לקוחות בעסק. יש ליצור לקוח לפני קביעת תור.
+          </div>
+        )}
+
+        {services.length === 0 && !isLoadingOptions && (
+          <div className={styles.notice}>
+            אין שירותים פעילים. יש להוסיף שירות במסך ההגדרות.
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           <div className={styles.formGroup}>
-            <label>בחר לקוח *</label>
-            <select 
-              name="client_id" 
+            <label htmlFor="appointment-client">בחר לקוח *</label>
+            <select
+              id="appointment-client"
+              name="client_id"
               required
-              value={formData.client_id} 
+              value={formData.client_id}
+              onChange={handleChange}
+              className={styles.select}
+              disabled={isLoadingOptions || clients.length === 0}
+            >
+              <option value="">בחר לקוח</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.full_name || 'ללא שם'} ({client.mobile_phone})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <fieldset className={styles.servicesFieldset}>
+            <legend>טיפולים ושירותים *</legend>
+            <div className={styles.serviceList}>
+              {services.map((service) => {
+                const isSelected = selectedServiceIds.includes(service.id);
+                const occupiedMinutes =
+                  service.duration_minutes +
+                  (service.buffer_time_minutes ?? 0);
+
+                return (
+                  <label
+                    key={service.id}
+                    className={`${styles.serviceOption} ${isSelected ? styles.serviceOptionSelected : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleService(service.id)}
+                    />
+                    <span className={styles.serviceInfo}>
+                      <strong>{service.title}</strong>
+                      <span>
+                        {occupiedMinutes} דקות ·{' '}
+                        {ILS_FORMATTER.format(service.price)}
+                      </span>
+                      {service.description && (
+                        <small>{service.description}</small>
+                      )}
+                    </span>
+                    <span
+                      className={styles.serviceColor}
+                      style={{
+                        backgroundColor: service.color_code || '#0d9488',
+                      }}
+                      aria-hidden="true"
+                    />
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          {selectedServices.length > 0 && (
+            <div className={styles.summary} aria-live="polite">
+              <span>
+                <strong>{selectedServices.length}</strong> שירותים
+              </span>
+              <span>
+                משך כולל: <strong>{totalDurationMinutes} דקות</strong>
+              </span>
+              <span>
+                מחיר כולל:{' '}
+                <strong>{ILS_FORMATTER.format(totalPrice)}</strong>
+              </span>
+            </div>
+          )}
+
+          <div className={styles.formRow}>
+            <div className={styles.formGroup}>
+              <label htmlFor="appointment-date">תאריך התור *</label>
+              <input
+                id="appointment-date"
+                type="date"
+                name="appointment_date"
+                required
+                value={formData.appointment_date}
+                onChange={handleChange}
+                className={styles.input}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label htmlFor="appointment-start">שעת התחלה *</label>
+              <input
+                id="appointment-start"
+                type="time"
+                name="start_time"
+                required
+                value={formData.start_time}
+                onChange={handleChange}
+                className={styles.input}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label htmlFor="appointment-end">שעת סיום</label>
+              <input
+                id="appointment-end"
+                type="time"
+                value={calculatedEndTime ?? ''}
+                className={styles.input}
+                readOnly
+              />
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className={styles.availabilityButton}
+            onClick={() => void loadAvailableSlots()}
+            disabled={
+              isLoadingSlots ||
+              selectedServiceIds.length === 0 ||
+              !formData.appointment_date
+            }
+          >
+            {isLoadingSlots ? 'מחפש...' : 'מצא זמנים פנויים'}
+          </button>
+
+          {(slotMessage || availableSlots.length > 0) && (
+            <div className={styles.availabilityResults} aria-live="polite">
+              {slotMessage && <p>{slotMessage}</p>}
+              <div className={styles.slotList}>
+                {availableSlots.map((slot) => (
+                  <button
+                    key={`${slot.startTime}-${slot.endTime}`}
+                    type="button"
+                    className={styles.slotButton}
+                    onClick={() => {
+                      setFormData((previous) => ({
+                        ...previous,
+                        start_time: formatTime(slot.startTime),
+                      }));
+                      setAvailableSlots([]);
+                      setSlotMessage(
+                        `נבחרה השעה ${formatTime(slot.startTime)}–${formatTime(slot.endTime)}.`,
+                      );
+                    }}
+                  >
+                    {formatTime(slot.startTime)}–{formatTime(slot.endTime)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className={styles.formGroup}>
+            <label htmlFor="appointment-status">סטטוס</label>
+            <select
+              id="appointment-status"
+              name="status"
+              value={formData.status}
               onChange={handleChange}
               className={styles.select}
             >
-              {clients.map(client => (
-                <option key={client.id} value={client.id}>
-                  {client.full_name} ({client.mobile_phone})
+              {CREATABLE_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {APPOINTMENT_STATUS_LABELS[status]}
                 </option>
               ))}
             </select>
           </div>
 
           <div className={styles.formGroup}>
-            <label>תאריך התור *</label>
-            <input 
-              type="date" 
-              name="appointment_date" 
-              required
-              value={formData.appointment_date} 
+            <label htmlFor="appointment-client-notes">הערות הלקוח</label>
+            <textarea
+              id="appointment-client-notes"
+              name="client_notes"
+              value={formData.client_notes}
               onChange={handleChange}
-              className={styles.input}
+              className={styles.textarea}
+              rows={2}
+              placeholder="בקשות או מידע שהלקוח מסר"
             />
           </div>
 
-          <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label>שעת התחלה *</label>
-              <input 
-                type="time" 
-                name="start_time" 
-                required
-                value={formData.start_time} 
-                onChange={handleChange}
-                className={styles.input}
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>שעת סיום *</label>
-              <input 
-                type="time" 
-                name="end_time" 
-                required
-                value={formData.end_time} 
-                onChange={handleChange}
-                className={styles.input}
-              />
-            </div>
-          </div>
-
-          <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label>מחיר (ILS)</label>
-              <input 
-                type="number" 
-                name="price" 
-                value={formData.price} 
-                onChange={handleChange}
-                className={styles.input}
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>סטטוס</label>
-              <select 
-                name="status" 
-                value={formData.status} 
-                onChange={handleChange}
-                className={styles.select}
-              >
-                {CREATABLE_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {APPOINTMENT_STATUS_LABELS[status]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
           <div className={styles.formGroup}>
-            <label>הערות לקוח</label>
-            <input 
-              type="text" 
-              name="client_notes" 
-              value={formData.client_notes} 
+            <label htmlFor="appointment-business-notes">
+              הערות פנימיות לעסק
+            </label>
+            <textarea
+              id="appointment-business-notes"
+              name="business_notes"
+              value={formData.business_notes}
               onChange={handleChange}
-              className={styles.input}
+              className={styles.textarea}
+              rows={2}
+              placeholder="הערות שאינן מוצגות ללקוח"
             />
           </div>
 
           <div className={styles.actions}>
-            <button type="button" className={styles.btnCancel} onClick={onClose}>ביטול</button>
-            <button type="submit" className={styles.btnSave}>צור תור</button>
+            <button
+              type="button"
+              className={styles.btnCancel}
+              onClick={onClose}
+              disabled={isSaving}
+            >
+              ביטול
+            </button>
+            <button
+              type="submit"
+              className={styles.btnSave}
+              disabled={!canSubmit}
+            >
+              {isSaving ? 'יוצר תור...' : 'צור תור'}
+            </button>
           </div>
         </form>
-      </div>
+      </section>
     </div>
   );
 }

@@ -93,6 +93,64 @@ export type Database = {
           },
         ]
       }
+      appointment_services: {
+        Row: {
+          appointment_id: number
+          buffer_time_minutes: number
+          business_code: string
+          created_at: string
+          duration_minutes: number
+          position: number
+          price: number
+          service_id: number
+          title_snapshot: string
+        }
+        Insert: {
+          appointment_id: number
+          buffer_time_minutes?: number
+          business_code: string
+          created_at?: string
+          duration_minutes: number
+          position: number
+          price: number
+          service_id: number
+          title_snapshot: string
+        }
+        Update: {
+          appointment_id?: number
+          buffer_time_minutes?: number
+          business_code?: string
+          created_at?: string
+          duration_minutes?: number
+          position?: number
+          price?: number
+          service_id?: number
+          title_snapshot?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_services_business_code_appointment_id_fkey"
+            columns: ["business_code", "appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["business_code", "id"]
+          },
+          {
+            foreignKeyName: "appointment_services_business_code_fkey"
+            columns: ["business_code"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["business_code"]
+          },
+          {
+            foreignKeyName: "appointment_services_business_code_service_id_fkey"
+            columns: ["business_code", "service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["business_code", "id"]
+          },
+        ]
+      }
       business_members: {
         Row: {
           business_code: string
@@ -339,6 +397,38 @@ export type Database = {
       create_business: {
         Args: { p_business_name: string; p_contact_phone?: string }
         Returns: string
+      }
+      create_appointment_with_services: {
+        Args: {
+          p_appointment_date: string
+          p_business_code: string
+          p_business_notes?: string
+          p_channel?: string
+          p_client_id: number
+          p_client_notes?: string
+          p_currency?: string
+          p_service_ids: number[]
+          p_start_time: string
+          p_status?: string
+        }
+        Returns: {
+          appointment_id: number
+          end_time: string
+          total_duration_minutes: number
+          total_price: number
+        }[]
+      }
+      get_available_appointment_slots: {
+        Args: {
+          p_appointment_date: string
+          p_business_code: string
+          p_limit?: number
+          p_service_ids: number[]
+        }
+        Returns: {
+          end_time: string
+          start_time: string
+        }[]
       }
     }
     Enums: {

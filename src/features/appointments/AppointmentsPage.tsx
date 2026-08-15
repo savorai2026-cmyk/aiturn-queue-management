@@ -71,15 +71,16 @@ export default function AppointmentsPage({
         />
       </main>
 
-      <AddAppointmentModal
-        isOpen={isAddModalOpen}
-        businessCode={businessCode}
-        onClose={() => setIsAddModalOpen(false)}
-        onSuccess={() => {
-          setIsAddModalOpen(false);
-          refreshCalendar();
-        }}
-      />
+      {isAddModalOpen && (
+        <AddAppointmentModal
+          businessCode={businessCode}
+          onClose={() => setIsAddModalOpen(false)}
+          onSuccess={() => {
+            setIsAddModalOpen(false);
+            refreshCalendar();
+          }}
+        />
+      )}
     </>
   );
 }

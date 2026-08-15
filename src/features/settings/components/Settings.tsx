@@ -10,6 +10,7 @@ import {
   ErrorState,
   LoadingState,
 } from '../../../shared/components/PageState';
+import AddServiceModal from './AddServiceModal';
 import styles from './Settings.module.css';
 
 interface SettingsProps {
@@ -67,7 +68,11 @@ export default function Settings({
             onSaved={onBusinessUpdated}
           />
         ) : activeTab === 'services' ? (
-          <ServicesTable services={services} />
+          <ServicesTable
+            businessCode={businessCode}
+            services={services}
+            onServicesChanged={refresh}
+          />
         ) : (
           <div>טוען נתונים...</div>
         )}
@@ -198,13 +203,23 @@ function BusinessSettingsForm({
   );
 }
 
-function ServicesTable({ services }: { services: Service[] }) {
+function ServicesTable({
+  businessCode,
+  services,
+  onServicesChanged,
+}: {
+  businessCode: string;
+  services: Service[];
+  onServicesChanged: () => void;
+}) {
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
   return (
     <div>
       <button
+        type="button"
         className={`${styles.btnPrimary} ${styles.addServiceButton}`}
-        disabled
-        title="בפיתוח"
+        onClick={() => setIsAddModalOpen(true)}
       >
         + הוסף שירות חדש
       </button>
@@ -251,6 +266,17 @@ function ServicesTable({ services }: { services: Service[] }) {
           )}
         </tbody>
       </table>
+
+      {isAddModalOpen && (
+        <AddServiceModal
+          businessCode={businessCode}
+          onClose={() => setIsAddModalOpen(false)}
+          onSuccess={() => {
+            onServicesChanged();
+            setIsAddModalOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
