@@ -1,13 +1,10 @@
 import { supabase } from '../../supabaseClient';
 import type {
   AppointmentClientOption,
-  AppointmentAvailabilitySlot,
-  AppointmentInsert,
   AppointmentServiceOption,
   AppointmentUpdate,
   AppointmentWithClient,
-  CreateAppointmentRequest,
-  CreatedAppointment,
+  BusinessCalendarSettings,
 } from './appointments.types';
 
 export async function getAppointmentClients(
@@ -61,6 +58,17 @@ export async function getAppointments(
       clients (
         full_name,
         mobile_phone
+      ),
+      appointment_services (
+        appointment_id,
+        service_id,
+        business_code,
+        position,
+        title_snapshot,
+        duration_minutes,
+        buffer_time_minutes,
+        price,
+        created_at
       )
     `)
     .eq('business_code', businessCode)
@@ -71,86 +79,30 @@ export async function getAppointments(
     throw new Error(error.message);
   }
 
-  return data;
+  return data.map((appointment) => ({
+    ...appointment,
+    appointment_services: appointment.appointment_services ?? [],
+  }));
 }
 
-export async function createAppointment(
-  appointment: AppointmentInsert,
-): Promise<void> {
-  const { error } = await supabase
-    .from('appointments')
-    .insert(appointment);
+export async function getBusinessCalendarSettings(
+  businessCode: string,
+): Promise<BusinessCalendarSettings> {
+  const { data, error } = await supabase
+    .from('businesses')
+    .select('working_hours, slot_duration_minutes, timezone')
+    .eq('business_code', businessCode)
+    .single();
 
   if (error) {
     throw new Error(error.message);
-  }
-}
-
-export async function createAppointmentWithServices(
-  request: CreateAppointmentRequest,
-): Promise<CreatedAppointment> {
-  const { data, error } = await supabase.rpc(
-    'create_appointment_with_services',
-    {
-      p_business_code: request.businessCode,
-      p_client_id: request.clientId,
-      p_appointment_date: request.appointmentDate,
-      p_start_time: request.startTime,
-      p_service_ids: request.serviceIds,
-      p_status: request.status,
-      p_channel: 'manual',
-      p_currency: 'ILS',
-      p_client_notes: request.clientNotes.trim() || undefined,
-      p_business_notes: request.businessNotes.trim() || undefined,
-    },
-  );
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  const result = data?.[0];
-  if (!result) {
-    throw new Error('Appointment creation returned no result');
   }
 
   return {
-    appointmentId: result.appointment_id,
-    endTime: result.end_time,
-    totalDurationMinutes: result.total_duration_minutes,
-    totalPrice: result.total_price,
+    workingHours: data.working_hours,
+    slotDurationMinutes: data.slot_duration_minutes,
+    timezone: data.timezone,
   };
-}
-
-export async function getAvailableAppointmentSlots({
-  businessCode,
-  appointmentDate,
-  serviceIds,
-  limit = 8,
-}: {
-  businessCode: string;
-  appointmentDate: string;
-  serviceIds: number[];
-  limit?: number;
-}): Promise<AppointmentAvailabilitySlot[]> {
-  const { data, error } = await supabase.rpc(
-    'get_available_appointment_slots',
-    {
-      p_business_code: businessCode,
-      p_appointment_date: appointmentDate,
-      p_service_ids: serviceIds,
-      p_limit: limit,
-    },
-  );
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data.map((slot) => ({
-    startTime: slot.start_time,
-    endTime: slot.end_time,
-  }));
 }
 
 export async function updateAppointment(
@@ -166,5 +118,24 @@ export async function updateAppointment(
 
   if (error) {
     throw new Error(error.message);
+  }
+}
+
+export async function updateAppointmentServicePrices(
+  businessCode: string,
+  appointmentId: number,
+  servicePrices: Array<{ serviceId: number; price: number }>,
+): Promise<void> {
+  for (const service of servicePrices) {
+    const { error } = await supabase
+      .from('appointment_services')
+      .update({ price: Number.isFinite(service.price) ? service.price : 0 })
+      .eq('business_code', businessCode)
+      .eq('appointment_id', appointmentId)
+      .eq('service_id', service.serviceId);
+
+    if (error) {
+      throw new Error(error.message);
+    }
   }
 }

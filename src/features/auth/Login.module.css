@@ -104,6 +104,20 @@
   font-size: 12px;
   cursor: pointer;
   transform: translateY(-50%);
+  box-shadow: none;
+}
+
+.passwordToggle:hover:not(:disabled),
+.passwordToggle:active:not(:disabled) {
+  box-shadow: none;
+}
+
+.passwordToggle:hover:not(:disabled) {
+  transform: translateY(calc(-50% - 2px));
+}
+
+.passwordToggle:active:not(:disabled) {
+  transform: translateY(calc(-50% + 1px));
 }
 
 .primaryButton,
@@ -150,6 +164,12 @@
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+  box-shadow: none;
+}
+
+.modeSwitch button:hover:not(:disabled),
+.modeSwitch button:active:not(:disabled) {
+  box-shadow: none;
 }
 
 .divider {

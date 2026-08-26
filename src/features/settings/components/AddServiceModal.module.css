@@ -88,6 +88,38 @@
   gap: 8px;
 }
 
+.swatchRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.swatch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid rgba(7, 63, 103, 0.12);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.swatch:hover:not(:disabled),
+.swatch:active:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+
+.swatchSelected {
+  border-color: var(--color-navy-900);
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-navy-900);
+}
+
+.swatchSelected:hover:not(:disabled),
+.swatchSelected:active:not(:disabled) {
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-navy-900);
+}
+
 .colorInput input[type='color'] {
   width: 46px;
   height: 38px;

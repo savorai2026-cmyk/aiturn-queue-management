@@ -39,18 +39,24 @@
   cursor: pointer;
   font-weight: 600;
   font-size: 14px;
-  transition: background-color 0.18s ease, transform 0.18s ease;
 }
 
 .navBtn:hover {
   background: rgba(255, 255, 255, 0.18);
-  transform: translateY(-1px);
 }
 
 .activeNavBtn {
   border-color: transparent;
   background: var(--color-teal-500);
-  box-shadow: 0 4px 12px rgba(8, 84, 79, 0.22);
+  transform: translateY(1px);
+  box-shadow: var(--shadow-button-press);
+}
+
+.activeNavBtn:hover,
+.activeNavBtn:active {
+  background: var(--color-teal-500);
+  transform: translateY(1px);
+  box-shadow: var(--shadow-button-press);
 }
 
 .greeting {
@@ -78,7 +84,6 @@
   cursor: pointer;
   font-weight: 500;
   font-size: 13px;
-  transition: background-color 0.2s ease;
 }
 
 .logoutBtn:hover {

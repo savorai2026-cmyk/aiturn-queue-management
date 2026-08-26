@@ -18,7 +18,6 @@ const NAV_ITEMS: Array<{ tab: AppTab; label: string }> = [
   { tab: 'settings', label: 'הגדרות' },
   { tab: 'calendar', label: 'יומן חי' },
   { tab: 'clients', label: 'ניהול לקוחות' },
-  { tab: 'modmed', label: 'מודמד' },
 ];
 
 export default function TopBar({
@@ -42,6 +41,7 @@ export default function TopBar({
           <button
             key={tab}
             className={`${styles.navBtn} ${activeTab === tab ? styles.activeNavBtn : ''}`}
+            aria-current={activeTab === tab ? 'page' : undefined}
             onClick={() => onTabChange(tab)}
           >
             {label}

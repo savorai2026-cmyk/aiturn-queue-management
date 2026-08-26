@@ -17,9 +17,17 @@
 
 .tabs {
   display: flex;
-  gap: 20px;
+  align-items: center;
+  gap: 16px;
   margin-bottom: 20px;
   border-bottom: 1px solid var(--color-line);
+}
+
+.tabDivider {
+  width: 1px;
+  height: 18px;
+  flex: 0 0 1px;
+  background: #c5d4d9;
 }
 
 .tabBtn {
@@ -39,6 +47,12 @@
   color: var(--color-navy-800);
 }
 
+.tabBtn:hover:not(:disabled),
+.tabBtn:active:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+
 .activeTab {
   color: var(--color-navy-900);
   border-bottom: 2px solid var(--color-teal-500);
@@ -50,6 +64,7 @@
   background-color: var(--color-surface);
   padding: 24px;
   flex: 1;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
@@ -106,6 +121,9 @@
 }
 
 .btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background-color: var(--color-teal-600);
   color: #ffffff;
   border: none;
@@ -115,7 +133,6 @@
   font-weight: 500;
   font-size: 14px;
   margin-top: 20px;
-  transition: background-color 0.2s ease;
 }
 
 .btnPrimary:hover {
@@ -129,6 +146,37 @@
 
 .addServiceButton {
   margin-top: 0;
+  margin-bottom: 0;
+}
+
+.toolbarActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.actionError {
+  width: fit-content;
+  margin: 0 0 16px;
+  padding: 9px 12px;
+  border-radius: 7px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 14px;
+}
+
+.sectionToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 20px;
 }
 
@@ -152,26 +200,8 @@
   border-radius: 50%;
 }
 
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: right;
-  font-size: 14px;
-}
-
-.table th, .table td {
-  padding: 12px;
-  border-bottom: 1px solid var(--color-line);
-}
-
-.table th {
-  background: var(--color-navy-800);
-  color: #ffffff;
-  font-weight: 600;
-}
-
-.table tbody tr:hover {
-  background: rgba(20, 184, 166, 0.06);
+.table td {
+  white-space: nowrap;
 }
 
 @media (max-width: 700px) {

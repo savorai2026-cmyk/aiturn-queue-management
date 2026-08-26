@@ -1,4 +1,5 @@
 import type {
+  Json,
   Tables,
   TablesInsert,
   TablesUpdate,
@@ -27,41 +28,23 @@ export type AppointmentServiceOption = Pick<
   | 'color_code'
 >;
 
-export interface CreateAppointmentRequest {
-  businessCode: string;
-  clientId: number;
-  appointmentDate: string;
-  startTime: string;
-  serviceIds: number[];
-  status: AppointmentStatus;
-  clientNotes: string;
-  businessNotes: string;
-}
-
-export interface CreatedAppointment {
-  appointmentId: number;
-  endTime: string;
-  totalDurationMinutes: number;
-  totalPrice: number;
-}
-
-export interface AppointmentAvailabilitySlot {
-  startTime: string;
-  endTime: string;
-}
-
-export const APPOINTMENT_STATUSES = [
-  'waiting',
-  'scheduled',
-  'canceled',
-  'completed',
-  'no_show',
-] as const;
-
-export type AppointmentStatus = (typeof APPOINTMENT_STATUSES)[number];
+export type AppointmentStatus = string;
 
 export interface AppointmentWithClient extends AppointmentRow {
   clients: ClientSummary | null;
+  appointment_services: AppointmentServiceRow[] | null;
+}
+
+export interface TimedAppointmentService {
+  serviceId: number;
+  title: string;
+  durationMinutes: number;
+  bufferMinutes: number;
+  price: number;
+  startTime: string;
+  endTime: string;
+  position: number;
+  colorCode: string | null;
 }
 
 export interface AppointmentDetails extends AppointmentRow {
@@ -69,6 +52,7 @@ export interface AppointmentDetails extends AppointmentRow {
   clientPhone: string | null;
   time: string;
   notes: string | null;
+  services: TimedAppointmentService[];
 }
 
 export interface AppointmentEditValues {
@@ -76,6 +60,43 @@ export interface AppointmentEditValues {
   start_time: string;
   end_time: string;
   status: AppointmentStatus;
+  price: number;
   client_notes: string;
   business_notes: string;
+  servicePrices: Array<{ serviceId: number; price: number }>;
+}
+
+export interface BusinessCalendarSettings {
+  workingHours: Json | null;
+  slotDurationMinutes: number | null;
+  timezone: string | null;
+}
+
+export interface CalendarEventProps {
+  appointmentId: number;
+  serviceId: number;
+  clientId: number;
+  clientPhone: string | null;
+  status: string;
+  groupRole: 'single' | 'start' | 'middle' | 'end';
+}
+
+export interface BookAppointmentPayload {
+  businessCode: string;
+  clientName: string;
+  clientPhone: string;
+  appointmentTime: string;
+  services: Array<{
+    serviceId: number;
+    duration: number;
+    price: number;
+  }>;
+  status: AppointmentStatus;
+  clientNotes: string;
+  businessNotes: string;
+}
+
+export interface SchedulerSlot {
+  startTime: string;
+  endTime: string;
 }

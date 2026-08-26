@@ -19,6 +19,17 @@ export interface ClientFormValues {
   street: string;
   building_number: string;
   apartment_number: string;
+  entrance: string;
+  floor: string;
+  zip_code: string;
+  po_box: string;
+  language: string;
+  birth_date_gregorian: string;
+  birth_date_hebrew: string;
+  landline_phone: string;
+  whatsapp_number: string;
+  acquisition_source: string;
+  preferred_channel: string;
 }
 
 export type ClientColumnKey = keyof Client;

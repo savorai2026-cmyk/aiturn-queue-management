@@ -75,7 +75,10 @@ function AuthenticatedApp({ userEmail, onLogout }: AuthenticatedAppProps) {
       
       <div className="main-content">
         {activeTab === 'calendar' && (
-          <AppointmentsPage businessCode={activeBusiness.businessCode} />
+          <AppointmentsPage
+            key={activeBusiness.businessCode}
+            businessCode={activeBusiness.businessCode}
+          />
         )}
 
         {activeTab === 'clients' && (
@@ -93,14 +96,6 @@ function AuthenticatedApp({ userEmail, onLogout }: AuthenticatedAppProps) {
               businessCode={activeBusiness.businessCode}
               onBusinessUpdated={refreshBusinesses}
             />
-          </main>
-        )}
-
-        {activeTab === 'modmed' && (
-          <main className="feature-area">
-            <div className="coming-soon">
-              מסך מודמד (בפיתוח...)
-            </div>
           </main>
         )}
       </div>

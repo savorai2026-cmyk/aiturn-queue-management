@@ -10,8 +10,12 @@
   --color-line: #dce7eb;
   --color-text: #132a3a;
   --color-text-muted: #607482;
+  --color-table-odd: #ffffff;
+  --color-table-even: #e7f1f4;
   --shadow-card: 0 5px 18px rgba(7, 63, 103, 0.1);
   --shadow-floating: 0 16px 45px rgba(7, 48, 75, 0.18);
+  --shadow-button-hover: 0 8px 16px -4px rgba(7, 63, 103, 0.28);
+  --shadow-button-press: inset 0 3px 7px rgba(7, 48, 75, 0.32), inset 0 1px 1px rgba(7, 48, 75, 0.16);
   --radius-card: 10px;
   font-synthesis: none;
 }
@@ -43,7 +47,87 @@ textarea {
   font: inherit;
 }
 
-button:focus-visible,
+button {
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  cursor: pointer;
+  transform: translateY(0);
+  box-shadow: none;
+  transition-property: transform, box-shadow, background-color, border-color, filter, opacity, color;
+  transition-duration: 0.16s;
+  transition-timing-function: ease;
+}
+
+button::-moz-focus-inner {
+  border: 0;
+  padding: 0;
+}
+
+button:focus,
+button:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+button:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-button-hover);
+}
+
+button:not(:disabled):hover:focus {
+  box-shadow: var(--shadow-button-hover);
+}
+
+button:not(:disabled):active {
+  transform: translateY(1px);
+  box-shadow: var(--shadow-button-press);
+}
+
+button:not(:disabled):active:focus {
+  box-shadow: var(--shadow-button-press);
+}
+
+button[aria-current='page']:not(:disabled),
+button[aria-pressed='true']:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: var(--shadow-button-press);
+}
+
+button[aria-current='page']:not(:disabled):hover,
+button[aria-current='page']:not(:disabled):hover:focus,
+button[aria-current='page']:not(:disabled):active,
+button[aria-current='page']:not(:disabled):active:focus,
+button[aria-pressed='true']:not(:disabled):hover,
+button[aria-pressed='true']:not(:disabled):hover:focus,
+button[aria-pressed='true']:not(:disabled):active,
+button[aria-pressed='true']:not(:disabled):active:focus {
+  transform: translateY(1px);
+  box-shadow: var(--shadow-button-press);
+}
+
+button:disabled {
+  transform: none;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
+
+  button:not(:disabled):hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  button:not(:disabled):active,
+  button[aria-current='page']:not(:disabled),
+  button[aria-pressed='true']:not(:disabled) {
+    transform: none;
+    box-shadow: var(--shadow-button-press);
+  }
+}
+
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
@@ -130,6 +214,8 @@ textarea:focus-visible {
 .calendar-area {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
   background-color: var(--color-surface);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-card);
@@ -138,10 +224,67 @@ textarea:focus-visible {
   overflow-y: auto;
 }
 
+.calendar-stage {
+  flex: 1;
+  min-height: 0;
+}
+
+.appointments-action-error {
+  flex: 0 0 auto;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 7px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-weight: 600;
+}
+
 .feature-area {
   min-width: 0;
   flex: 1;
   overflow-y: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: right;
+  font-size: 14px;
+}
+
+.data-table th,
+.data-table td {
+  padding: 11px 14px;
+  border: 1px solid rgba(7, 63, 103, 0.1);
+  vertical-align: middle;
+}
+
+.data-table th {
+  background: var(--color-navy-800);
+  color: #ffffff;
+  font-weight: 600;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.data-table tbody tr:nth-child(odd) td {
+  background: var(--color-table-odd);
+}
+
+.data-table tbody tr:nth-child(even) td {
+  background: var(--color-table-even);
+}
+
+.data-table tbody tr {
+  cursor: pointer;
+}
+
+.data-table tbody tr:hover td {
+  background: rgba(20, 184, 166, 0.1);
+}
+
+.data-table tbody tr.is-selected td,
+.data-table tbody tr.is-selected:hover td {
+  background: rgba(20, 184, 166, 0.18);
 }
 
 .side-panel-wrapper {

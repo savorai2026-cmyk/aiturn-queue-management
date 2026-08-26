@@ -1,0 +1,5 @@
+# Edge Functions used as a CORS-safe proxy to the external scheduler.
+project_id = "pcslxlckklfmkaskkbry"
+
+[functions.scheduler]
+verify_jwt = true

@@ -1,6 +1,15 @@
 import { useState, type ChangeEvent } from 'react';
-import { updateBusinessSettings } from '../settings.api';
+import { deleteStatus, updateBusinessSettings } from '../settings.api';
+import { getErrorMessage } from '../../../shared/errors';
+import {
+  formatServiceCell,
+  formatStatusCell,
+  toBusinessDetailRows,
+  toServiceDetailRows,
+  toStatusDetailRows,
+} from '../settings.mappers';
 import type {
+  AppointmentStatusRow,
   BusinessSettings,
   EditableBusinessSettings,
   Service,
@@ -10,8 +19,24 @@ import {
   ErrorState,
   LoadingState,
 } from '../../../shared/components/PageState';
+import DisplayToolbar from '../../../shared/displayFields/DisplayToolbar';
+import RecordDetailsModal from '../../../shared/displayFields/RecordDetailsModal';
+import {
+  BUSINESS_FIELDS,
+  SERVICE_FIELDS,
+  STATUS_FIELDS,
+} from '../../../shared/displayFields/catalogs';
+import { useUiPreferences } from '../../../shared/displayFields/useUiPreferences';
+import IconButton, {
+  PencilIcon,
+  PlusIcon,
+  TrashIcon,
+} from '../../../shared/components/IconButton';
 import AddServiceModal from './AddServiceModal';
+import StatusModal from './StatusModal';
 import styles from './Settings.module.css';
+
+type SettingsTab = 'business' | 'services' | 'statuses';
 
 interface SettingsProps {
   businessCode: string;
@@ -22,9 +47,10 @@ export default function Settings({
   businessCode,
   onBusinessUpdated,
 }: SettingsProps) {
-  const [activeTab, setActiveTab] = useState<'business' | 'services'>('business');
-  const { business, services, error, isLoading, refresh } =
+  const [activeTab, setActiveTab] = useState<SettingsTab>('business');
+  const { business, services, statuses, error, isLoading, refresh } =
     useSettings(businessCode);
+  const { visibleFieldsFor, toggleField } = useUiPreferences(businessCode);
 
   if (isLoading) {
     return <LoadingState message="טוען הגדרות..." />;
@@ -46,17 +72,25 @@ export default function Settings({
       </div>
 
       <div className={styles.tabs}>
-        <button 
+        <button
           className={`${styles.tabBtn} ${activeTab === 'business' ? styles.activeTab : ''}`}
           onClick={() => setActiveTab('business')}
         >
           פרטי העסק
         </button>
-        <button 
+        <span className={styles.tabDivider} aria-hidden="true" />
+        <button
           className={`${styles.tabBtn} ${activeTab === 'services' ? styles.activeTab : ''}`}
           onClick={() => setActiveTab('services')}
         >
           סוגי תורים / שירותים
+        </button>
+        <span className={styles.tabDivider} aria-hidden="true" />
+        <button
+          className={`${styles.tabBtn} ${activeTab === 'statuses' ? styles.activeTab : ''}`}
+          onClick={() => setActiveTab('statuses')}
+        >
+          הגדרת סטטוסים
         </button>
       </div>
 
@@ -65,16 +99,26 @@ export default function Settings({
           <BusinessSettingsForm
             key={business.business_code}
             business={business}
+            visibleFields={visibleFieldsFor('business')}
+            onToggleField={(key) => toggleField('business', key)}
             onSaved={onBusinessUpdated}
           />
         ) : activeTab === 'services' ? (
           <ServicesTable
             businessCode={businessCode}
             services={services}
+            visibleFields={visibleFieldsFor('services')}
+            onToggleField={(key) => toggleField('services', key)}
             onServicesChanged={refresh}
           />
         ) : (
-          <div>טוען נתונים...</div>
+          <StatusesTable
+            businessCode={businessCode}
+            statuses={statuses}
+            visibleFields={visibleFieldsFor('statuses')}
+            onToggleField={(key) => toggleField('statuses', key)}
+            onStatusesChanged={refresh}
+          />
         )}
       </div>
     </div>
@@ -87,6 +131,11 @@ function toEditableSettings(
   return {
     business_name: business.business_name,
     contact_phone: business.contact_phone,
+    email: business.email,
+    agent_phone_number: business.agent_phone_number,
+    timezone: business.timezone,
+    slot_duration_minutes: business.slot_duration_minutes,
+    max_adv_booking_days: business.max_adv_booking_days,
     vapi_assistant_id: business.vapi_assistant_id,
     wa_instance_id: business.wa_instance_id,
   };
@@ -94,25 +143,39 @@ function toEditableSettings(
 
 function BusinessSettingsForm({
   business,
+  visibleFields,
+  onToggleField,
   onSaved,
 }: {
   business: BusinessSettings;
+  visibleFields: string[];
+  onToggleField: (key: string) => void;
   onSaved: () => Promise<void>;
 }) {
   const [formData, setFormData] = useState(() =>
     toEditableSettings(business),
   );
   const [isSaving, setIsSaving] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [message, setMessage] = useState<{
     text: string;
     type: 'success' | 'error';
   } | null>(null);
 
+  const isVisible = (key: string) => visibleFields.includes(key);
+
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const field = event.target.name as keyof EditableBusinessSettings;
+    const { value, type } = event.target;
+
     setFormData((previous) => ({
       ...previous,
-      [field]: event.target.value || null,
+      [field]:
+        type === 'number'
+          ? value === ''
+            ? null
+            : Number(value)
+          : value || null,
     }));
   };
 
@@ -140,49 +203,105 @@ function BusinessSettingsForm({
 
   return (
     <div>
+      <div className={styles.sectionToolbar}>
+        <DisplayToolbar
+          fields={BUSINESS_FIELDS}
+          visibleKeys={visibleFields}
+          onToggle={onToggleField}
+          onViewDetails={() => setIsDetailsOpen(true)}
+          canViewDetails
+        />
+      </div>
       <div className={styles.formGrid}>
-        <div className={styles.formGroup}>
-          <label>שם העסק</label>
-          <input
-            type="text"
-            name="business_name"
-            value={formData.business_name}
-            onChange={handleChange}
-            className={styles.input}
-          />
-        </div>
-        <div className={styles.formGroup}>
-          <label>טלפון ליצירת קשר</label>
-          <input
-            type="text"
-            name="contact_phone"
-            value={formData.contact_phone || ''}
-            onChange={handleChange}
-            className={styles.input}
-          />
-        </div>
-        <div className={styles.formGroup}>
-          <label>Vapi Assistant ID (מזהה בוט קולי)</label>
-          <input
-            type="text"
-            name="vapi_assistant_id"
-            value={formData.vapi_assistant_id || ''}
-            onChange={handleChange}
-            className={styles.input}
-            dir="ltr"
-          />
-        </div>
-        <div className={styles.formGroup}>
-          <label>WhatsApp Instance ID</label>
-          <input
-            type="text"
-            name="wa_instance_id"
-            value={formData.wa_instance_id || ''}
-            onChange={handleChange}
-            className={styles.input}
-            dir="ltr"
-          />
-        </div>
+        {isVisible('business_name') && (
+          <div className={styles.formGroup}>
+            <label>שם העסק</label>
+            <input
+              type="text"
+              name="business_name"
+              value={formData.business_name}
+              onChange={handleChange}
+              className={styles.input}
+            />
+          </div>
+        )}
+        {isVisible('contact_phone') && (
+          <div className={styles.formGroup}>
+            <label>טלפון ליצירת קשר</label>
+            <input
+              type="text"
+              name="contact_phone"
+              value={formData.contact_phone || ''}
+              onChange={handleChange}
+              className={styles.input}
+            />
+          </div>
+        )}
+        {isVisible('email') && (
+          <div className={styles.formGroup}>
+            <label>אימייל</label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email || ''}
+              onChange={handleChange}
+              className={styles.input}
+              dir="ltr"
+            />
+          </div>
+        )}
+        {isVisible('agent_phone_number') && (
+          <div className={styles.formGroup}>
+            <label>טלפון סוכן</label>
+            <input
+              type="text"
+              name="agent_phone_number"
+              value={formData.agent_phone_number || ''}
+              onChange={handleChange}
+              className={styles.input}
+              dir="ltr"
+            />
+          </div>
+        )}
+        {isVisible('timezone') && (
+          <div className={styles.formGroup}>
+            <label>אזור זמן</label>
+            <input
+              type="text"
+              name="timezone"
+              value={formData.timezone || ''}
+              onChange={handleChange}
+              className={styles.input}
+              dir="ltr"
+            />
+          </div>
+        )}
+        {isVisible('slot_duration_minutes') && (
+          <div className={styles.formGroup}>
+            <label>משך משבצת (דקות)</label>
+            <input
+              type="number"
+              name="slot_duration_minutes"
+              value={formData.slot_duration_minutes ?? ''}
+              onChange={handleChange}
+              className={styles.input}
+              min="1"
+            />
+          </div>
+        )}
+        {isVisible('max_adv_booking_days') && (
+          <div className={styles.formGroup}>
+            <label>הזמנה מראש (ימים)</label>
+            <input
+              type="number"
+              name="max_adv_booking_days"
+              value={formData.max_adv_booking_days ?? ''}
+              onChange={handleChange}
+              className={styles.input}
+              min="0"
+            />
+          </div>
+        )}
       </div>
 
       {message && (
@@ -199,6 +318,14 @@ function BusinessSettingsForm({
       >
         {isSaving ? 'שומר...' : 'שמור הגדרות עסק'}
       </button>
+
+      {isDetailsOpen && (
+        <RecordDetailsModal
+          title={`פרטי העסק · ${business.business_name}`}
+          rows={toBusinessDetailRows({ ...business, ...formData })}
+          onClose={() => setIsDetailsOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -206,61 +333,86 @@ function BusinessSettingsForm({
 function ServicesTable({
   businessCode,
   services,
+  visibleFields,
+  onToggleField,
   onServicesChanged,
 }: {
   businessCode: string;
   services: Service[];
+  visibleFields: string[];
+  onToggleField: (key: string) => void;
   onServicesChanged: () => void;
 }) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const activeColumns = SERVICE_FIELDS.filter((field) =>
+    visibleFields.includes(field.key),
+  );
+  const selectedService =
+    services.find((service) => service.id === selectedServiceId) ?? null;
 
   return (
     <div>
-      <button
-        type="button"
-        className={`${styles.btnPrimary} ${styles.addServiceButton}`}
-        onClick={() => setIsAddModalOpen(true)}
-      >
-        + הוסף שירות חדש
-      </button>
-      <table className={styles.table}>
+      <div className={styles.sectionToolbar}>
+        <DisplayToolbar
+          fields={SERVICE_FIELDS}
+          visibleKeys={visibleFields}
+          onToggle={onToggleField}
+          onViewDetails={() => setIsDetailsOpen(true)}
+          canViewDetails={selectedService !== null}
+        />
+        <button
+          type="button"
+          className={`${styles.btnPrimary} ${styles.addServiceButton}`}
+          onClick={() => setIsAddModalOpen(true)}
+        >
+          <PlusIcon />
+          הוסף שירות
+        </button>
+      </div>
+      <table className={`data-table ${styles.table}`}>
         <thead>
           <tr>
-            <th>קוד שירות</th>
-            <th>שם השירות</th>
-            <th>משך (דקות)</th>
-            <th>מחיר (₪)</th>
-            <th>צבע</th>
-            <th>סטטוס</th>
+            {activeColumns.map((column) => (
+              <th key={column.key}>{column.label}</th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {services.length === 0 ? (
             <tr>
-              <td colSpan={6} className={styles.emptyServices}>
+              <td colSpan={Math.max(activeColumns.length, 1)} className={styles.emptyServices}>
                 לא הוגדרו שירותים
               </td>
             </tr>
           ) : (
             services.map((service) => (
-              <tr key={`${service.business_code}-${service.id}`}>
-                <td>{service.service_code}</td>
-                <td>{service.title}</td>
-                <td>{service.duration_minutes}</td>
-                <td>{service.price}</td>
-                <td>
-                  <span className={styles.colorCell}>
-                    <span
-                      className={styles.colorBadge}
-                      style={{
-                        backgroundColor: service.color_code || '#dce7eb',
-                      }}
-                      aria-hidden="true"
-                    />
-                    {service.color_code || 'לא הוגדר'}
-                  </span>
-                </td>
-                <td>{service.is_active ? 'פעיל' : 'לא פעיל'}</td>
+              <tr
+                key={`${service.business_code}-${service.id}`}
+                className={
+                  selectedServiceId === service.id ? 'is-selected' : undefined
+                }
+                onClick={() => setSelectedServiceId(service.id)}
+              >
+                {activeColumns.map((column) => (
+                  <td key={column.key} dir={column.dir}>
+                    {column.key === 'color_code' ? (
+                      <span className={styles.colorCell}>
+                        <span
+                          className={styles.colorBadge}
+                          style={{
+                            backgroundColor: service.color_code || '#dce7eb',
+                          }}
+                          aria-hidden="true"
+                        />
+                        {formatServiceCell(service, column.key)}
+                      </span>
+                    ) : (
+                      formatServiceCell(service, column.key)
+                    )}
+                  </td>
+                ))}
               </tr>
             ))
           )}
@@ -275,6 +427,208 @@ function ServicesTable({
             onServicesChanged();
             setIsAddModalOpen(false);
           }}
+        />
+      )}
+
+      {isDetailsOpen && selectedService && (
+        <RecordDetailsModal
+          title={`פרטי שירות · ${selectedService.title}`}
+          rows={toServiceDetailRows(selectedService)}
+          onClose={() => setIsDetailsOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function StatusesTable({
+  businessCode,
+  statuses,
+  visibleFields,
+  onToggleField,
+  onStatusesChanged,
+}: {
+  businessCode: string;
+  statuses: AppointmentStatusRow[];
+  visibleFields: string[];
+  onToggleField: (key: string) => void;
+  onStatusesChanged: () => void;
+}) {
+  const [modalMode, setModalMode] = useState<'add' | 'edit' | null>(null);
+  const [selectedStatusCode, setSelectedStatusCode] = useState<string | null>(
+    null,
+  );
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const activeColumns = STATUS_FIELDS.filter((field) =>
+    visibleFields.includes(field.key),
+  );
+  const selectedStatus =
+    statuses.find((status) => status.status_code === selectedStatusCode) ??
+    null;
+
+  const handleDelete = async (status = selectedStatus) => {
+    if (!status) return;
+    if (!window.confirm(`למחוק את הסטטוס "${status.status_text}"?`)) {
+      return;
+    }
+
+    setActionError('');
+    try {
+      await deleteStatus(businessCode, status.status_code);
+      setSelectedStatusCode(null);
+      onStatusesChanged();
+    } catch (error) {
+      console.error('שגיאה במחיקת סטטוס:', getErrorMessage(error));
+      setActionError('לא ניתן למחוק את הסטטוס.');
+    }
+  };
+
+  return (
+    <div>
+      <div className={styles.sectionToolbar}>
+        <DisplayToolbar
+          fields={STATUS_FIELDS}
+          visibleKeys={visibleFields}
+          onToggle={onToggleField}
+          onViewDetails={() => setIsDetailsOpen(true)}
+          canViewDetails={selectedStatus !== null}
+        />
+        <div className={styles.toolbarActions}>
+          <IconButton
+            label="ערוך סטטוס"
+            onClick={() => setModalMode('edit')}
+            disabled={!selectedStatus}
+          >
+            <PencilIcon />
+          </IconButton>
+          <IconButton
+            label="מחק סטטוס"
+            variant="danger"
+            onClick={() => void handleDelete()}
+            disabled={!selectedStatus}
+          >
+            <TrashIcon />
+          </IconButton>
+          <button
+            type="button"
+            className={`${styles.btnPrimary} ${styles.addServiceButton}`}
+            onClick={() => setModalMode('add')}
+          >
+            <PlusIcon />
+            הוסף סטטוס
+          </button>
+        </div>
+      </div>
+
+      {actionError && (
+        <p className={styles.actionError} role="alert">
+          {actionError}
+        </p>
+      )}
+
+      <table className={`data-table ${styles.table}`}>
+        <thead>
+          <tr>
+            <th>פעולות</th>
+            {activeColumns.map((column) => (
+              <th key={column.key}>{column.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {statuses.length === 0 ? (
+            <tr>
+              <td
+                colSpan={Math.max(activeColumns.length, 1) + 1}
+                className={styles.emptyServices}
+              >
+                לא הוגדרו סטטוסים
+              </td>
+            </tr>
+          ) : (
+            statuses.map((status) => (
+              <tr
+                key={`${status.business_code}-${status.status_code}`}
+                className={
+                  selectedStatusCode === status.status_code
+                    ? 'is-selected'
+                    : undefined
+                }
+                onClick={() => setSelectedStatusCode(status.status_code)}
+                onDoubleClick={() => {
+                  setSelectedStatusCode(status.status_code);
+                  setModalMode('edit');
+                }}
+              >
+                <td>
+                  <div className={styles.rowActions}>
+                    <IconButton
+                      label="ערוך סטטוס"
+                      size="compact"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedStatusCode(status.status_code);
+                        setModalMode('edit');
+                      }}
+                    >
+                      <PencilIcon />
+                    </IconButton>
+                    <IconButton
+                      label="מחק סטטוס"
+                      variant="danger"
+                      size="compact"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedStatusCode(status.status_code);
+                        void handleDelete(status);
+                      }}
+                    >
+                      <TrashIcon />
+                    </IconButton>
+                  </div>
+                </td>
+                {activeColumns.map((column) => (
+                  <td key={column.key} dir={column.dir}>
+                    {column.key === 'color' ? (
+                      <span className={styles.colorCell}>
+                        <span
+                          className={styles.colorBadge}
+                          style={{
+                            backgroundColor: status.color || '#dce7eb',
+                          }}
+                          aria-hidden="true"
+                        />
+                        {formatStatusCell(status, column.key)}
+                      </span>
+                    ) : (
+                      formatStatusCell(status, column.key)
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+
+      {modalMode && (modalMode === 'add' || selectedStatus) && (
+        <StatusModal
+          businessCode={businessCode}
+          status={modalMode === 'edit' ? selectedStatus : null}
+          onClose={() => setModalMode(null)}
+          onSuccess={() => {
+            onStatusesChanged();
+            setModalMode(null);
+          }}
+        />
+      )}
+
+      {isDetailsOpen && selectedStatus && (
+        <RecordDetailsModal
+          title={`פרטי סטטוס · ${selectedStatus.status_text}`}
+          rows={toStatusDetailRows(selectedStatus)}
+          onClose={() => setIsDetailsOpen(false)}
         />
       )}
     </div>

@@ -1,5 +1,8 @@
 import { supabase } from '../../supabaseClient';
 import type {
+  AppointmentStatusInsert,
+  AppointmentStatusRow,
+  AppointmentStatusUpdate,
   BusinessSettings,
   EditableBusinessSettings,
   Service,
@@ -15,6 +18,11 @@ export async function getBusinessSettings(
       business_code,
       business_name,
       contact_phone,
+      email,
+      agent_phone_number,
+      timezone,
+      slot_duration_minutes,
+      max_adv_booking_days,
       vapi_assistant_id,
       wa_instance_id
     `)
@@ -54,6 +62,73 @@ export async function createService(service: ServiceInsert): Promise<Service> {
   }
 
   return data;
+}
+
+export async function getStatuses(
+  businessCode: string,
+): Promise<AppointmentStatusRow[]> {
+  const { data, error } = await supabase
+    .from('statuses')
+    .select('*')
+    .eq('business_code', businessCode)
+    .order('status_text', { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+export async function createStatus(
+  status: AppointmentStatusInsert,
+): Promise<AppointmentStatusRow> {
+  const { data, error } = await supabase
+    .from('statuses')
+    .insert(status)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+export async function updateStatus(
+  businessCode: string,
+  statusCode: string,
+  values: AppointmentStatusUpdate,
+): Promise<AppointmentStatusRow> {
+  const { data, error } = await supabase
+    .from('statuses')
+    .update(values)
+    .eq('business_code', businessCode)
+    .eq('status_code', statusCode)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+export async function deleteStatus(
+  businessCode: string,
+  statusCode: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('statuses')
+    .delete()
+    .eq('business_code', businessCode)
+    .eq('status_code', statusCode);
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 export async function updateBusinessSettings(

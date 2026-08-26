@@ -6,21 +6,24 @@ import {
   type FormEvent,
 } from 'react';
 import {
-  createAppointmentWithServices,
   getAppointmentClients,
   getAppointmentServiceOptions,
-  getAvailableAppointmentSlots,
 } from '../appointments.api';
 import {
-  APPOINTMENT_STATUS_LABELS,
-  isAppointmentStatus,
-} from '../appointments.mappers';
+  bookAppointment,
+  getSchedulerSlots,
+} from '../scheduler.api';
+import {
+  creatableStatuses,
+  pickDefaultCreateStatus,
+  type StatusCatalogItem,
+} from '../appointmentStatuses';
 import type {
-  AppointmentAvailabilitySlot,
   AppointmentClientOption,
   AppointmentServiceOption,
-  AppointmentStatus,
+  SchedulerSlot,
 } from '../appointments.types';
+import { toSchedulerDateTime } from '../time';
 import {
   errorIncludes,
   getErrorMessage,
@@ -29,6 +32,7 @@ import styles from './AddAppointmentModal.module.css';
 
 interface AddAppointmentModalProps {
   businessCode: string;
+  statuses: StatusCatalogItem[];
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -37,12 +41,10 @@ interface AppointmentFormData {
   client_id: string;
   appointment_date: string;
   start_time: string;
-  status: AppointmentStatus;
+  status: string;
   client_notes: string;
   business_notes: string;
 }
-
-const CREATABLE_STATUSES: AppointmentStatus[] = ['waiting', 'scheduled'];
 const ILS_FORMATTER = new Intl.NumberFormat('he-IL', {
   style: 'currency',
   currency: 'ILS',
@@ -65,20 +67,20 @@ function formatTime(time: string) {
 
 export default function AddAppointmentModal({
   businessCode,
+  statuses,
   onClose,
   onSuccess,
 }: AddAppointmentModalProps) {
+  const createStatusOptions = creatableStatuses(statuses);
   const [clients, setClients] = useState<AppointmentClientOption[]>([]);
   const [services, setServices] = useState<AppointmentServiceOption[]>([]);
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
-  const [availableSlots, setAvailableSlots] = useState<
-    AppointmentAvailabilitySlot[]
-  >([]);
+  const [availableSlots, setAvailableSlots] = useState<SchedulerSlot[]>([]);
   const [formData, setFormData] = useState<AppointmentFormData>({
     client_id: '',
     appointment_date: new Date().toISOString().split('T')[0],
     start_time: '09:00',
-    status: 'waiting',
+    status: pickDefaultCreateStatus(statuses).status_code,
     client_notes: '',
     business_notes: '',
   });
@@ -178,7 +180,6 @@ export default function AddAppointmentModal({
     const { name, value } = event.target;
 
     if (name === 'status') {
-      if (!isAppointmentStatus(value)) return;
       setFormData((previous) => ({ ...previous, status: value }));
       return;
     }
@@ -209,10 +210,11 @@ export default function AddAppointmentModal({
     setSlotMessage('');
 
     try {
-      const slots = await getAvailableAppointmentSlots({
+      const slots = await getSchedulerSlots({
         businessCode,
-        appointmentDate: formData.appointment_date,
-        serviceIds: selectedServiceIds,
+        date: formData.appointment_date,
+        serviceId: selectedServiceIds[0],
+        duration: totalDurationMinutes,
       });
       setAvailableSlots(slots);
       setSlotMessage(
@@ -247,15 +249,31 @@ export default function AddAppointmentModal({
       return;
     }
 
+    const selectedClient = clients.find(
+      (client) => String(client.id) === formData.client_id,
+    );
+
+    if (!selectedClient) {
+      setErrorMessage('יש לבחור לקוח לפני יצירת התור.');
+      return;
+    }
+
     setIsSaving(true);
 
     try {
-      await createAppointmentWithServices({
+      await bookAppointment({
         businessCode,
-        clientId: Number(formData.client_id),
-        appointmentDate: formData.appointment_date,
-        startTime: formData.start_time,
-        serviceIds: selectedServiceIds,
+        clientName: selectedClient.full_name || '',
+        clientPhone: selectedClient.mobile_phone,
+        appointmentTime: toSchedulerDateTime(
+          formData.appointment_date,
+          formData.start_time,
+        ),
+        services: selectedServices.map((service) => ({
+          serviceId: service.id,
+          duration: service.duration_minutes,
+          price: service.price,
+        })),
         status: formData.status,
         clientNotes: formData.client_notes,
         businessNotes: formData.business_notes,
@@ -488,9 +506,9 @@ export default function AddAppointmentModal({
               onChange={handleChange}
               className={styles.select}
             >
-              {CREATABLE_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {APPOINTMENT_STATUS_LABELS[status]}
+              {createStatusOptions.map((status) => (
+                <option key={status.status_code} value={status.status_code}>
+                  {status.status_text}
                 </option>
               ))}
             </select>

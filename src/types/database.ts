@@ -160,6 +160,7 @@ export type Database = {
           role: string
           status: string
           status_changed_at: string
+          ui_preferences: Json
           updated_at: string
           user_id: string
         }
@@ -171,6 +172,7 @@ export type Database = {
           role?: string
           status?: string
           status_changed_at?: string
+          ui_preferences?: Json
           updated_at?: string
           user_id: string
         }
@@ -182,6 +184,7 @@ export type Database = {
           role?: string
           status?: string
           status_changed_at?: string
+          ui_preferences?: Json
           updated_at?: string
           user_id?: string
         }
@@ -207,6 +210,7 @@ export type Database = {
           max_adv_booking_days: number | null
           slot_duration_minutes: number | null
           timezone: string | null
+          ui_preferences: Json
           updated_at: string
           vapi_assistant_id: string | null
           wa_instance_id: string | null
@@ -223,6 +227,7 @@ export type Database = {
           max_adv_booking_days?: number | null
           slot_duration_minutes?: number | null
           timezone?: string | null
+          ui_preferences?: Json
           updated_at?: string
           vapi_assistant_id?: string | null
           wa_instance_id?: string | null
@@ -239,6 +244,7 @@ export type Database = {
           max_adv_booking_days?: number | null
           slot_duration_minutes?: number | null
           timezone?: string | null
+          ui_preferences?: Json
           updated_at?: string
           vapi_assistant_id?: string | null
           wa_instance_id?: string | null
@@ -382,6 +388,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "fk_service_business"
+            columns: ["business_code"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["business_code"]
+          },
+        ]
+      }
+      statuses: {
+        Row: {
+          business_code: string
+          color: string | null
+          created_at: string | null
+          status_code: string
+          status_text: string
+        }
+        Insert: {
+          business_code: string
+          color?: string | null
+          created_at?: string | null
+          status_code: string
+          status_text: string
+        }
+        Update: {
+          business_code?: string
+          color?: string | null
+          created_at?: string | null
+          status_code?: string
+          status_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "statuses_business_code_fkey"
             columns: ["business_code"]
             isOneToOne: false
             referencedRelation: "businesses"

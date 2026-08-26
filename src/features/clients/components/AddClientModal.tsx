@@ -32,6 +32,17 @@ function getInitialFormData(client: Client | null): ClientFormValues {
     street: client?.street || '',
     building_number: client?.building_number || '',
     apartment_number: client?.apartment_number || '',
+    entrance: client?.entrance || '',
+    floor: client?.floor || '',
+    zip_code: client?.zip_code || '',
+    po_box: client?.po_box || '',
+    language: client?.language || '',
+    birth_date_gregorian: client?.birth_date_gregorian || '',
+    birth_date_hebrew: client?.birth_date_hebrew || '',
+    landline_phone: client?.landline_phone || '',
+    whatsapp_number: client?.whatsapp_number || '',
+    acquisition_source: client?.acquisition_source || '',
+    preferred_channel: client?.preferred_channel || '',
   };
 }
 
@@ -152,6 +163,63 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
             </div>
 
             <div className={styles.formGroup}>
+              <label>ת.לידה לועזי</label>
+              <input
+                type="date"
+                name="birth_date_gregorian"
+                value={formData.birth_date_gregorian}
+                onChange={handleChange}
+                className={styles.input}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>ת.לידה עברי</label>
+              <input
+                type="text"
+                name="birth_date_hebrew"
+                value={formData.birth_date_hebrew}
+                onChange={handleChange}
+                className={styles.input}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>שפה</label>
+              <input
+                type="text"
+                name="language"
+                value={formData.language}
+                onChange={handleChange}
+                className={styles.input}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>טלפון נייח</label>
+              <input
+                type="text"
+                name="landline_phone"
+                dir="ltr"
+                value={formData.landline_phone}
+                onChange={handleChange}
+                className={`${styles.input} ${styles.ltrInput}`}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>וואטסאפ</label>
+              <input
+                type="text"
+                name="whatsapp_number"
+                dir="ltr"
+                value={formData.whatsapp_number}
+                onChange={handleChange}
+                className={`${styles.input} ${styles.ltrInput}`}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
               <label>עיר</label>
               <input 
                 type="text" 
@@ -196,6 +264,72 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
                   />
                 </div>
               </div>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>כניסה</label>
+              <input
+                type="text"
+                name="entrance"
+                value={formData.entrance}
+                onChange={handleChange}
+                className={styles.input}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>קומה</label>
+              <input
+                type="text"
+                name="floor"
+                value={formData.floor}
+                onChange={handleChange}
+                className={styles.input}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>מיקוד</label>
+              <input
+                type="text"
+                name="zip_code"
+                value={formData.zip_code}
+                onChange={handleChange}
+                className={styles.input}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>ת.ד</label>
+              <input
+                type="text"
+                name="po_box"
+                value={formData.po_box}
+                onChange={handleChange}
+                className={styles.input}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>מקור הגעה</label>
+              <input
+                type="text"
+                name="acquisition_source"
+                value={formData.acquisition_source}
+                onChange={handleChange}
+                className={styles.input}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>ערוץ מועדף</label>
+              <input
+                type="text"
+                name="preferred_channel"
+                value={formData.preferred_channel}
+                onChange={handleChange}
+                className={styles.input}
+              />
             </div>
 
             <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
