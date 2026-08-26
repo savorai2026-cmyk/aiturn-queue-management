@@ -1,4 +1,6 @@
 import { useEffect } from 'react';
+import { PencilIcon } from '../../../shared/components/IconButton';
+import HelpTip from '../../../shared/components/HelpTip';
 import styles from './RescheduleConfirmModal.module.css';
 
 export interface ReschedulePreview {
@@ -7,6 +9,7 @@ export interface ReschedulePreview {
   fromLabel: string;
   toLabel: string;
   movesAllServices: boolean;
+  isPastTarget: boolean;
 }
 
 interface RescheduleConfirmModalProps {
@@ -15,6 +18,7 @@ interface RescheduleConfirmModalProps {
   errorMessage: string;
   onConfirm: () => void;
   onCancel: () => void;
+  onEdit: () => void;
 }
 
 export default function RescheduleConfirmModal({
@@ -23,6 +27,7 @@ export default function RescheduleConfirmModal({
   errorMessage,
   onConfirm,
   onCancel,
+  onEdit,
 }: RescheduleConfirmModalProps) {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -49,10 +54,17 @@ export default function RescheduleConfirmModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="reschedule-title"
+        aria-describedby="reschedule-question"
       >
         <h2 id="reschedule-title" className={styles.title}>
-          אישור שינוי מועד
+          להעביר את התור?
         </h2>
+
+        <p id="reschedule-question" className={styles.question}>
+          להעביר ללקוח <strong>{preview.clientName}</strong> את התור מ-
+          <strong>{preview.fromLabel}</strong> ל-
+          <strong>{preview.toLabel}</strong>?
+        </p>
 
         <dl className={styles.details}>
           <div>
@@ -64,14 +76,20 @@ export default function RescheduleConfirmModal({
             <dd>{preview.serviceTitle}</dd>
           </div>
           <div>
-            <dt>מועד נוכחי</dt>
+            <dt>מ</dt>
             <dd>{preview.fromLabel}</dd>
           </div>
           <div>
-            <dt>מועד חדש</dt>
+            <dt>ל</dt>
             <dd>{preview.toLabel}</dd>
           </div>
         </dl>
+
+        {preview.isPastTarget && (
+          <p className={styles.warning} role="status">
+            המועד החדש כבר עבר. אפשר עדיין לאשר אם רוצים לתעד תור שכבר התקיים.
+          </p>
+        )}
 
         {preview.movesAllServices && (
           <p className={styles.note}>כל השירותים בתור יועברו יחד למועד החדש.</p>
@@ -84,22 +102,36 @@ export default function RescheduleConfirmModal({
         )}
 
         <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.btnCancel}
-            onClick={onCancel}
-            disabled={isSaving}
-          >
-            ביטול
-          </button>
-          <button
-            type="button"
-            className={styles.btnConfirm}
-            onClick={onConfirm}
-            disabled={isSaving}
-          >
-            {isSaving ? 'שומר...' : 'שמור'}
-          </button>
+          <div className={styles.editRow}>
+            <button
+              type="button"
+              className={styles.btnEdit}
+              onClick={onEdit}
+              disabled={isSaving}
+            >
+              <PencilIcon />
+              עריכת תור
+            </button>
+            <HelpTip text="אם המועד החדש לא מתאים במלואו, אפשר לפתוח את פרטי התור, לתקן ולשמור משם." />
+          </div>
+          <div className={styles.mainActions}>
+            <button
+              type="button"
+              className={styles.btnCancel}
+              onClick={onCancel}
+              disabled={isSaving}
+            >
+              ביטול
+            </button>
+            <button
+              type="button"
+              className={styles.btnConfirm}
+              onClick={onConfirm}
+              disabled={isSaving}
+            >
+              {isSaving ? 'שומר...' : 'אישור'}
+            </button>
+          </div>
         </div>
       </section>
     </div>

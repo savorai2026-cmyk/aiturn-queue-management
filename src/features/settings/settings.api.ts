@@ -5,8 +5,10 @@ import type {
   AppointmentStatusUpdate,
   BusinessSettings,
   EditableBusinessSettings,
+  OperatingHoursUpdate,
   Service,
   ServiceInsert,
+  ServiceUpdate,
 } from './settings.types';
 
 export async function getBusinessSettings(
@@ -23,6 +25,7 @@ export async function getBusinessSettings(
       timezone,
       slot_duration_minutes,
       max_adv_booking_days,
+      working_hours,
       vapi_assistant_id,
       wa_instance_id
     `)
@@ -62,6 +65,41 @@ export async function createService(service: ServiceInsert): Promise<Service> {
   }
 
   return data;
+}
+
+export async function updateService(
+  businessCode: string,
+  serviceId: number,
+  values: ServiceUpdate,
+): Promise<Service> {
+  const { data, error } = await supabase
+    .from('services')
+    .update(values)
+    .eq('business_code', businessCode)
+    .eq('id', serviceId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+export async function deleteService(
+  businessCode: string,
+  serviceId: number,
+): Promise<void> {
+  const { error } = await supabase
+    .from('services')
+    .delete()
+    .eq('business_code', businessCode)
+    .eq('id', serviceId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 export async function getStatuses(
@@ -134,6 +172,20 @@ export async function deleteStatus(
 export async function updateBusinessSettings(
   businessCode: string,
   settings: EditableBusinessSettings,
+): Promise<void> {
+  const { error } = await supabase
+    .from('businesses')
+    .update(settings)
+    .eq('business_code', businessCode);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function updateOperatingHours(
+  businessCode: string,
+  settings: OperatingHoursUpdate,
 ): Promise<void> {
   const { error } = await supabase
     .from('businesses')

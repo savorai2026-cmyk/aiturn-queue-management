@@ -9,6 +9,7 @@ import { isCanceledStatus } from '../appointmentStatuses';
 import type { AppointmentDetails, CalendarEventProps } from '../appointments.types';
 import {
   getCalendarSlotRange,
+  getBookingRangeEndExclusive,
   parseWorkingHours,
   toFullCalendarBusinessHours,
 } from '../workingHours';
@@ -50,6 +51,7 @@ interface CalendarViewProps {
   isBlocked: boolean;
   workingHours: Json | null;
   slotDurationMinutes: number | null;
+  maxAdvBookingDays: number | null;
 }
 
 function getSlotDuration(slotDurationMinutes: number | null) {
@@ -102,6 +104,7 @@ export default function CalendarView({
   isBlocked,
   workingHours,
   slotDurationMinutes,
+  maxAdvBookingDays,
 }: CalendarViewProps) {
   const calendarRef = useRef<FullCalendar | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -161,6 +164,10 @@ export default function CalendarView({
     () => getCalendarSlotRange(parsedHours),
     [parsedHours],
   );
+  const bookingRangeEnd = useMemo(
+    () => getBookingRangeEndExclusive(maxAdvBookingDays),
+    [maxAdvBookingDays],
+  );
 
   const calendarEvents = useMemo(
     () =>
@@ -213,17 +220,30 @@ export default function CalendarView({
     setDragTooltip(null);
   }, [handleDragMove]);
 
-  const handleEventDrop = (info: EventDropArg) => {
+  const onDropRequestRef = useRef(onDropRequest);
+  const hasPendingMoveRef = useRef(hasPendingMove);
+
+  useEffect(() => {
+    onDropRequestRef.current = onDropRequest;
+    hasPendingMoveRef.current = hasPendingMove;
+  }, [hasPendingMove, onDropRequest]);
+
+  const handleEventDrop = useCallback((info: EventDropArg) => {
     const start = info.event.start;
     const previousStart = info.oldEvent.start;
     const props = info.event.extendedProps as CalendarEventProps;
 
-    if (!start || !previousStart || hasPendingMove) {
+    if (!start || !previousStart || hasPendingMoveRef.current) {
       info.revert();
       return;
     }
 
-    onDropRequest({
+    if (!props?.appointmentId) {
+      info.revert();
+      return;
+    }
+
+    onDropRequestRef.current({
       revert: () => info.revert(),
       appointmentId: props.appointmentId,
       serviceId: props.serviceId,
@@ -233,7 +253,7 @@ export default function CalendarView({
       nextStart: start,
       nextEnd: info.event.end,
     });
-  };
+  }, []);
 
   if (isLoading) {
     return <LoadingState message="טוען תורים..." />;
@@ -276,8 +296,8 @@ export default function CalendarView({
         slotMaxTime={slotRange.slotMaxTime}
         slotDuration={getSlotDuration(slotDurationMinutes)}
         snapDuration="00:05:00"
+        validRange={bookingRangeEnd ? { end: bookingRangeEnd } : undefined}
         businessHours={businessHours.length > 0 ? businessHours : undefined}
-        eventConstraint={businessHours.length > 0 ? 'businessHours' : undefined}
         eventOverlap={false}
         editable
         eventDurationEditable={false}

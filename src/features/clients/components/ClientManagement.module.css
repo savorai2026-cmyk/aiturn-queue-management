@@ -105,6 +105,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
+}
+
+.actionError {
+  width: fit-content;
+  margin: 0 0 16px;
+  padding: 9px 12px;
+  border-radius: 7px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 14px;
 }
 
 .emptyState {

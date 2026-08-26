@@ -2,6 +2,7 @@ import type { Tables, TablesInsert, TablesUpdate } from '../../types/database';
 
 export type Service = Tables<'services'>;
 export type ServiceInsert = TablesInsert<'services'>;
+export type ServiceUpdate = TablesUpdate<'services'>;
 
 export type AppointmentStatusRow = Tables<'statuses'>;
 export type AppointmentStatusInsert = TablesInsert<'statuses'>;
@@ -35,11 +36,17 @@ export type BusinessSettings = Pick<
   | 'timezone'
   | 'slot_duration_minutes'
   | 'max_adv_booking_days'
+  | 'working_hours'
   | 'vapi_assistant_id'
   | 'wa_instance_id'
 >;
 
 export type EditableBusinessSettings = Omit<
   BusinessSettings,
-  'business_code'
+  'business_code' | 'working_hours' | 'max_adv_booking_days'
 >;
+
+export interface OperatingHoursUpdate {
+  working_hours: BusinessSettings['working_hours'];
+  max_adv_booking_days: number | null;
+}

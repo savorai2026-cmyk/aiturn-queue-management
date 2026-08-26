@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import FieldChooser from './FieldChooser';
+import HelpTip from '../components/HelpTip';
 import type { DisplayField } from './types';
 import styles from './DisplayToolbar.module.css';
 
@@ -10,6 +11,7 @@ interface DisplayToolbarProps {
   onViewDetails: () => void;
   canViewDetails: boolean;
   variant?: 'default' | 'onDark';
+  helpPosition?: 'start' | 'end';
 }
 
 function GearIcon() {
@@ -41,13 +43,21 @@ export default function DisplayToolbar({
   onViewDetails,
   canViewDetails,
   variant = 'default',
+  helpPosition = 'end',
 }: DisplayToolbarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const gearRef = useRef<HTMLButtonElement>(null);
   const buttonClass = `${styles.iconButton} ${variant === 'onDark' ? styles.onDark : ''}`;
+  const help = (
+    <HelpTip
+      variant={variant}
+      text="גלגל השיניים בוחר אילו שדות יופיעו בטבלה או בפרטי התור. המשקפיים מציגים את כל פרטי הרשומה שנבחרה."
+    />
+  );
 
   return (
     <div className={styles.group}>
+      {helpPosition === 'start' && help}
       <button
         ref={gearRef}
         type="button"
@@ -69,6 +79,7 @@ export default function DisplayToolbar({
       >
         <GlassesIcon />
       </button>
+      {helpPosition === 'end' && help}
       {isOpen && (
         <FieldChooser
           fields={fields}

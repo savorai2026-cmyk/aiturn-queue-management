@@ -69,6 +69,7 @@ export interface AppointmentEditValues {
 export interface BusinessCalendarSettings {
   workingHours: Json | null;
   slotDurationMinutes: number | null;
+  maxAdvBookingDays: number | null;
   timezone: string | null;
 }
 

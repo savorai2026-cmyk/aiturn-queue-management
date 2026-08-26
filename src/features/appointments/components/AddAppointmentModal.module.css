@@ -68,6 +68,17 @@
   margin-bottom: 4px;
 }
 
+.labelRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.labelRow label {
+  margin-bottom: 0;
+}
+
 .input, .select, .textarea {
   width: 100%;
   padding: 8px 12px;

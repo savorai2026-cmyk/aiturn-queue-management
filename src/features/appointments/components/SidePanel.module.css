@@ -79,6 +79,9 @@
 }
 
 .fieldLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 600;
   color: var(--color-text-muted);
   margin-bottom: 4px;

@@ -21,6 +21,7 @@ const EMPTY_STATUSES: StatusCatalogItem[] = [];
 const EMPTY_CALENDAR_SETTINGS: BusinessCalendarSettings = {
   workingHours: null,
   slotDurationMinutes: null,
+  maxAdvBookingDays: null,
   timezone: null,
 };
 

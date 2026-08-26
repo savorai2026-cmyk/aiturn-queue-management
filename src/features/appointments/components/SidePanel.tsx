@@ -19,6 +19,7 @@ import { getAppointmentSaveErrorMessage } from '../../../shared/errors';
 import DisplayToolbar from '../../../shared/displayFields/DisplayToolbar';
 import RecordDetailsModal from '../../../shared/displayFields/RecordDetailsModal';
 import { APPOINTMENT_FIELDS } from '../../../shared/displayFields/catalogs';
+import HelpTip from '../../../shared/components/HelpTip';
 import styles from './SidePanel.module.css';
 
 const ILS_FORMATTER = new Intl.NumberFormat('he-IL', {
@@ -119,6 +120,7 @@ export const SidePanel = ({
             onViewDetails={() => setIsDetailsOpen(true)}
             canViewDetails
             variant="onDark"
+            helpPosition="start"
           />
           <button
             type="button"
@@ -323,8 +325,11 @@ export const SidePanel = ({
         )}
 
         {isVisible('client_notes') && (
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>הערות לקוח</span>
+        <div className={styles.field}>
+          <span className={styles.fieldLabel}>
+            הערות לקוח
+            <HelpTip text="מידע שהלקוח מסר. יכול להיות גלוי ללקוח בהודעות." />
+          </span>
           <textarea
             className={styles.textarea}
             value={formData.client_notes}
@@ -337,12 +342,15 @@ export const SidePanel = ({
               )
             }
           />
-        </label>
+        </div>
         )}
 
         {isVisible('business_notes') && (
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>הערות עסק</span>
+        <div className={styles.field}>
+          <span className={styles.fieldLabel}>
+            הערות עסק
+            <HelpTip text="הערות לצוות בלבד. לא מוצגות ללקוח." />
+          </span>
           <textarea
             className={styles.textarea}
             value={formData.business_notes}
@@ -353,9 +361,8 @@ export const SidePanel = ({
                   : current,
               )
             }
-            placeholder="הערות פנימיות לעסק"
           />
-        </label>
+        </div>
         )}
 
         {errorMessage && (

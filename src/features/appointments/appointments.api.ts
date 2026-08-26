@@ -90,7 +90,7 @@ export async function getBusinessCalendarSettings(
 ): Promise<BusinessCalendarSettings> {
   const { data, error } = await supabase
     .from('businesses')
-    .select('working_hours, slot_duration_minutes, timezone')
+    .select('working_hours, slot_duration_minutes, max_adv_booking_days, timezone')
     .eq('business_code', businessCode)
     .single();
 
@@ -101,6 +101,7 @@ export async function getBusinessCalendarSettings(
   return {
     workingHours: data.working_hours,
     slotDurationMinutes: data.slot_duration_minutes,
+    maxAdvBookingDays: data.max_adv_booking_days,
     timezone: data.timezone,
   };
 }

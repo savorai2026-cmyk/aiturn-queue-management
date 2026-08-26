@@ -53,3 +53,18 @@ export async function updateClient(
     throw new Error(error.message);
   }
 }
+
+export async function deleteClient(
+  businessCode: string,
+  clientId: number,
+): Promise<void> {
+  const { error } = await supabase
+    .from('clients')
+    .delete()
+    .eq('business_code', businessCode)
+    .eq('id', clientId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}

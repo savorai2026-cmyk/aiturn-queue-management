@@ -23,16 +23,19 @@ import type {
   AppointmentServiceOption,
   SchedulerSlot,
 } from '../appointments.types';
-import { toSchedulerDateTime } from '../time';
+import { toDateKey, toSchedulerDateTime } from '../time';
+import { getBookingMaxDate } from '../workingHours';
 import {
   errorIncludes,
   getErrorMessage,
 } from '../../../shared/errors';
+import HelpTip from '../../../shared/components/HelpTip';
 import styles from './AddAppointmentModal.module.css';
 
 interface AddAppointmentModalProps {
   businessCode: string;
   statuses: StatusCatalogItem[];
+  maxAdvBookingDays?: number | null;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -68,17 +71,20 @@ function formatTime(time: string) {
 export default function AddAppointmentModal({
   businessCode,
   statuses,
+  maxAdvBookingDays = null,
   onClose,
   onSuccess,
 }: AddAppointmentModalProps) {
   const createStatusOptions = creatableStatuses(statuses);
+  const minAppointmentDate = toDateKey(new Date());
+  const maxAppointmentDate = getBookingMaxDate(maxAdvBookingDays);
   const [clients, setClients] = useState<AppointmentClientOption[]>([]);
   const [services, setServices] = useState<AppointmentServiceOption[]>([]);
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
   const [availableSlots, setAvailableSlots] = useState<SchedulerSlot[]>([]);
   const [formData, setFormData] = useState<AppointmentFormData>({
     client_id: '',
-    appointment_date: new Date().toISOString().split('T')[0],
+    appointment_date: minAppointmentDate,
     start_time: '09:00',
     status: pickDefaultCreateStatus(statuses).status_code,
     client_notes: '',
@@ -426,6 +432,8 @@ export default function AddAppointmentModal({
                 type="date"
                 name="appointment_date"
                 required
+                min={minAppointmentDate}
+                max={maxAppointmentDate ?? undefined}
                 value={formData.appointment_date}
                 onChange={handleChange}
                 className={styles.input}
@@ -515,7 +523,10 @@ export default function AddAppointmentModal({
           </div>
 
           <div className={styles.formGroup}>
-            <label htmlFor="appointment-client-notes">הערות הלקוח</label>
+            <div className={styles.labelRow}>
+              <label htmlFor="appointment-client-notes">הערות הלקוח</label>
+              <HelpTip text="מידע שהלקוח מסר, למשל בקשה מיוחדת. יכול להיות גלוי ללקוח בהודעות." />
+            </div>
             <textarea
               id="appointment-client-notes"
               name="client_notes"
@@ -523,14 +534,16 @@ export default function AddAppointmentModal({
               onChange={handleChange}
               className={styles.textarea}
               rows={2}
-              placeholder="בקשות או מידע שהלקוח מסר"
             />
           </div>
 
           <div className={styles.formGroup}>
-            <label htmlFor="appointment-business-notes">
-              הערות פנימיות לעסק
-            </label>
+            <div className={styles.labelRow}>
+              <label htmlFor="appointment-business-notes">
+                הערות פנימיות לעסק
+              </label>
+              <HelpTip text="הערות לצוות בלבד. לא מוצגות ללקוח." />
+            </div>
             <textarea
               id="appointment-business-notes"
               name="business_notes"
@@ -538,7 +551,6 @@ export default function AddAppointmentModal({
               onChange={handleChange}
               className={styles.textarea}
               rows={2}
-              placeholder="הערות שאינן מוצגות ללקוח"
             />
           </div>
 

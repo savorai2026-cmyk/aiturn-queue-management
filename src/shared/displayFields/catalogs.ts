@@ -65,7 +65,6 @@ export const BUSINESS_FIELDS: DisplayField[] = [
   { key: 'agent_phone_number', label: 'טלפון סוכן', defaultVisible: false, dir: 'ltr' },
   { key: 'timezone', label: 'אזור זמן', defaultVisible: false, dir: 'ltr' },
   { key: 'slot_duration_minutes', label: 'משך משבצת (דקות)', defaultVisible: false },
-  { key: 'max_adv_booking_days', label: 'הזמנה מראש (ימים)', defaultVisible: false },
 ];
 
 const CATALOGS: Record<DisplayScope, DisplayField[]> = {

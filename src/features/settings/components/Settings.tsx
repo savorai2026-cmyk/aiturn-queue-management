@@ -1,5 +1,5 @@
 import { useState, type ChangeEvent } from 'react';
-import { deleteStatus, updateBusinessSettings } from '../settings.api';
+import { deleteService, deleteStatus, updateBusinessSettings } from '../settings.api';
 import { getErrorMessage } from '../../../shared/errors';
 import {
   formatServiceCell,
@@ -32,11 +32,13 @@ import IconButton, {
   PlusIcon,
   TrashIcon,
 } from '../../../shared/components/IconButton';
+import HelpTip from '../../../shared/components/HelpTip';
 import AddServiceModal from './AddServiceModal';
+import OperatingHoursForm from './OperatingHoursForm';
 import StatusModal from './StatusModal';
 import styles from './Settings.module.css';
 
-type SettingsTab = 'business' | 'services' | 'statuses';
+type SettingsTab = 'business' | 'hours' | 'services' | 'statuses';
 
 interface SettingsProps {
   businessCode: string;
@@ -80,6 +82,13 @@ export default function Settings({
         </button>
         <span className={styles.tabDivider} aria-hidden="true" />
         <button
+          className={`${styles.tabBtn} ${activeTab === 'hours' ? styles.activeTab : ''}`}
+          onClick={() => setActiveTab('hours')}
+        >
+          שעות פעילות
+        </button>
+        <span className={styles.tabDivider} aria-hidden="true" />
+        <button
           className={`${styles.tabBtn} ${activeTab === 'services' ? styles.activeTab : ''}`}
           onClick={() => setActiveTab('services')}
         >
@@ -102,6 +111,15 @@ export default function Settings({
             visibleFields={visibleFieldsFor('business')}
             onToggleField={(key) => toggleField('business', key)}
             onSaved={onBusinessUpdated}
+          />
+        ) : activeTab === 'hours' ? (
+          <OperatingHoursForm
+            key={`${business.business_code}-hours`}
+            business={business}
+            onSaved={async () => {
+              await onBusinessUpdated();
+              refresh();
+            }}
           />
         ) : activeTab === 'services' ? (
           <ServicesTable
@@ -135,7 +153,6 @@ function toEditableSettings(
     agent_phone_number: business.agent_phone_number,
     timezone: business.timezone,
     slot_duration_minutes: business.slot_duration_minutes,
-    max_adv_booking_days: business.max_adv_booking_days,
     vapi_assistant_id: business.vapi_assistant_id,
     wa_instance_id: business.wa_instance_id,
   };
@@ -265,8 +282,12 @@ function BusinessSettingsForm({
         )}
         {isVisible('timezone') && (
           <div className={styles.formGroup}>
-            <label>אזור זמן</label>
+            <div className={styles.labelRow}>
+              <label htmlFor="business-timezone">אזור זמן</label>
+              <HelpTip text="אזור הזמן של העסק, למשל Asia/Jerusalem. לפי זה מחושבות שעות היומן." />
+            </div>
             <input
+              id="business-timezone"
               type="text"
               name="timezone"
               value={formData.timezone || ''}
@@ -278,27 +299,18 @@ function BusinessSettingsForm({
         )}
         {isVisible('slot_duration_minutes') && (
           <div className={styles.formGroup}>
-            <label>משך משבצת (דקות)</label>
+            <div className={styles.labelRow}>
+              <label htmlFor="business-slot-duration">משך משבצת (דקות)</label>
+              <HelpTip text="גודל משבצת הזמן ביומן. לדוגמה 15 או 30 דקות. זה לא משך הטיפול עצמו." />
+            </div>
             <input
+              id="business-slot-duration"
               type="number"
               name="slot_duration_minutes"
               value={formData.slot_duration_minutes ?? ''}
               onChange={handleChange}
               className={styles.input}
               min="1"
-            />
-          </div>
-        )}
-        {isVisible('max_adv_booking_days') && (
-          <div className={styles.formGroup}>
-            <label>הזמנה מראש (ימים)</label>
-            <input
-              type="number"
-              name="max_adv_booking_days"
-              value={formData.max_adv_booking_days ?? ''}
-              onChange={handleChange}
-              className={styles.input}
-              min="0"
             />
           </div>
         )}
@@ -343,14 +355,37 @@ function ServicesTable({
   onToggleField: (key: string) => void;
   onServicesChanged: () => void;
 }) {
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'add' | 'edit' | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [actionError, setActionError] = useState('');
   const activeColumns = SERVICE_FIELDS.filter((field) =>
     visibleFields.includes(field.key),
   );
   const selectedService =
     services.find((service) => service.id === selectedServiceId) ?? null;
+
+  const handleDelete = async (service = selectedService) => {
+    if (!service) return;
+    if (!window.confirm(`למחוק את השירות "${service.title}"?`)) {
+      return;
+    }
+
+    setActionError('');
+    try {
+      await deleteService(businessCode, service.id);
+      setSelectedServiceId(null);
+      onServicesChanged();
+    } catch (error) {
+      const message = getErrorMessage(error).toLowerCase();
+      console.error('שגיאה במחיקת שירות:', getErrorMessage(error));
+      setActionError(
+        message.includes('foreign key') || message.includes('violat')
+          ? 'לא ניתן למחוק שירות שכבר בשימוש בתורים. אפשר לסמן אותו כלא פעיל.'
+          : 'לא ניתן למחוק את השירות.',
+      );
+    }
+  };
 
   return (
     <div>
@@ -365,15 +400,23 @@ function ServicesTable({
         <button
           type="button"
           className={`${styles.btnPrimary} ${styles.addServiceButton}`}
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={() => setModalMode('add')}
         >
           <PlusIcon />
           הוסף שירות
         </button>
       </div>
+
+      {actionError && (
+        <p className={styles.actionError} role="alert">
+          {actionError}
+        </p>
+      )}
+
       <table className={`data-table ${styles.table}`}>
         <thead>
           <tr>
+            <th>פעולות</th>
             {activeColumns.map((column) => (
               <th key={column.key}>{column.label}</th>
             ))}
@@ -382,7 +425,10 @@ function ServicesTable({
         <tbody>
           {services.length === 0 ? (
             <tr>
-              <td colSpan={Math.max(activeColumns.length, 1)} className={styles.emptyServices}>
+              <td
+                colSpan={Math.max(activeColumns.length, 1) + 1}
+                className={styles.emptyServices}
+              >
                 לא הוגדרו שירותים
               </td>
             </tr>
@@ -394,7 +440,38 @@ function ServicesTable({
                   selectedServiceId === service.id ? 'is-selected' : undefined
                 }
                 onClick={() => setSelectedServiceId(service.id)}
+                onDoubleClick={() => {
+                  setSelectedServiceId(service.id);
+                  setModalMode('edit');
+                }}
               >
+                <td>
+                  <div className={styles.rowActions}>
+                    <IconButton
+                      label="ערוך שירות"
+                      size="compact"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedServiceId(service.id);
+                        setModalMode('edit');
+                      }}
+                    >
+                      <PencilIcon />
+                    </IconButton>
+                    <IconButton
+                      label="מחק שירות"
+                      variant="danger"
+                      size="compact"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedServiceId(service.id);
+                        void handleDelete(service);
+                      }}
+                    >
+                      <TrashIcon />
+                    </IconButton>
+                  </div>
+                </td>
                 {activeColumns.map((column) => (
                   <td key={column.key} dir={column.dir}>
                     {column.key === 'color_code' ? (
@@ -419,13 +496,14 @@ function ServicesTable({
         </tbody>
       </table>
 
-      {isAddModalOpen && (
+      {modalMode && (modalMode === 'add' || selectedService) && (
         <AddServiceModal
           businessCode={businessCode}
-          onClose={() => setIsAddModalOpen(false)}
+          service={modalMode === 'edit' ? selectedService : null}
+          onClose={() => setModalMode(null)}
           onSuccess={() => {
             onServicesChanged();
-            setIsAddModalOpen(false);
+            setModalMode(null);
           }}
         />
       )}
@@ -495,21 +573,6 @@ function StatusesTable({
           canViewDetails={selectedStatus !== null}
         />
         <div className={styles.toolbarActions}>
-          <IconButton
-            label="ערוך סטטוס"
-            onClick={() => setModalMode('edit')}
-            disabled={!selectedStatus}
-          >
-            <PencilIcon />
-          </IconButton>
-          <IconButton
-            label="מחק סטטוס"
-            variant="danger"
-            onClick={() => void handleDelete()}
-            disabled={!selectedStatus}
-          >
-            <TrashIcon />
-          </IconButton>
           <button
             type="button"
             className={`${styles.btnPrimary} ${styles.addServiceButton}`}

@@ -3,6 +3,7 @@ import AddAppointmentModal from './components/AddAppointmentModal';
 import CalendarView, {
   type AppointmentDropRequest,
 } from './components/CalendarView';
+import EditAppointmentModal from './components/EditAppointmentModal';
 import RescheduleConfirmModal from './components/RescheduleConfirmModal';
 import { SidePanel } from './components/SidePanel';
 import {
@@ -11,6 +12,7 @@ import {
 } from './appointments.api';
 import {
   toAppointmentDetails,
+  toAppointmentEditValues,
   toAppointmentUpdate,
 } from './appointments.mappers';
 import { pickDefaultAppointment } from './pickDefaultAppointment';
@@ -18,6 +20,7 @@ import { useUiPreferences } from '../../shared/displayFields/useUiPreferences';
 import {
   shiftedAppointmentTimes,
   formatHebrewDateTime,
+  formatTimeHm,
   toDateKey,
   toLocalDateTime,
   toSchedulerDateTime,
@@ -55,6 +58,31 @@ function formatMoveRange(start: Date, end: Date | null) {
   return `${startLabel} – ${endTime}`;
 }
 
+function getDropDeltaMinutes(drop: AppointmentDropRequest) {
+  return Math.round(
+    (drop.nextStart.getTime() - drop.previousStart.getTime()) / 60000,
+  );
+}
+
+function toMovedEditValues(
+  appointment: AppointmentDetails,
+  drop: AppointmentDropRequest,
+): AppointmentEditValues {
+  const nextTimes = shiftedAppointmentTimes(
+    appointment.appointment_date,
+    appointment.start_time,
+    appointment.end_time,
+    getDropDeltaMinutes(drop),
+  );
+
+  return {
+    ...toAppointmentEditValues(appointment),
+    appointment_date: nextTimes.appointment_date,
+    start_time: formatTimeHm(nextTimes.start_time),
+    end_time: formatTimeHm(nextTimes.end_time),
+  };
+}
+
 export default function AppointmentsPage({
   businessCode,
 }: AppointmentsPageProps) {
@@ -70,6 +98,7 @@ export default function AppointmentsPage({
   const [pendingDrop, setPendingDrop] = useState<AppointmentDropRequest | null>(
     null,
   );
+  const [isDropEditOpen, setIsDropEditOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -124,31 +153,11 @@ export default function AppointmentsPage({
       throw new Error('No appointment is selected');
     }
 
-    const movedTimes =
-      pendingDrop && pendingDrop.appointmentId === displayedAppointment.id
-        ? shiftedAppointmentTimes(
-            displayedAppointment.appointment_date,
-            displayedAppointment.start_time,
-            displayedAppointment.end_time,
-            Math.round(
-              (pendingDrop.nextStart.getTime() -
-                pendingDrop.previousStart.getTime()) /
-                60000,
-            ),
-          )
-        : null;
-
     await runBusy(async () => {
       await updateAppointment(
         businessCode,
         displayedAppointment.id,
-        toAppointmentUpdate({
-          ...values,
-          appointment_date:
-            movedTimes?.appointment_date ?? values.appointment_date,
-          start_time: movedTimes?.start_time ?? values.start_time,
-          end_time: movedTimes?.end_time ?? values.end_time,
-        }),
+        toAppointmentUpdate(values),
       );
 
       if (values.servicePrices.length > 0) {
@@ -164,11 +173,6 @@ export default function AppointmentsPage({
             getErrorMessage(error),
           );
         }
-      }
-
-      if (pendingDrop?.appointmentId === displayedAppointment.id) {
-        setPendingDrop(null);
-        setDropError('');
       }
 
       refresh();
@@ -205,10 +209,11 @@ export default function AppointmentsPage({
       pendingDrop?.revert();
     }
     setPendingDrop(null);
+    setIsDropEditOpen(false);
     setDropError('');
   };
 
-  const handleConfirmDrop = async () => {
+  const persistReschedule = async (values?: AppointmentEditValues) => {
     if (!pendingDrop || !pendingAppointment) {
       return;
     }
@@ -217,17 +222,34 @@ export default function AppointmentsPage({
       pendingAppointment.appointment_date,
       pendingAppointment.start_time,
       pendingAppointment.end_time,
-      Math.round(
-        (pendingDrop.nextStart.getTime() - pendingDrop.previousStart.getTime()) /
-          60000,
-      ),
+      getDropDeltaMinutes(pendingDrop),
     );
+    const savedDate = values?.appointment_date ?? nextTimes.appointment_date;
 
     setDropError('');
     setIsBusy(true);
 
     try {
-      await updateAppointment(businessCode, pendingAppointment.id, nextTimes);
+      await updateAppointment(
+        businessCode,
+        pendingAppointment.id,
+        values ? toAppointmentUpdate(values) : nextTimes,
+      );
+
+      if (values && values.servicePrices.length > 0) {
+        try {
+          await updateAppointmentServicePrices(
+            businessCode,
+            pendingAppointment.id,
+            values.servicePrices,
+          );
+        } catch (error) {
+          console.error(
+            'שגיאה בעדכון מחירי שירותים:',
+            getErrorMessage(error),
+          );
+        }
+      }
 
       if (pendingDrop.clientPhone) {
         try {
@@ -236,7 +258,9 @@ export default function AppointmentsPage({
             clientPhone: pendingDrop.clientPhone,
             serviceId: pendingDrop.serviceId,
             currentAppointmentTime: toLocalDateTime(pendingDrop.previousStart),
-            newAppointmentTime: toLocalDateTime(pendingDrop.nextStart),
+            newAppointmentTime: values
+              ? toSchedulerDateTime(values.appointment_date, values.start_time)
+              : toLocalDateTime(pendingDrop.nextStart),
           });
         } catch (error) {
           console.error('Scheduler reschedule failed:', getErrorMessage(error));
@@ -245,11 +269,13 @@ export default function AppointmentsPage({
 
       setSelectedId(pendingAppointment.id);
       setSelectedServiceId(pendingDrop.serviceId);
-      setSelectedDate(nextTimes.appointment_date);
+      setSelectedDate(savedDate);
       setPendingDrop(null);
+      setIsDropEditOpen(false);
       refresh();
     } catch (error) {
       setDropError(getAppointmentSaveErrorMessage(error));
+      throw error;
     } finally {
       setIsBusy(false);
     }
@@ -299,6 +325,7 @@ export default function AppointmentsPage({
             onDropRequest={(request) => {
               setActionError('');
               setDropError('');
+              setIsDropEditOpen(false);
               setPendingDrop(request);
               setSelectedId(request.appointmentId);
               setSelectedServiceId(request.serviceId);
@@ -307,11 +334,12 @@ export default function AppointmentsPage({
             isBlocked={isBusy && pendingDrop === null}
             workingHours={calendarSettings.data.workingHours}
             slotDurationMinutes={calendarSettings.data.slotDurationMinutes}
+            maxAdvBookingDays={calendarSettings.data.maxAdvBookingDays}
           />
         </div>
       </main>
 
-      {pendingDrop && pendingAppointment && (
+      {pendingDrop && pendingAppointment && !isDropEditOpen && (
         <RescheduleConfirmModal
           preview={{
             clientName: pendingAppointment.patientName,
@@ -322,13 +350,35 @@ export default function AppointmentsPage({
             ),
             toLabel: formatMoveRange(pendingDrop.nextStart, pendingDrop.nextEnd),
             movesAllServices: (pendingAppointment.services.length ?? 0) > 1,
+            isPastTarget: pendingDrop.nextStart.getTime() < Date.now(),
           }}
           isSaving={isBusy}
           errorMessage={dropError}
           onConfirm={() => {
-            void handleConfirmDrop();
+            void persistReschedule().catch(() => undefined);
           }}
           onCancel={() => closePendingDrop(true)}
+          onEdit={() => {
+            setDropError('');
+            setIsDropEditOpen(true);
+          }}
+        />
+      )}
+
+      {pendingDrop && pendingAppointment && isDropEditOpen && (
+        <EditAppointmentModal
+          key={`${pendingAppointment.id}-${pendingDrop.nextStart.toISOString()}`}
+          appointment={pendingAppointment}
+          initialValues={toMovedEditValues(pendingAppointment, pendingDrop)}
+          statuses={statuses}
+          isSaving={isBusy}
+          errorMessage={dropError}
+          onSave={(values) => persistReschedule(values)}
+          onClose={() => {
+            if (!isBusy) {
+              setIsDropEditOpen(false);
+            }
+          }}
         />
       )}
 
@@ -336,6 +386,7 @@ export default function AppointmentsPage({
         <AddAppointmentModal
           businessCode={businessCode}
           statuses={statuses}
+          maxAdvBookingDays={calendarSettings.data.maxAdvBookingDays}
           onClose={() => setIsAddModalOpen(false)}
           onSuccess={() => {
             setIsAddModalOpen(false);

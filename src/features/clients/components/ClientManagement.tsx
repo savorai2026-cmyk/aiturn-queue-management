@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatClientCell, toClientDetailRows } from '../clients.mappers';
+import { deleteClient } from '../clients.api';
 import type { Client, ClientColumnKey } from '../clients.types';
 import { useClients } from '../useClients';
 import {
@@ -10,7 +11,12 @@ import DisplayToolbar from '../../../shared/displayFields/DisplayToolbar';
 import RecordDetailsModal from '../../../shared/displayFields/RecordDetailsModal';
 import { CLIENT_FIELDS } from '../../../shared/displayFields/catalogs';
 import { useUiPreferences } from '../../../shared/displayFields/useUiPreferences';
-import IconButton, { PencilIcon, PlusIcon } from '../../../shared/components/IconButton';
+import IconButton, {
+  PencilIcon,
+  PlusIcon,
+  TrashIcon,
+} from '../../../shared/components/IconButton';
+import { getErrorMessage } from '../../../shared/errors';
 import AddClientModal from './AddClientModal';
 import styles from './ClientManagement.module.css';
 
@@ -25,6 +31,7 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   const visibleKeys = visibleFieldsFor('clients');
   const activeColumns = CLIENT_FIELDS.filter((field) =>
@@ -37,6 +44,30 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
     setEditingClient(client);
     setSelectedClientId(client.id);
     setIsModalOpen(true);
+  };
+
+  const handleDelete = async (client: Client) => {
+    const label = client.full_name || client.mobile_phone || 'הלקוח';
+    if (!window.confirm(`למחוק את הלקוח "${label}"?`)) {
+      return;
+    }
+
+    setActionError('');
+    try {
+      await deleteClient(businessCode, client.id);
+      if (selectedClientId === client.id) {
+        setSelectedClientId(null);
+      }
+      refresh();
+    } catch (error) {
+      const message = getErrorMessage(error).toLowerCase();
+      console.error('שגיאה במחיקת לקוח:', getErrorMessage(error));
+      setActionError(
+        message.includes('foreign key') || message.includes('violat')
+          ? 'לא ניתן למחוק לקוח שיש לו תורים במערכת.'
+          : 'לא ניתן למחוק את הלקוח.',
+      );
+    }
   };
 
   if (isLoading) {
@@ -73,6 +104,12 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
         </div>
       </div>
 
+      {actionError && (
+        <p className={styles.actionError} role="alert">
+          {actionError}
+        </p>
+      )}
+
       <div className={styles.tableResponsive}>
         <table className={`data-table ${styles.table}`}>
           <thead>
@@ -103,6 +140,17 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
                       }}
                     >
                       <PencilIcon />
+                    </IconButton>
+                    <IconButton
+                      label="מחק לקוח"
+                      variant="danger"
+                      size="compact"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void handleDelete(client);
+                      }}
+                    >
+                      <TrashIcon />
                     </IconButton>
                   </div>
                 </td>

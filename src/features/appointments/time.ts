@@ -71,6 +71,13 @@ export function toDateKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+export function addDaysToDateKey(dateKey: string, days: number): string {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const next = new Date(year, month - 1, day);
+  next.setDate(next.getDate() + days);
+  return toDateKey(next);
+}
+
 export function addMinutesToDateTime(
   date: string,
   time: string,
