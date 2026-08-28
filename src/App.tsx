@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AppTab } from './app/navigation';
+import { readAppTab, writeAppTab } from './app/uiLocation';
 import TopBar from './app/components/TopBar';
 import ClientManagement from './features/clients/components/ClientManagement';
 import Settings from './features/settings/components/Settings';
@@ -10,6 +11,7 @@ import Login from './features/auth/Login';
 import BusinessOnboarding from './features/business/BusinessOnboarding';
 import { BusinessProvider } from './features/business/BusinessContext';
 import { useBusiness } from './features/business/BusinessContextState';
+import './shared/components/icons.css';
 import './App.css';
 
 function LoadingScreen({ message }: { message: string }) {
@@ -37,7 +39,11 @@ function AuthenticatedApp({ userEmail, onLogout }: AuthenticatedAppProps) {
     setActiveBusiness,
     refreshBusinesses,
   } = useBusiness();
-  const [activeTab, setActiveTab] = useState<AppTab>('calendar');
+  const [activeTab, setActiveTab] = useState<AppTab>(readAppTab);
+
+  useEffect(() => {
+    writeAppTab(activeTab);
+  }, [activeTab]);
 
   if (isLoading) {
     return <LoadingScreen message="טוען את פרטי העסק..." />;

@@ -28,13 +28,20 @@ import { getBookingMaxDate } from '../workingHours';
 import {
   errorIncludes,
   getErrorMessage,
+  getSchedulerUnavailableMessage,
+  isSchedulerUnavailable,
 } from '../../../shared/errors';
 import HelpTip from '../../../shared/components/HelpTip';
+import { DateField } from '../../../shared/components/DateField';
+import { HourMinuteField } from '../../../shared/components/HourMinuteField';
+import { PlusIcon, SearchIcon } from '../../../shared/components/icons';
 import styles from './AddAppointmentModal.module.css';
 
 interface AddAppointmentModalProps {
   businessCode: string;
   statuses: StatusCatalogItem[];
+  initialDate?: string | null;
+  initialTime?: string | null;
   maxAdvBookingDays?: number | null;
   onClose: () => void;
   onSuccess: () => void;
@@ -44,6 +51,7 @@ interface AppointmentFormData {
   client_id: string;
   appointment_date: string;
   start_time: string;
+  end_time: string;
   status: string;
   client_notes: string;
   business_notes: string;
@@ -52,6 +60,17 @@ const ILS_FORMATTER = new Intl.NumberFormat('he-IL', {
   style: 'currency',
   currency: 'ILS',
 });
+
+function clampAppointmentDate(
+  date: string | null | undefined,
+  minDate: string,
+  maxDate: string | null,
+) {
+  const candidate = date?.trim() || minDate;
+  if (candidate < minDate) return minDate;
+  if (maxDate && candidate > maxDate) return maxDate;
+  return candidate;
+}
 
 function addMinutesToTime(time: string, minutes: number) {
   const [hours, minuteValue] = time.split(':').map(Number);
@@ -71,6 +90,8 @@ function formatTime(time: string) {
 export default function AddAppointmentModal({
   businessCode,
   statuses,
+  initialDate = null,
+  initialTime = null,
   maxAdvBookingDays = null,
   onClose,
   onSuccess,
@@ -84,8 +105,13 @@ export default function AddAppointmentModal({
   const [availableSlots, setAvailableSlots] = useState<SchedulerSlot[]>([]);
   const [formData, setFormData] = useState<AppointmentFormData>({
     client_id: '',
-    appointment_date: minAppointmentDate,
-    start_time: '09:00',
+    appointment_date: clampAppointmentDate(
+      initialDate,
+      minAppointmentDate,
+      maxAppointmentDate,
+    ),
+    start_time: initialTime || '09:00',
+    end_time: initialTime || '09:00',
     status: pickDefaultCreateStatus(statuses).status_code,
     client_notes: '',
     business_notes: '',
@@ -173,6 +199,15 @@ export default function AddAppointmentModal({
     totalDurationMinutes,
   );
 
+  useEffect(() => {
+    const nextEnd = calculatedEndTime ?? formData.start_time;
+    setFormData((previous) =>
+      previous.end_time === nextEnd
+        ? previous
+        : { ...previous, end_time: nextEnd },
+    );
+  }, [calculatedEndTime, formData.start_time]);
+
   const clearSlotSuggestions = () => {
     setAvailableSlots([]);
     setSlotMessage('');
@@ -230,7 +265,11 @@ export default function AddAppointmentModal({
       );
     } catch (error) {
       console.error('שגיאה בחיפוש זמנים פנויים:', getErrorMessage(error));
-      setSlotMessage('לא ניתן לחשב זמנים פנויים כרגע.');
+      setSlotMessage(
+        isSchedulerUnavailable(error)
+          ? getSchedulerUnavailableMessage('slots')
+          : 'לא ניתן לחשב זמנים פנויים כרגע.',
+      );
     } finally {
       setIsLoadingSlots(false);
     }
@@ -247,6 +286,11 @@ export default function AddAppointmentModal({
 
     if (selectedServiceIds.length === 0) {
       setErrorMessage('יש לבחור לפחות שירות אחד.');
+      return;
+    }
+
+    if (formData.end_time <= formData.start_time) {
+      setErrorMessage('שעת הסיום חייבת להיות מאוחרת משעת ההתחלה.');
       return;
     }
 
@@ -293,6 +337,8 @@ export default function AddAppointmentModal({
           'הזמן שנבחר מתנגש בתור קיים. מוצגים זמנים פנויים חלופיים.',
         );
         await loadAvailableSlots();
+      } else if (isSchedulerUnavailable(error)) {
+        setErrorMessage(getSchedulerUnavailableMessage('create'));
       } else {
         setErrorMessage(
           'לא ניתן ליצור את התור. בדוק את הפרטים ונסה שוב.',
@@ -396,13 +442,6 @@ export default function AddAppointmentModal({
                         <small>{service.description}</small>
                       )}
                     </span>
-                    <span
-                      className={styles.serviceColor}
-                      style={{
-                        backgroundColor: service.color_code || '#0d9488',
-                      }}
-                      aria-hidden="true"
-                    />
                   </label>
                 );
               })}
@@ -427,41 +466,56 @@ export default function AddAppointmentModal({
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="appointment-date">תאריך התור *</label>
-              <input
+              <DateField
                 id="appointment-date"
-                type="date"
-                name="appointment_date"
+                aria-label="תאריך התור"
                 required
                 min={minAppointmentDate}
                 max={maxAppointmentDate ?? undefined}
                 value={formData.appointment_date}
-                onChange={handleChange}
-                className={styles.input}
+                onChange={(date) => {
+                  setFormData((previous) => ({
+                    ...previous,
+                    appointment_date: date,
+                  }));
+                  clearSlotSuggestions();
+                }}
               />
             </div>
 
-            <div className={styles.formGroup}>
-              <label htmlFor="appointment-start">שעת התחלה *</label>
-              <input
-                id="appointment-start"
-                type="time"
-                name="start_time"
-                required
-                value={formData.start_time}
-                onChange={handleChange}
-                className={styles.input}
-              />
-            </div>
+            <div className={styles.timePair}>
+              <div className={styles.formGroup}>
+                <label htmlFor="appointment-start">שעת התחלה *</label>
+                <HourMinuteField
+                  id="appointment-start"
+                  value={formData.start_time}
+                  required
+                  aria-label="שעת התחלה"
+                  onChange={(startTime) => {
+                    setFormData((previous) => ({
+                      ...previous,
+                      start_time: startTime,
+                    }));
+                    clearSlotSuggestions();
+                  }}
+                />
+              </div>
 
-            <div className={styles.formGroup}>
-              <label htmlFor="appointment-end">שעת סיום</label>
-              <input
-                id="appointment-end"
-                type="time"
-                value={calculatedEndTime ?? ''}
-                className={styles.input}
-                readOnly
-              />
+              <div className={styles.formGroup}>
+                <label htmlFor="appointment-end">שעת סיום</label>
+                <HourMinuteField
+                  id="appointment-end"
+                  value={formData.end_time}
+                  required
+                  aria-label="שעת סיום"
+                  onChange={(endTime) => {
+                    setFormData((previous) => ({
+                      ...previous,
+                      end_time: endTime,
+                    }));
+                  }}
+                />
+              </div>
             </div>
           </div>
 
@@ -475,7 +529,12 @@ export default function AddAppointmentModal({
               !formData.appointment_date
             }
           >
-            {isLoadingSlots ? 'מחפש...' : 'מצא זמנים פנויים'}
+            {isLoadingSlots ? 'מחפש...' : (
+              <>
+                <SearchIcon />
+                מצא זמנים פנויים
+              </>
+            )}
           </button>
 
           {(slotMessage || availableSlots.length > 0) && (
@@ -568,7 +627,12 @@ export default function AddAppointmentModal({
               className={styles.btnSave}
               disabled={!canSubmit}
             >
-              {isSaving ? 'יוצר תור...' : 'צור תור'}
+              {isSaving ? 'יוצר תור...' : (
+                <>
+                  <PlusIcon />
+                  צור תור
+                </>
+              )}
             </button>
           </div>
         </form>

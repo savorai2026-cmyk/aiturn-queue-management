@@ -74,6 +74,17 @@
   margin-bottom: 4px;
 }
 
+.brandLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.brandLabel svg {
+  width: 14px;
+  height: 14px;
+}
+
 .input, .select {
   padding: 8px 12px;
   border: 1px solid var(--color-line);
@@ -138,6 +149,9 @@
 }
 
 .btnSave {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background-color: var(--color-teal-600);
   color: #ffffff;
   padding: 8px 20px;

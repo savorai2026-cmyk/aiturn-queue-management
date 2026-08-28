@@ -20,6 +20,9 @@ import DisplayToolbar from '../../../shared/displayFields/DisplayToolbar';
 import RecordDetailsModal from '../../../shared/displayFields/RecordDetailsModal';
 import { APPOINTMENT_FIELDS } from '../../../shared/displayFields/catalogs';
 import HelpTip from '../../../shared/components/HelpTip';
+import { DateField } from '../../../shared/components/DateField';
+import { HourMinuteField } from '../../../shared/components/HourMinuteField';
+import { BanIcon, MoveIcon, PencilIcon, SaveIcon, WhatsAppIcon } from '../../../shared/components/icons';
 import styles from './SidePanel.module.css';
 
 const ILS_FORMATTER = new Intl.NumberFormat('he-IL', {
@@ -130,10 +133,7 @@ export const SidePanel = ({
             title={isEditing ? 'סגור עריכה' : 'עריכה'}
             disabled={isBusy}
           >
-            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-            </svg>
+            <PencilIcon />
           </button>
           <button
             type="button"
@@ -143,11 +143,7 @@ export const SidePanel = ({
             title="שמירה"
             disabled={isBusy}
           >
-            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-              <polyline points="17 21 17 13 7 13 7 21" />
-              <polyline points="7 3 7 8 15 8" />
-            </svg>
+            <SaveIcon />
           </button>
         </div>
       </div>
@@ -174,27 +170,21 @@ export const SidePanel = ({
           <span className={styles.fieldLabel}>שעות</span>
           {isEditing ? (
             <div className={styles.inlineFields}>
-              <input
-                type="time"
-                className={styles.input}
+              <HourMinuteField
                 value={formData.start_time}
-                onChange={(event) =>
+                aria-label="שעת התחלה"
+                onChange={(startTime) =>
                   setFormData((current) =>
-                    current
-                      ? { ...current, start_time: event.target.value }
-                      : current,
+                    current ? { ...current, start_time: startTime } : current,
                   )
                 }
               />
-              <input
-                type="time"
-                className={styles.input}
+              <HourMinuteField
                 value={formData.end_time}
-                onChange={(event) =>
+                aria-label="שעת סיום"
+                onChange={(endTime) =>
                   setFormData((current) =>
-                    current
-                      ? { ...current, end_time: event.target.value }
-                      : current,
+                    current ? { ...current, end_time: endTime } : current,
                   )
                 }
               />
@@ -209,14 +199,13 @@ export const SidePanel = ({
         <div className={styles.field}>
           <span className={styles.fieldLabel}>תאריך</span>
           {isEditing ? (
-            <input
-              type="date"
-              className={styles.input}
+            <DateField
+              aria-label="תאריך"
               value={formData.appointment_date}
-              onChange={(event) =>
+              onChange={(date) =>
                 setFormData((current) =>
                   current
-                    ? { ...current, appointment_date: event.target.value }
+                    ? { ...current, appointment_date: date }
                     : current,
                 )
               }
@@ -379,6 +368,7 @@ export const SidePanel = ({
           onClick={onMoveOptions}
           disabled={isBusy || isCanceledStatus(appointment.status)}
         >
+          <MoveIcon />
           אפשרויות הזזה
         </button>
 
@@ -388,10 +378,12 @@ export const SidePanel = ({
           onClick={() => void handleCancel()}
           disabled={isBusy || isCanceledStatus(appointment.status)}
         >
+          <BanIcon />
           ביטול תור
         </button>
 
         <button className={styles.btn} type="button" disabled title="בפיתוח">
+          <WhatsAppIcon />
           שלח וואטסאפ חופשי
         </button>
       </div>

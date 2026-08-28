@@ -13,6 +13,7 @@ import type {
   ServiceInsert,
   ServiceUpdate,
 } from '../settings.types';
+import { PlusIcon, SaveIcon } from '../../../shared/components/icons';
 import styles from './AddServiceModal.module.css';
 
 interface AddServiceModalProps {
@@ -30,7 +31,6 @@ const INITIAL_VALUES: ServiceFormValues = {
   buffer_time_minutes: '0',
   price: '0',
   deposit_amount: '0',
-  color_code: '#0d9488',
   is_active: true,
 };
 
@@ -45,7 +45,6 @@ function toFormValues(service?: Service | null): ServiceFormValues {
     buffer_time_minutes: String(service.buffer_time_minutes ?? 0),
     price: String(service.price),
     deposit_amount: String(service.deposit_amount ?? 0),
-    color_code: service.color_code || '#0d9488',
     is_active: service.is_active !== false,
   };
 }
@@ -80,10 +79,6 @@ function validateService(values: ServiceFormValues): string | null {
     return 'סכום הפיקדון אינו יכול להיות גבוה ממחיר השירות.';
   }
 
-  if (!/^#[0-9a-f]{6}$/i.test(values.color_code)) {
-    return 'צבע השירות אינו בפורמט תקין.';
-  }
-
   return null;
 }
 
@@ -100,7 +95,6 @@ function toServiceInsert(
     buffer_time_minutes: Number(values.buffer_time_minutes),
     price: Number(values.price),
     deposit_amount: Number(values.deposit_amount),
-    color_code: values.color_code,
     is_active: values.is_active,
   };
 }
@@ -114,7 +108,6 @@ function toServiceUpdate(values: ServiceFormValues): ServiceUpdate {
     buffer_time_minutes: Number(values.buffer_time_minutes),
     price: Number(values.price),
     deposit_amount: Number(values.deposit_amount),
-    color_code: values.color_code,
     is_active: values.is_active,
   };
 }
@@ -326,28 +319,6 @@ export default function AddServiceModal({
               />
             </div>
 
-            <div className={styles.formGroup}>
-              <label htmlFor="service-color">צבע ביומן</label>
-              <div className={styles.colorInput}>
-                <input
-                  id="service-color"
-                  type="color"
-                  name="color_code"
-                  value={formData.color_code}
-                  onChange={handleChange}
-                />
-                <input
-                  aria-label="קוד צבע"
-                  name="color_code"
-                  value={formData.color_code}
-                  onChange={handleChange}
-                  className={styles.input}
-                  dir="ltr"
-                  maxLength={7}
-                />
-              </div>
-            </div>
-
             <label className={styles.checkboxGroup}>
               <input
                 type="checkbox"
@@ -377,7 +348,17 @@ export default function AddServiceModal({
               className={styles.btnSave}
               disabled={isSaving}
             >
-              {isSaving ? 'שומר...' : isEdit ? 'שמור שינויים' : 'הוסף שירות'}
+              {isSaving ? 'שומר...' : isEdit ? (
+                <>
+                  <SaveIcon />
+                  שמור שינויים
+                </>
+              ) : (
+                <>
+                  <PlusIcon />
+                  הוסף שירות
+                </>
+              )}
             </button>
           </div>
         </form>

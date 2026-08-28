@@ -44,7 +44,6 @@ export const SERVICE_FIELDS: DisplayField[] = [
   { key: 'title', label: 'שם השירות', defaultVisible: true },
   { key: 'duration_minutes', label: 'משך (דקות)', defaultVisible: true },
   { key: 'price', label: 'מחיר (₪)', defaultVisible: true },
-  { key: 'color_code', label: 'צבע', defaultVisible: true },
   { key: 'is_active', label: 'סטטוס', defaultVisible: true },
   { key: 'description', label: 'תיאור', defaultVisible: false },
   { key: 'buffer_time_minutes', label: 'זמן חיץ (דקות)', defaultVisible: false },

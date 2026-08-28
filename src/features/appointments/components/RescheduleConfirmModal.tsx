@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { PencilIcon } from '../../../shared/components/IconButton';
+import { CheckIcon, PencilIcon } from '../../../shared/components/icons';
 import HelpTip from '../../../shared/components/HelpTip';
 import styles from './RescheduleConfirmModal.module.css';
 
@@ -129,7 +129,12 @@ export default function RescheduleConfirmModal({
               onClick={onConfirm}
               disabled={isSaving}
             >
-              {isSaving ? 'שומר...' : 'אישור'}
+              {isSaving ? 'שומר...' : (
+                <>
+                  <CheckIcon />
+                  אישור
+                </>
+              )}
             </button>
           </div>
         </div>

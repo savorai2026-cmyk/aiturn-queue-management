@@ -133,7 +133,6 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
                   <div className={styles.rowActions}>
                     <IconButton
                       label="ערוך לקוח"
-                      size="compact"
                       onClick={(event) => {
                         event.stopPropagation();
                         handleEdit(client);
@@ -144,7 +143,6 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
                     <IconButton
                       label="מחק לקוח"
                       variant="danger"
-                      size="compact"
                       onClick={(event) => {
                         event.stopPropagation();
                         void handleDelete(client);

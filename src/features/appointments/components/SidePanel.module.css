@@ -32,8 +32,8 @@
 }
 
 .iconButton {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.22);
@@ -95,6 +95,8 @@
 .inlineFields {
   display: flex;
   gap: 8px;
+  width: max-content;
+  max-width: 100%;
 }
 
 .input,

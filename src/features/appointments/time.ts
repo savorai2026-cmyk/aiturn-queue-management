@@ -49,6 +49,14 @@ export function snapMinutes(totalMinutes: number, step = 5): number {
   return Math.round(totalMinutes / step) * step;
 }
 
+export function toTimeHm(date: Date): string {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+export function snapTimeHm(time: string, step = 5): string {
+  return formatTimeHm(minutesToTime(snapMinutes(parseTimeToMinutes(time), step)));
+}
+
 export function toLocalDateTimeMs(date: string, time: string): number {
   const [year, month, day] = date.split('-').map(Number);
   const minutes = parseTimeToMinutes(time);
@@ -69,6 +77,20 @@ export function toDateKey(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+export function toLocalDateFromKey(dateKey: string, time = '00:00'): Date {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const minutes = parseTimeToMinutes(time);
+  return new Date(
+    year,
+    month - 1,
+    day,
+    Math.floor(minutes / 60),
+    minutes % 60,
+    0,
+    0,
+  );
 }
 
 export function addDaysToDateKey(dateKey: string, days: number): string {

@@ -41,7 +41,25 @@
 
 .formRow {
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+
+.formRow > * {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.timePair {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.timePair .formGroup {
+  flex: 0 0 auto;
+  margin-bottom: 15px;
 }
 
 .error {
@@ -165,13 +183,6 @@
   font-size: 12px;
 }
 
-.serviceColor {
-  width: 10px;
-  height: 32px;
-  flex: 0 0 10px;
-  border-radius: 999px;
-}
-
 .summary {
   display: flex;
   flex-wrap: wrap;
@@ -189,6 +200,10 @@
 }
 
 .availabilityButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   margin: -3px 0 14px;
   padding: 8px 14px;
   border: 1px solid var(--color-navy-800);
@@ -266,6 +281,9 @@
 }
 
 .btnSave {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background-color: var(--color-teal-600);
   color: #ffffff;
   padding: 8px 20px;
@@ -290,7 +308,7 @@
   }
 
   .formRow {
-    display: block;
+    align-items: flex-start;
   }
 
   .serviceList {

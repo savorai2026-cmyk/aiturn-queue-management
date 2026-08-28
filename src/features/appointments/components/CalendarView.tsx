@@ -10,10 +10,20 @@ import type { AppointmentDetails, CalendarEventProps } from '../appointments.typ
 import {
   getCalendarSlotRange,
   getBookingRangeEndExclusive,
+  parseWorkingHourExceptions,
   parseWorkingHours,
+  resolveWorkingDay,
   toFullCalendarBusinessHours,
+  toFullCalendarBusinessHoursForRange,
+  type WorkingHourException,
+  type WorkingHours,
 } from '../workingHours';
-import { snapMinutes, toDateKey } from '../time';
+import { addDaysToDateKey, snapMinutes, snapTimeHm, toDateKey, toLocalDateFromKey, toTimeHm } from '../time';
+import {
+  isCalendarViewName,
+  readCalendarLocation,
+  writeCalendarLocation,
+} from '../../../app/uiLocation';
 import {
   ErrorState,
   LoadingState,
@@ -35,6 +45,7 @@ export interface AppointmentDropRequest {
 }
 
 interface CalendarViewProps {
+  businessCode: string;
   events: EventInput[];
   appointments: AppointmentDetails[];
   isLoading: boolean;
@@ -43,6 +54,7 @@ interface CalendarViewProps {
   onAddAppointment: () => void;
   onEventClick: (appointment: AppointmentDetails, serviceId: number) => void;
   onSelectDate: (date: string) => void;
+  onSelectTime?: (time: string | null) => void;
   selectedAppointmentId: number | null;
   selectedServiceId: number | null;
   selectedDate: string | null;
@@ -52,6 +64,27 @@ interface CalendarViewProps {
   workingHours: Json | null;
   slotDurationMinutes: number | null;
   maxAdvBookingDays: number | null;
+}
+
+function isClosedCalendarDay(
+  workingHours: WorkingHours | null,
+  exceptions: WorkingHourException[],
+  dateKey: string,
+) {
+  const exception = exceptions.find((item) => item.date === dateKey);
+  if (exception) return exception.is_closed;
+  if (!workingHours) return false;
+  const day = resolveWorkingDay(workingHours, exceptions, dateKey);
+  return !day || day.is_closed === true;
+}
+
+function specialNoteForDate(
+  exceptions: WorkingHourException[],
+  date: Date,
+) {
+  const dateKey = toDateKey(date);
+  const note = exceptions.find((item) => item.date === dateKey)?.note?.trim();
+  return note || null;
 }
 
 function getSlotDuration(slotDurationMinutes: number | null) {
@@ -88,6 +121,7 @@ function readSnappedTimeFromPoint(
 }
 
 export default function CalendarView({
+  businessCode,
   events,
   appointments,
   isLoading,
@@ -96,6 +130,7 @@ export default function CalendarView({
   onAddAppointment,
   onEventClick,
   onSelectDate,
+  onSelectTime,
   selectedAppointmentId,
   selectedServiceId,
   selectedDate,
@@ -108,9 +143,17 @@ export default function CalendarView({
 }: CalendarViewProps) {
   const calendarRef = useRef<FullCalendar | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const storedLocation = useMemo(
+    () => readCalendarLocation(businessCode),
+    [businessCode],
+  );
   const [isMobile, setIsMobile] = useState(() =>
     window.matchMedia(MOBILE_QUERY).matches,
   );
+  const [visibleRange, setVisibleRange] = useState(() => {
+    const start = storedLocation?.date ?? toDateKey(new Date());
+    return { start, end: start };
+  });
   const [dragTooltip, setDragTooltip] = useState<{
     x: number;
     y: number;
@@ -133,36 +176,61 @@ export default function CalendarView({
   useEffect(() => {
     const api = calendarRef.current?.getApi();
     if (!api) return;
-    api.changeView(isMobile ? 'timeGridDay' : 'timeGridWeek');
+    if (isMobile && api.view.type !== 'timeGridDay') {
+      api.changeView('timeGridDay');
+    }
   }, [isMobile]);
-
-  const applySelectedDay = useCallback(() => {
-    const root = rootRef.current;
-    if (!root) return;
-
-    root.querySelectorAll<HTMLElement>('[data-date]').forEach((element) => {
-      element.classList.toggle(
-        'is-selected-day',
-        Boolean(selectedDate) && element.dataset.date === selectedDate,
-      );
-    });
-  }, [selectedDate]);
-
-  useEffect(() => {
-    applySelectedDay();
-  }, [applySelectedDay, events, isMobile]);
 
   const parsedHours = useMemo(
     () => parseWorkingHours(workingHours),
     [workingHours],
   );
+  const exceptions = useMemo(
+    () => parseWorkingHourExceptions(workingHours),
+    [workingHours],
+  );
+
+  const applyDayMarks = useCallback(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    root.querySelectorAll<HTMLElement>('[data-date]').forEach((element) => {
+      const dateKey = element.dataset.date ?? '';
+      element.classList.toggle(
+        'is-selected-day',
+        Boolean(selectedDate) && dateKey === selectedDate,
+      );
+      element.classList.toggle(
+        'is-closed-day',
+        Boolean(dateKey) &&
+          isClosedCalendarDay(parsedHours, exceptions, dateKey),
+      );
+    });
+  }, [exceptions, parsedHours, selectedDate]);
+
+  useEffect(() => {
+    applyDayMarks();
+  }, [applyDayMarks, events, isMobile]);
+
+  useEffect(() => {
+    writeCalendarLocation(businessCode, { selectedDate });
+  }, [businessCode, selectedDate]);
+
   const businessHours = useMemo(
-    () => toFullCalendarBusinessHours(parsedHours),
-    [parsedHours],
+    () =>
+      exceptions.length > 0 && visibleRange.end > visibleRange.start
+        ? toFullCalendarBusinessHoursForRange(
+            parsedHours,
+            exceptions,
+            visibleRange.start,
+            visibleRange.end,
+          )
+        : toFullCalendarBusinessHours(parsedHours),
+    [exceptions, parsedHours, visibleRange.end, visibleRange.start],
   );
   const slotRange = useMemo(
-    () => getCalendarSlotRange(parsedHours),
-    [parsedHours],
+    () => getCalendarSlotRange(parsedHours, exceptions),
+    [exceptions, parsedHours],
   );
   const bookingRangeEnd = useMemo(
     () => getBookingRangeEndExclusive(maxAdvBookingDays),
@@ -170,8 +238,8 @@ export default function CalendarView({
   );
 
   const calendarEvents = useMemo(
-    () =>
-      events.map((event) => {
+    () => {
+      const appointmentEvents = events.map((event) => {
         const props = event.extendedProps as CalendarEventProps | undefined;
         const existingNames = Array.isArray(event.classNames)
           ? event.classNames
@@ -195,8 +263,63 @@ export default function CalendarView({
           startEditable: canMove,
           durationEditable: false,
         };
-      }),
-    [events, selectedAppointmentId, selectedServiceId],
+      });
+
+      const markers: EventInput[] = [];
+      if (visibleRange.end > visibleRange.start) {
+        let current = visibleRange.start;
+        let guard = 0;
+        while (current < visibleRange.end && guard < 400) {
+          const exception = exceptions.find((item) => item.date === current);
+          const closed = isClosedCalendarDay(parsedHours, exceptions, current);
+          const note = exception?.note?.trim() || (closed ? 'סגור' : '');
+
+          if (closed) {
+            markers.push({
+              id: `special-day-${current}`,
+              title: note,
+              start: toLocalDateFromKey(current, slotRange.slotMinTime),
+              end: toLocalDateFromKey(current, slotRange.slotMaxTime),
+              display: 'background',
+              editable: false,
+              overlap: true,
+              classNames: ['special-day-fill'],
+              extendedProps: { specialDayLabel: true },
+            });
+          } else if (exception && !exception.is_closed) {
+            exception.shifts.forEach((shift, index) => {
+              markers.push({
+                id: `special-day-${current}-${index}`,
+                title: note,
+                start: toLocalDateFromKey(current, shift.start),
+                end: toLocalDateFromKey(current, shift.end),
+                display: 'background',
+                editable: false,
+                overlap: true,
+                classNames: ['special-day-fill'],
+                extendedProps: { specialDayLabel: true },
+              });
+            });
+          }
+
+          current = addDaysToDateKey(current, 1);
+          guard += 1;
+        }
+      }
+
+      return [...markers, ...appointmentEvents];
+    },
+    [
+      events,
+      exceptions,
+      parsedHours,
+      selectedAppointmentId,
+      selectedServiceId,
+      slotRange.slotMaxTime,
+      slotRange.slotMinTime,
+      visibleRange.end,
+      visibleRange.start,
+    ],
   );
 
   const slotMinutes =
@@ -268,11 +391,18 @@ export default function CalendarView({
       <FullCalendar
         ref={calendarRef}
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-        initialView={isMobile ? 'timeGridDay' : 'timeGridWeek'}
+        initialView={
+          isMobile ? 'timeGridDay' : (storedLocation?.view ?? 'timeGridWeek')
+        }
+        initialDate={
+          storedLocation?.date
+            ? toLocalDateFromKey(storedLocation.date)
+            : undefined
+        }
         locale={heLocale}
         customButtons={{
           newAppointmentBtn: {
-            text: '➕ תור חדש',
+            text: 'תור חדש',
             click: onAddAppointment,
           },
         }}
@@ -304,13 +434,58 @@ export default function CalendarView({
         eventResizableFromStart={false}
         nowIndicator
         navLinks
-        datesSet={applySelectedDay}
+        datesSet={(info) => {
+          applyDayMarks();
+          const start = toDateKey(info.start);
+          const end = toDateKey(info.end);
+          setVisibleRange((current) =>
+            current.start === start && current.end === end
+              ? current
+              : { start, end },
+          );
+          if (isCalendarViewName(info.view.type)) {
+            writeCalendarLocation(businessCode, {
+              date: toDateKey(info.view.currentStart),
+              view: info.view.type,
+            });
+          }
+        }}
+        dayHeaderContent={(arg) => {
+          const note = specialNoteForDate(exceptions, arg.date);
+          return (
+            <span className={styles.dayHeaderInner}>
+              <span>{arg.text}</span>
+              {note ? (
+                <span className={styles.specialNote} title={note}>
+                  {note}
+                </span>
+              ) : null}
+            </span>
+          );
+        }}
+        dayCellContent={(arg) => {
+          if (arg.view.type !== 'dayGridMonth') return;
+          const note = specialNoteForDate(exceptions, arg.date);
+          if (!note) return;
+          return (
+            <>
+              {arg.dayNumberText}
+              <span className={styles.monthNote} title={note}>
+                {note}
+              </span>
+            </>
+          );
+        }}
         dateClick={(info) => {
           onSelectDate(toDateKey(info.date));
+          onSelectTime?.(
+            info.allDay ? null : snapTimeHm(toTimeHm(info.date)),
+          );
         }}
         navLinkDayClick={(date, event) => {
           event.preventDefault();
           onSelectDate(toDateKey(date));
+          onSelectTime?.(null);
           calendarRef.current?.getApi().changeView('timeGridDay', date);
         }}
         eventDragStart={() => {
@@ -320,7 +495,12 @@ export default function CalendarView({
         eventDrop={handleEventDrop}
         eventClick={(clickInfo) => {
           clickInfo.jsEvent.preventDefault();
-          const props = clickInfo.event.extendedProps as CalendarEventProps;
+          const props = clickInfo.event.extendedProps as CalendarEventProps & {
+            specialDayLabel?: boolean;
+          };
+          if (props?.specialDayLabel) {
+            return;
+          }
           const appointment = appointments.find(
             (candidate) => candidate.id === props.appointmentId,
           );

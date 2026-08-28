@@ -1,0 +1,286 @@
+[data-icon] {
+  display: block;
+  flex-shrink: 0;
+  overflow: visible;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+[data-icon] [data-part] {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="gear"] {
+  animation: icon-spin 2.2s linear infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="plus"],
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="google"] {
+  animation: icon-pulse 0.9s ease-in-out infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="pencil"] [data-part="nib"] {
+  animation: icon-write 0.7s ease-in-out infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="pencil"] [data-part="line"] {
+  stroke-dasharray: 18;
+  animation: icon-draw 1.1s ease-in-out infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="trash"] [data-part="lid"] {
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: icon-lid 0.8s ease-in-out infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="save"] {
+  animation: icon-press 0.9s ease-in-out infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="check"] {
+  animation: icon-pop 0.8s ease-in-out infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="logout"] [data-part="arrow"] {
+  animation: icon-exit 0.9s ease-in-out infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="calendar"] [data-part="rings"] {
+  animation: icon-bob 0.8s ease-in-out infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="users"] [data-part="friend"] {
+  animation: icon-bob 1s ease-in-out infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="copy"] [data-part="front"] {
+  animation: icon-copy 0.9s ease-in-out infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="move"] [data-part="left"] {
+  animation: icon-slide-start 0.9s ease-in-out infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="move"] [data-part="right"] {
+  animation: icon-slide-end 0.9s ease-in-out infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="ban"] {
+  animation: icon-shake 0.7s ease-in-out infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="whatsapp"],
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="help"] {
+  animation: icon-bob 0.8s ease-in-out infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="search"] {
+  animation: icon-search 1.1s ease-in-out infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="eye"] {
+  animation: icon-blink 1.6s ease-in-out infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="eye-off"] {
+  animation: icon-shake 0.8s ease-in-out infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="clock"] [data-part="hands"] {
+  transform-origin: 12px 12px;
+  transform-box: view-box;
+  animation: icon-spin 1.6s linear infinite;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="glasses"] {
+  animation: icon-look 1s ease-in-out infinite;
+}
+
+.fc-newAppointmentBtn-button:hover:not(:disabled)::before,
+.fc-newAppointmentBtn-button:focus-visible:not(:disabled)::before {
+  animation: icon-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes icon-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes icon-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.14);
+  }
+}
+
+@keyframes icon-write {
+  0%,
+  100% {
+    transform: rotate(0deg) translate(0, 0);
+  }
+  25% {
+    transform: rotate(9deg) translate(1px, 1px);
+  }
+  50% {
+    transform: rotate(-6deg) translate(-1px, 1.5px);
+  }
+  75% {
+    transform: rotate(7deg) translate(1px, 0);
+  }
+}
+
+@keyframes icon-draw {
+  0%,
+  100% {
+    stroke-dashoffset: 18;
+  }
+  50% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes icon-lid {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  45% {
+    transform: rotate(-22deg);
+  }
+}
+
+@keyframes icon-press {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(1.5px);
+  }
+}
+
+@keyframes icon-pop {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.18);
+  }
+}
+
+@keyframes icon-exit {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-3px);
+  }
+}
+
+@keyframes icon-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes icon-copy {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(2px, 2px);
+  }
+}
+
+@keyframes icon-slide-start {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-2px);
+  }
+}
+
+@keyframes icon-slide-end {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes icon-shake {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-8deg);
+  }
+  75% {
+    transform: rotate(8deg);
+  }
+}
+
+@keyframes icon-search {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(1px, -1px) rotate(-10deg);
+  }
+  50% {
+    transform: translate(-1px, 1px) rotate(8deg);
+  }
+  75% {
+    transform: translate(1px, 1px) rotate(-4deg);
+  }
+}
+
+@keyframes icon-blink {
+  0%,
+  38%,
+  100% {
+    transform: scaleY(1);
+  }
+  45%,
+  52% {
+    transform: scaleY(0.12);
+  }
+}
+
+@keyframes icon-look {
+  0%,
+  100% {
+    transform: rotate(0deg) translateX(0);
+  }
+  50% {
+    transform: rotate(-6deg) translateX(-1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(button, [role="button"]):is(:hover, :focus-visible) [data-icon],
+  :is(button, [role="button"]):is(:hover, :focus-visible) [data-icon] [data-part],
+  .fc-newAppointmentBtn-button:hover::before,
+  .fc-newAppointmentBtn-button:focus-visible::before {
+    animation: none !important;
+  }
+}

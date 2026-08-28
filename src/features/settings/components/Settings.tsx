@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { deleteService, deleteStatus, updateBusinessSettings } from '../settings.api';
 import { getErrorMessage } from '../../../shared/errors';
 import {
@@ -32,13 +32,35 @@ import IconButton, {
   PlusIcon,
   TrashIcon,
 } from '../../../shared/components/IconButton';
+import { SaveIcon } from '../../../shared/components/icons';
 import HelpTip from '../../../shared/components/HelpTip';
+import { getTimezoneGroups } from '../timezones';
 import AddServiceModal from './AddServiceModal';
 import OperatingHoursForm from './OperatingHoursForm';
 import StatusModal from './StatusModal';
+import TimezoneSelect from './TimezoneSelect';
 import styles from './Settings.module.css';
 
 type SettingsTab = 'business' | 'hours' | 'services' | 'statuses';
+
+const SETTINGS_TABS: SettingsTab[] = [
+  'business',
+  'hours',
+  'services',
+  'statuses',
+];
+
+function readStoredSettingsTab(businessCode: string): SettingsTab {
+  try {
+    const stored = sessionStorage.getItem(`settingsTab:${businessCode}`);
+    if (stored && SETTINGS_TABS.includes(stored as SettingsTab)) {
+      return stored as SettingsTab;
+    }
+  } catch {
+    /* ignore */
+  }
+  return 'business';
+}
 
 interface SettingsProps {
   businessCode: string;
@@ -49,12 +71,26 @@ export default function Settings({
   businessCode,
   onBusinessUpdated,
 }: SettingsProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('business');
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() =>
+    readStoredSettingsTab(businessCode),
+  );
   const { business, services, statuses, error, isLoading, refresh } =
     useSettings(businessCode);
   const { visibleFieldsFor, toggleField } = useUiPreferences(businessCode);
 
-  if (isLoading) {
+  useEffect(() => {
+    setActiveTab(readStoredSettingsTab(businessCode));
+  }, [businessCode]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(`settingsTab:${businessCode}`, activeTab);
+    } catch {
+      /* ignore */
+    }
+  }, [activeTab, businessCode]);
+
+  if (isLoading && !business) {
     return <LoadingState message="טוען הגדרות..." />;
   }
 
@@ -180,6 +216,10 @@ function BusinessSettingsForm({
   } | null>(null);
 
   const isVisible = (key: string) => visibleFields.includes(key);
+  const timezoneGroups = useMemo(
+    () => getTimezoneGroups(formData.timezone),
+    [formData.timezone],
+  );
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const field = event.target.name as keyof EditableBusinessSettings;
@@ -284,16 +324,18 @@ function BusinessSettingsForm({
           <div className={styles.formGroup}>
             <div className={styles.labelRow}>
               <label htmlFor="business-timezone">אזור זמן</label>
-              <HelpTip text="אזור הזמן של העסק, למשל Asia/Jerusalem. לפי זה מחושבות שעות היומן." />
+              <HelpTip text="אזור הזמן של העסק. לפי זה מחושבות שעות היומן." />
             </div>
-            <input
+            <TimezoneSelect
               id="business-timezone"
-              type="text"
-              name="timezone"
               value={formData.timezone || ''}
-              onChange={handleChange}
-              className={styles.input}
-              dir="ltr"
+              groups={timezoneGroups}
+              onChange={(timezone) =>
+                setFormData((previous) => ({
+                  ...previous,
+                  timezone: timezone || null,
+                }))
+              }
             />
           </div>
         )}
@@ -328,7 +370,12 @@ function BusinessSettingsForm({
         onClick={() => void handleSave()}
         disabled={isSaving}
       >
-        {isSaving ? 'שומר...' : 'שמור הגדרות עסק'}
+        {isSaving ? 'שומר...' : (
+          <>
+            <SaveIcon />
+            שמור הגדרות עסק
+          </>
+        )}
       </button>
 
       {isDetailsOpen && (
@@ -449,7 +496,6 @@ function ServicesTable({
                   <div className={styles.rowActions}>
                     <IconButton
                       label="ערוך שירות"
-                      size="compact"
                       onClick={(event) => {
                         event.stopPropagation();
                         setSelectedServiceId(service.id);
@@ -461,7 +507,6 @@ function ServicesTable({
                     <IconButton
                       label="מחק שירות"
                       variant="danger"
-                      size="compact"
                       onClick={(event) => {
                         event.stopPropagation();
                         setSelectedServiceId(service.id);
@@ -474,20 +519,7 @@ function ServicesTable({
                 </td>
                 {activeColumns.map((column) => (
                   <td key={column.key} dir={column.dir}>
-                    {column.key === 'color_code' ? (
-                      <span className={styles.colorCell}>
-                        <span
-                          className={styles.colorBadge}
-                          style={{
-                            backgroundColor: service.color_code || '#dce7eb',
-                          }}
-                          aria-hidden="true"
-                        />
-                        {formatServiceCell(service, column.key)}
-                      </span>
-                    ) : (
-                      formatServiceCell(service, column.key)
-                    )}
+                    {formatServiceCell(service, column.key)}
                   </td>
                 ))}
               </tr>
@@ -628,7 +660,6 @@ function StatusesTable({
                   <div className={styles.rowActions}>
                     <IconButton
                       label="ערוך סטטוס"
-                      size="compact"
                       onClick={(event) => {
                         event.stopPropagation();
                         setSelectedStatusCode(status.status_code);
@@ -640,7 +671,6 @@ function StatusesTable({
                     <IconButton
                       label="מחק סטטוס"
                       variant="danger"
-                      size="compact"
                       onClick={(event) => {
                         event.stopPropagation();
                         setSelectedStatusCode(status.status_code);

@@ -1,4 +1,8 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  readCalendarLocation,
+  writeCalendarLocation,
+} from '../../app/uiLocation';
 import AddAppointmentModal from './components/AddAppointmentModal';
 import CalendarView, {
   type AppointmentDropRequest,
@@ -90,11 +94,16 @@ export default function AppointmentsPage({
     useAppointments(businessCode);
   const calendarSettings = useCalendarSettings(businessCode);
   const { visibleFieldsFor, toggleField } = useUiPreferences(businessCode);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(
-    null,
+  const [selectedId, setSelectedId] = useState<number | null>(
+    () => readCalendarLocation(businessCode)?.selectedId ?? null,
   );
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(
+    () => readCalendarLocation(businessCode)?.selectedServiceId ?? null,
+  );
+  const [selectedDate, setSelectedDate] = useState<string | null>(
+    () => readCalendarLocation(businessCode)?.selectedDate ?? null,
+  );
+  const [draftStartTime, setDraftStartTime] = useState<string | null>(null);
   const [pendingDrop, setPendingDrop] = useState<AppointmentDropRequest | null>(
     null,
   );
@@ -103,6 +112,14 @@ export default function AppointmentsPage({
   const [isBusy, setIsBusy] = useState(false);
   const [actionError, setActionError] = useState('');
   const [dropError, setDropError] = useState('');
+
+  useEffect(() => {
+    writeCalendarLocation(businessCode, {
+      selectedDate,
+      selectedId,
+      selectedServiceId,
+    });
+  }, [businessCode, selectedDate, selectedId, selectedServiceId]);
 
   const appointmentDetails = useMemo(
     () => appointments.map(toAppointmentDetails),
@@ -305,6 +322,7 @@ export default function AppointmentsPage({
         )}
         <div className="calendar-stage">
           <CalendarView
+            businessCode={businessCode}
             events={events}
             appointments={appointmentDetails}
             isLoading={isLoading}
@@ -315,9 +333,11 @@ export default function AppointmentsPage({
               setSelectedId(appointment.id);
               setSelectedServiceId(serviceId);
               setSelectedDate(appointment.appointment_date);
+              setDraftStartTime(null);
               setActionError('');
             }}
             onSelectDate={setSelectedDate}
+            onSelectTime={setDraftStartTime}
             selectedAppointmentId={displayedAppointment?.id ?? null}
             selectedServiceId={displayedServiceId}
             selectedDate={displayedDate}
@@ -386,6 +406,8 @@ export default function AppointmentsPage({
         <AddAppointmentModal
           businessCode={businessCode}
           statuses={statuses}
+          initialDate={displayedDate}
+          initialTime={draftStartTime}
           maxAdvBookingDays={calendarSettings.data.maxAdvBookingDays}
           onClose={() => setIsAddModalOpen(false)}
           onSuccess={() => {

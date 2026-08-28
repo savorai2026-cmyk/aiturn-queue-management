@@ -105,9 +105,9 @@
 }
 
 :global(.fc .fc-col-header-cell.is-selected-day) {
-  background: #e8f4f8;
+  background: #d8f3ef;
   color: var(--color-navy-900);
-  box-shadow: inset 0 -4px 0 var(--color-navy-800);
+  box-shadow: inset 0 -4px 0 var(--color-teal-600);
 }
 
 :global(.fc .fc-col-header-cell.is-selected-day .fc-col-header-cell-cushion) {
@@ -118,12 +118,13 @@
 :global(.fc .fc-col-header-cell.fc-day-today.is-selected-day) {
   background: #c5ebe6;
   color: var(--color-navy-900);
-  box-shadow: inset 0 -4px 0 var(--color-navy-800);
+  box-shadow: inset 0 -4px 0 var(--color-teal-600);
 }
 
 :global(.fc-timegrid-col.is-selected-day),
 :global(.fc-daygrid-day.is-selected-day) {
-  background: rgba(7, 63, 103, 0.07) !important;
+  background-color: rgba(20, 184, 166, 0.12) !important;
+  box-shadow: inset 0 0 0 2px rgba(20, 184, 166, 0.28);
 }
 
 :global(.fc-event.event-selected) {
@@ -203,19 +204,32 @@
 }
 
 :global(.fc-newAppointmentBtn-button) {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
   background-color: var(--color-teal-600) !important;
   font-weight: 700 !important;
+}
+
+:global(.fc-newAppointmentBtn-button)::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5v7'/%3E%3Cpath d='M5 12h14'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5v7'/%3E%3Cpath d='M5 12h14'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 :global(.fc-newAppointmentBtn-button:not(:disabled):hover) {
   background-color: #0f766e !important;
 }
 
-:global(.fc-timegrid-event) {
-  min-height: 22px !important;
-  border: 0 !important;
-  border-radius: 5px;
-  box-shadow: 0 2px 5px rgba(7, 63, 103, 0.14);
+:global(.fc-bg-event.special-day-fill),
+:global(.fc .fc-bg-event.special-day-fill) {
+  background-color: #e8eef2 !important;
+  background-image: var(--closed-day-hatch) !important;
+  opacity: 1 !important;
 }
 
 :global(.event-group-start) {
@@ -246,11 +260,11 @@
 }
 
 :global(.fc .fc-daygrid-day.fc-day-today) {
-  background: rgba(13, 148, 136, 0.1) !important;
+  background-color: rgba(13, 148, 136, 0.1) !important;
 }
 
 :global(.fc .fc-timegrid-col.fc-day-today) {
-  background: rgba(13, 148, 136, 0.07) !important;
+  background-color: rgba(13, 148, 136, 0.07) !important;
 }
 
 :global(.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number) {
@@ -258,14 +272,79 @@
   font-weight: 800;
 }
 
-:global(.fc .fc-non-business) {
-  background: repeating-linear-gradient(
+:global(.fc) {
+  --closed-day-hatch: repeating-linear-gradient(
     -45deg,
     rgba(15, 48, 73, 0.04),
     rgba(15, 48, 73, 0.04) 8px,
     rgba(15, 48, 73, 0.08) 8px,
     rgba(15, 48, 73, 0.08) 16px
   );
+}
+
+:global(.fc .fc-non-business),
+:global(.fc .fc-day-disabled),
+:global(.fc .fc-timegrid-col.fc-day-disabled),
+:global(.fc .fc-timegrid-col.is-closed-day),
+:global(.fc .fc-daygrid-day.is-closed-day) {
+  background-color: #e8eef2 !important;
+  background-image: var(--closed-day-hatch) !important;
+}
+
+:global(.fc .fc-timegrid-col.fc-day-today.is-closed-day),
+:global(.fc .fc-daygrid-day.fc-day-today.is-closed-day) {
+  background-color: rgba(13, 148, 136, 0.08) !important;
+  background-image: var(--closed-day-hatch) !important;
+}
+
+:global(.fc .fc-timegrid-col.is-selected-day.is-closed-day),
+:global(.fc .fc-daygrid-day.is-selected-day.is-closed-day) {
+  background-color: rgba(20, 184, 166, 0.16) !important;
+  background-image: var(--closed-day-hatch) !important;
+  box-shadow: inset 0 0 0 2px rgba(20, 184, 166, 0.35);
+}
+
+.dayHeaderInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  white-space: normal;
+}
+
+.specialNote,
+.monthNote {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.specialNote {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ecfdf8;
+}
+
+:global(.fc .fc-col-header-cell.fc-day-today) .specialNote,
+:global(.fc .fc-col-header-cell.is-selected-day) .specialNote {
+  background: rgba(7, 63, 103, 0.1);
+  color: var(--color-navy-900);
+}
+
+.monthNote {
+  display: block;
+  margin-top: 4px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: #ecfdf8;
+  color: var(--color-teal-700, #0f766e);
+  white-space: normal;
 }
 
 :global(.fc .fc-timegrid-slot-label-cushion),

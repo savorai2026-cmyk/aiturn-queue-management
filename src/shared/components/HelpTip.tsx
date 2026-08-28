@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { HelpIcon } from './icons';
 import styles from './HelpTip.module.css';
 
 interface HelpTipProps {
@@ -120,11 +121,7 @@ export default function HelpTip({
           setPinned((open) => !open);
         }}
       >
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="9" />
-          <path d="M9.6 9.4a2.4 2.4 0 1 1 3.5 2.1c-.8.4-1.3 1-1.3 1.8V14" />
-          <path d="M12 17h.01" />
-        </svg>
+        <HelpIcon />
       </button>
       {isOpen &&
         createPortal(

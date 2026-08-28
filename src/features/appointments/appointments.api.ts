@@ -34,8 +34,7 @@ export async function getAppointmentServiceOptions(
       description,
       duration_minutes,
       buffer_time_minutes,
-      price,
-      color_code
+      price
     `)
     .eq('business_code', businessCode)
     .eq('is_active', true)

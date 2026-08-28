@@ -9,6 +9,9 @@ import type {
 } from '../appointments.types';
 import { formatTimeHm } from '../time';
 import { getAppointmentSaveErrorMessage } from '../../../shared/errors';
+import { DateField } from '../../../shared/components/DateField';
+import { HourMinuteField } from '../../../shared/components/HourMinuteField';
+import { SaveIcon } from '../../../shared/components/icons';
 import styles from './EditAppointmentModal.module.css';
 
 const ILS_FORMATTER = new Intl.NumberFormat('he-IL', {
@@ -114,14 +117,13 @@ export default function EditAppointmentModal({
 
         <div className={styles.field}>
           <span className={styles.fieldLabel}>תאריך</span>
-          <input
-            type="date"
-            className={styles.input}
+          <DateField
+            aria-label="תאריך"
             value={formData.appointment_date}
-            onChange={(event) =>
+            onChange={(date) =>
               setFormData((current) => ({
                 ...current,
-                appointment_date: event.target.value,
+                appointment_date: date,
               }))
             }
           />
@@ -130,25 +132,23 @@ export default function EditAppointmentModal({
         <div className={styles.field}>
           <span className={styles.fieldLabel}>שעות</span>
           <div className={styles.inlineFields}>
-            <input
-              type="time"
-              className={styles.input}
+            <HourMinuteField
               value={formData.start_time}
-              onChange={(event) =>
+              aria-label="שעת התחלה"
+              onChange={(startTime) =>
                 setFormData((current) => ({
                   ...current,
-                  start_time: event.target.value,
+                  start_time: startTime,
                 }))
               }
             />
-            <input
-              type="time"
-              className={styles.input}
+            <HourMinuteField
               value={formData.end_time}
-              onChange={(event) =>
+              aria-label="שעת סיום"
+              onChange={(endTime) =>
                 setFormData((current) => ({
                   ...current,
-                  end_time: event.target.value,
+                  end_time: endTime,
                 }))
               }
             />
@@ -273,7 +273,12 @@ export default function EditAppointmentModal({
             }}
             disabled={isSaving}
           >
-            {isSaving ? 'שומר...' : 'שמירה'}
+            {isSaving ? 'שומר...' : (
+              <>
+                <SaveIcon />
+                שמירה
+              </>
+            )}
           </button>
         </div>
 

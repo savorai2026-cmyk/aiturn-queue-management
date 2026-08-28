@@ -108,10 +108,10 @@
 .daysHead,
 .dayRow {
   display: grid;
-  grid-template-columns: 90px 110px 1fr 1fr;
+  grid-template-columns: 90px 110px minmax(0, 1fr);
   gap: 12px;
-  align-items: center;
-  padding: 10px 14px;
+  align-items: start;
+  padding: 12px 14px;
 }
 
 .daysHead {
@@ -119,6 +119,7 @@
   color: var(--color-text-muted);
   font-size: 12px;
   font-weight: 700;
+  align-items: center;
 }
 
 .dayRow {
@@ -130,6 +131,7 @@
 }
 
 .dayLabel {
+  padding-top: 8px;
   color: var(--color-navy-900);
   font-weight: 700;
 }
@@ -138,12 +140,61 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  padding-top: 8px;
   color: var(--color-text);
   font-size: 13px;
 }
 
+.shifts {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.shiftRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.shiftSep,
+.closedHint {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.closedHint {
+  padding-top: 8px;
+}
+
+.addShift {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: var(--color-surface);
+  color: var(--color-navy-800);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.shiftActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .secondaryBtn,
 .saveBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   width: fit-content;
   border-radius: 7px;
   font: inherit;
@@ -153,6 +204,7 @@
 
 .copyRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
@@ -217,5 +269,10 @@
   .dayLabel,
   .toggle {
     grid-column: span 1;
+  }
+
+  .shifts,
+  .closedHint {
+    grid-column: 1 / -1;
   }
 }

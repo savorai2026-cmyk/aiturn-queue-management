@@ -62,6 +62,8 @@
 .inlineFields {
   display: flex;
   gap: 8px;
+  width: max-content;
+  max-width: 100%;
 }
 
 .input,
@@ -147,6 +149,10 @@
 
 .btnCancel,
 .btnSave {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-width: 104px;
   padding: 10px 22px;
   border-radius: 7px;

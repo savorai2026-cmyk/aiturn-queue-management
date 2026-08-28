@@ -24,3 +24,17 @@ export function getAppointmentSaveErrorMessage(error: unknown): string {
 
   return getErrorMessage(error) || 'לא ניתן לשמור את השינויים.';
 }
+
+export function isSchedulerUnavailable(error: unknown): boolean {
+  return (
+    errorIncludes(error, 'edge function') ||
+    errorIncludes(error, 'failed to send a request') ||
+    errorIncludes(error, 'failed to send a request to the edge function')
+  );
+}
+
+export function getSchedulerUnavailableMessage(action: 'create' | 'slots'): string {
+  return action === 'slots'
+    ? 'לא ניתן לחפש זמנים פנויים כי שירות הזימון (Webhook) לא זמין כרגע.'
+    : 'לא ניתן ליצור את התור כי שירות הזימון (Webhook) לא זמין כרגע.';
+}

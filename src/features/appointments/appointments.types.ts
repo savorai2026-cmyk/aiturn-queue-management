@@ -25,7 +25,6 @@ export type AppointmentServiceOption = Pick<
   | 'duration_minutes'
   | 'buffer_time_minutes'
   | 'price'
-  | 'color_code'
 >;
 
 export type AppointmentStatus = string;

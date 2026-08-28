@@ -1,0 +1,133 @@
+.root {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: #ffffff;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.trigger:focus,
+.trigger:focus-visible,
+.trigger[aria-expanded='true'] {
+  outline: none;
+  border-color: var(--color-teal-600);
+}
+
+.value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+}
+
+.menu {
+  position: fixed;
+  z-index: 10000;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--color-surface, #ffffff);
+  box-shadow: var(--shadow-floating, 0 8px 24px rgba(7, 48, 75, 0.18));
+}
+
+.searchRow {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px;
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-surface, #ffffff);
+}
+
+.search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.search:focus {
+  outline: none;
+  border-color: var(--color-teal-600);
+}
+
+.list {
+  padding: 6px 0 8px;
+}
+
+.group {
+  min-width: 0;
+}
+
+.groupLabel {
+  padding: 8px 12px 4px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.option {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  text-align: start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.option:hover,
+.option:focus-visible {
+  background: #f0f7f8;
+  outline: none;
+}
+
+.selected {
+  background: #ecfdf8;
+  color: var(--color-teal-700, #0f766e);
+  font-weight: 600;
+}
+
+.empty {
+  margin: 0;
+  padding: 12px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}

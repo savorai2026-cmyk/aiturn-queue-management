@@ -5,6 +5,11 @@ import {
   signInWithGoogle,
   signUpWithEmail,
 } from './auth.api';
+import {
+  EyeIcon,
+  EyeOffIcon,
+  GoogleIcon,
+} from '../../shared/components/icons';
 import styles from './Login.module.css';
 
 type AuthMode = 'login' | 'signup';
@@ -123,7 +128,7 @@ export default function Login() {
                 onClick={() => setShowPassword((visible) => !visible)}
                 aria-label={showPassword ? 'הסתר סיסמה' : 'הצג סיסמה'}
               >
-                {showPassword ? 'הסתר' : 'הצג'}
+                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
               </button>
             </div>
           </label>
@@ -157,6 +162,7 @@ export default function Login() {
           className={styles.googleButton}
           onClick={() => void handleGoogleLogin()}
         >
+          <GoogleIcon />
           התחברות באמצעות Google
         </button>
       </section>

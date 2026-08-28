@@ -89,19 +89,21 @@
 }
 
 .passwordField input {
-  padding-left: 64px;
+  padding-left: 42px;
 }
 
 .passwordToggle {
   position: absolute;
   top: 50%;
   left: 8px;
-  padding: 4px 7px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   border: 0;
   background: transparent;
   color: var(--color-navy-800);
-  font: inherit;
-  font-size: 12px;
   cursor: pointer;
   transform: translateY(-50%);
   box-shadow: none;
@@ -142,6 +144,10 @@
 }
 
 .googleButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   border: 1px solid var(--color-line);
   background: var(--color-surface);
   color: var(--color-text);

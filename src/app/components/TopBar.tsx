@@ -1,6 +1,12 @@
 import logo from '../../assets/logo.png';
 import type { AppTab } from '../navigation';
 import type { BusinessMembership } from '../../features/business/BusinessContextState';
+import {
+  CalendarIcon,
+  GearIcon,
+  LogoutIcon,
+  UsersIcon,
+} from '../../shared/components/icons';
 import styles from './TopBar.module.css';
 
 interface TopBarProps {
@@ -14,10 +20,14 @@ interface TopBarProps {
   onBusinessChange: (businessCode: string) => void;
 }
 
-const NAV_ITEMS: Array<{ tab: AppTab; label: string }> = [
-  { tab: 'settings', label: 'הגדרות' },
-  { tab: 'calendar', label: 'יומן חי' },
-  { tab: 'clients', label: 'ניהול לקוחות' },
+const NAV_ITEMS: Array<{
+  tab: AppTab;
+  label: string;
+  icon: typeof CalendarIcon;
+}> = [
+  { tab: 'settings', label: 'הגדרות', icon: GearIcon },
+  { tab: 'calendar', label: 'יומן חי', icon: CalendarIcon },
+  { tab: 'clients', label: 'ניהול לקוחות', icon: UsersIcon },
 ];
 
 export default function TopBar({
@@ -37,13 +47,14 @@ export default function TopBar({
       </div>
 
       <div className={styles.navGroup}>
-        {NAV_ITEMS.map(({ tab, label }) => (
+        {NAV_ITEMS.map(({ tab, label, icon: Icon }) => (
           <button
             key={tab}
             className={`${styles.navBtn} ${activeTab === tab ? styles.activeNavBtn : ''}`}
             aria-current={activeTab === tab ? 'page' : undefined}
             onClick={() => onTabChange(tab)}
           >
+            <Icon />
             {label}
           </button>
         ))}
@@ -67,7 +78,10 @@ export default function TopBar({
         <span className={styles.greeting}>
           שלום, {businessName || userEmail?.split('@')[0] || 'משתמש'}
         </span>
-        <button className={styles.logoutBtn} onClick={onLogout}>יציאה</button>
+        <button className={styles.logoutBtn} onClick={onLogout}>
+          <LogoutIcon />
+          יציאה
+        </button>
       </div>
     </header>
   );

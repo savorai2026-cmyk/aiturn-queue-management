@@ -66,7 +66,6 @@ export function BusinessProvider({ userId, children }: BusinessProviderProps) {
   );
 
   const refreshBusinesses = useCallback(async () => {
-    setIsLoading(true);
     setError(null);
 
     try {

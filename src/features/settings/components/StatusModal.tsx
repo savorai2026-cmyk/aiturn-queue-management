@@ -17,6 +17,7 @@ import type {
   AppointmentStatusUpdate,
   StatusFormValues,
 } from '../settings.types';
+import { PlusIcon, SaveIcon } from '../../../shared/components/icons';
 import styles from './AddServiceModal.module.css';
 
 interface StatusModalProps {
@@ -282,7 +283,17 @@ export default function StatusModal({
               className={styles.btnSave}
               disabled={isSaving}
             >
-              {isSaving ? 'שומר...' : isEdit ? 'שמור שינויים' : 'הוסף סטטוס'}
+              {isSaving ? 'שומר...' : isEdit ? (
+                <>
+                  <SaveIcon />
+                  שמור שינויים
+                </>
+              ) : (
+                <>
+                  <PlusIcon />
+                  הוסף סטטוס
+                </>
+              )}
             </button>
           </div>
         </form>

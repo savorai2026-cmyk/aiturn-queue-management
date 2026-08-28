@@ -11,6 +11,7 @@ import {
   errorIncludes,
   getErrorMessage,
 } from '../../../shared/errors';
+import { PlusIcon, SaveIcon, WhatsAppIcon } from '../../../shared/components/icons';
 import styles from './AddClientModal.module.css';
 
 interface AddClientModalProps {
@@ -208,7 +209,10 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
             </div>
 
             <div className={styles.formGroup}>
-              <label>וואטסאפ</label>
+              <label className={styles.brandLabel}>
+                <WhatsAppIcon />
+                וואטסאפ
+              </label>
               <input
                 type="text"
                 name="whatsapp_number"
@@ -349,7 +353,12 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
           <div className={styles.actions}>
             <button type="button" className={styles.btnCancel} onClick={onClose}>ביטול</button>
             <button type="submit" className={styles.btnSave} disabled={isSaving}>
-              {isSaving ? 'שומר...' : 'שמור לקוח'}
+              {isSaving ? 'שומר...' : (
+                <>
+                  {clientToEdit ? <SaveIcon /> : <PlusIcon />}
+                  שמור לקוח
+                </>
+              )}
             </button>
           </div>
         </form>

@@ -30,6 +30,9 @@
 }
 
 .navBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   min-height: 38px;
   padding: 8px 15px;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -76,6 +79,9 @@
 }
 
 .logoutBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   padding: 7px 14px;
   border: 1px solid rgba(255, 255, 255, 0.24);
   border-radius: 7px;

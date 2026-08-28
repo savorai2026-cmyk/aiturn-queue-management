@@ -22,7 +22,6 @@ export interface ServiceFormValues {
   buffer_time_minutes: string;
   price: string;
   deposit_amount: string;
-  color_code: string;
   is_active: boolean;
 }
 
