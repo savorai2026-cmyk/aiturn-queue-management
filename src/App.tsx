@@ -11,6 +11,7 @@ import Login from './features/auth/Login';
 import BusinessOnboarding from './features/business/BusinessOnboarding';
 import { BusinessProvider } from './features/business/BusinessContext';
 import { useBusiness } from './features/business/BusinessContextState';
+import PaymentMethodGate from './features/billing/PaymentMethodGate';
 import './shared/components/icons.css';
 import './App.css';
 
@@ -77,6 +78,11 @@ function AuthenticatedApp({ userEmail, onLogout }: AuthenticatedAppProps) {
         businesses={memberships}
         activeBusinessCode={activeBusiness.businessCode}
         onBusinessChange={setActiveBusiness}
+      />
+
+      <PaymentMethodGate
+        businessCode={activeBusiness.businessCode}
+        role={activeBusiness.role}
       />
       
       <div className="main-content">

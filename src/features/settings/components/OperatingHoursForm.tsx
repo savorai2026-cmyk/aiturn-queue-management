@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { updateOperatingHours } from '../settings.api';
 import type { BusinessSettings } from '../settings.types';
 import {
-  BOOKING_WINDOW_PRESETS,
   createBlankSpecialDay,
   getBookingMaxDate,
   parseWorkingHourExceptions,
@@ -177,48 +176,40 @@ export default function OperatingHoursForm({
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h3>
-            זימון תורים
-            <HelpTip text="כמה ימים קדימה אפשר לקבוע תור חדש. תורים שכבר קיימים ביומן יישארו גלויים גם מעבר לטווח הזה." />
+            עד מתי אפשר לקבוע תור
+            <HelpTip text="מגביל רק זימון של תור חדש. תורים שכבר קיימים ביומן נשארים גלויים גם מעבר לטווח הזה." />
           </h3>
         </div>
 
         <div className={styles.bookingRow}>
-          <label className={styles.field}>
-            <span>ימים קדימה</span>
+          <label className={styles.bookingSentence}>
+            <span>אפשר לקבוע תור עד</span>
             <input
               type="number"
               min="1"
               max="365"
-              className={styles.input}
+              className={styles.bookingInput}
               value={bookingDays}
-              placeholder="ללא הגבלה"
+              placeholder="—"
+              dir="ltr"
+              aria-label="מספר ימים מראש לזימון תור חדש"
               onChange={(event) => setBookingDays(event.target.value)}
             />
+            <span>ימים מראש</span>
           </label>
-          <div className={styles.presets}>
-            {BOOKING_WINDOW_PRESETS.map((daysAhead) => (
-              <button
-                key={daysAhead}
-                type="button"
-                className={`${styles.preset} ${bookingDays === String(daysAhead) ? styles.presetActive : ''}`}
-                onClick={() => setBookingDays(String(daysAhead))}
-              >
-                {daysAhead} ימים
-              </button>
-            ))}
-            <button
-              type="button"
-              className={`${styles.preset} ${bookingDays === '' ? styles.presetActive : ''}`}
-              onClick={() => setBookingDays('')}
-            >
-              ללא הגבלה
-            </button>
-          </div>
+          <button
+            type="button"
+            className={`${styles.unlimitedBtn} ${bookingDays === '' ? styles.unlimitedBtnActive : ''}`}
+            aria-pressed={bookingDays === ''}
+            onClick={() => setBookingDays('')}
+          >
+            ללא הגבלה
+          </button>
         </div>
 
         <p className={styles.hint}>
           {bookingMaxDate
-            ? `אפשר לקבוע תור חדש עד ${formatHebrewDate(bookingMaxDate)}.`
+            ? `תור חדש אפשר לקבוע עד ${formatHebrewDate(bookingMaxDate)}.`
             : 'אין הגבלה על התאריך האחרון לזימון תור חדש.'}
         </p>
       </section>

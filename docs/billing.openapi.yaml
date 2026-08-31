@@ -1,0 +1,286 @@
+openapi: 3.0.3
+info:
+  title: Billing / payment-methods HTTP API
+  version: "1.0.0"
+  description: |
+    HTTP surface of the CreditGuard card-token flow as implemented in this app
+    (`app.py` + `billing/routes.py`). Only three GET routes exist.
+
+    **`GET /billing/start` is not a public unauthenticated API.** It is a
+    signed owner link: HMAC-SHA256 over `{business_code}.{exp}` using
+    `BILLING_LINK_SECRET` (fallback `VAPI_SECRET`). Links are generated
+    server-side (`billing.links.build_start_url` or `python -m billing`).
+    A missing secret, missing `business_code`, missing `sig`, non-integer
+    `exp`, expired `exp`, or a signature mismatch all fail verification.
+
+    After a valid start, the app creates a `billing_sessions` row
+    (`status=pending`, `expires_at` = now + 3600 seconds) and a pending
+    `business_payment_methods` row, then 302-redirects to CreditGuard's
+    hosted token page. Success/error redirect to `/billing/callback`;
+    cancel uses `/billing/callback?outcome=cancel`. The callback **does
+    not trust** CreditGuard query fields as truth: it inquires the
+    transaction server-side, then persists `cg_card_id` / last4.
+
+    HTML user pages from `_html_page` always return **HTTP 200** with
+    `Content-Type: text/html; charset=utf-8` (Hebrew, RTL). Distinguish
+    outcomes by page title/body, not by status code. The only JSON
+    endpoint is `/billing/health` (200 or 503).
+servers:
+  - url: /
+    description: Same origin as the Flask app
+  - url: https://{host}
+    description: Public Cloud Run (or other) base URL
+    variables:
+      host:
+        default: appointment-app-43062247540.europe-west1.run.app
+        description: Hostname only; set from VAPI_SERVER_BASE_URL in deployment
+tags:
+  - name: Billing
+    description: Card-token enrollment via CreditGuard hosted page
+paths:
+  /billing/health:
+    get:
+      tags: [Billing]
+      operationId: billingHealth
+      summary: CreditGuard / signing configuration probe
+      description: |
+        Returns whether the CreditGuard terminal credentials and link
+        secret are present. Does not expose secret values. `ok` is true
+        only when user, password, terminal, and mid are all set
+        (`config.is_terminal_configured()`). HTTP 200 when `ok` is true,
+        HTTP 503 otherwise.
+      responses:
+        "200":
+          description: Terminal credentials are configured (`ok` is true)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingHealth"
+              example:
+                ok: true
+                terminal_configured: true
+                user_configured: true
+                mid_configured: true
+                password_configured: true
+                link_secret_configured: true
+                relay_host: cguat2.creditguard.co.il
+        "503":
+          description: Terminal credentials incomplete (`ok` is false)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingHealth"
+              example:
+                ok: false
+                terminal_configured: false
+                user_configured: false
+                mid_configured: false
+                password_configured: false
+                link_secret_configured: false
+                relay_host: cguat2.creditguard.co.il
+
+  /billing/start:
+    get:
+      tags: [Billing]
+      operationId: billingStart
+      summary: Open a signed owner session and redirect to CreditGuard
+      description: |
+        Owner-only signed link. Query must include `business_code`, unix
+        `exp`, and hex HMAC `sig`. On success: persist session, call
+        CreditGuard `doDeal` Token setup, **302** to `mpiHostedPageUrl`.
+
+        All failure paths return **HTML 200** (not 4xx). Session TTL after
+        start is 3600 seconds (`SESSION_TTL_SECONDS`).
+      parameters:
+        - $ref: "#/components/parameters/BusinessCode"
+        - $ref: "#/components/parameters/Exp"
+        - $ref: "#/components/parameters/Sig"
+      responses:
+        "302":
+          description: |
+            CreditGuard hosted page URL. `Location` is the mpi hosted
+            page from the relay. Browser continues the card-entry UI.
+          headers:
+            Location:
+              description: CreditGuard mpiHostedPageUrl
+              schema:
+                type: string
+                format: uri
+        "200":
+          description: |
+            HTML error page (always status 200). Titles used in code:
+            - קישור לא תקין — signature / exp / secret / params invalid
+            - לא ניתן להתחיל — CreditGuard terminal not configured
+            - שגיאה — business lookup or session persist failed
+            - עסק לא נמצא — no `businesses` row for `business_code`
+            - לא ניתן לפתוח את דף התשלום — CreditGuard Token setup failed
+          content:
+            text/html:
+              schema:
+                type: string
+              examples:
+                invalidLink:
+                  summary: Invalid or expired signature
+                  value: |
+                    HTML title קישור לא תקין — הקישור אינו תקף או שפג תוקפו.
+                terminalDown:
+                  summary: Terminal not configured
+                  value: |
+                    HTML title לא ניתן להתחיל — מסוף התשלום אינו מוגדר.
+                businessMissing:
+                  summary: Unknown business_code
+                  value: |
+                    HTML title עסק לא נמצא — הקישור אינו משויך לעסק קיים.
+
+  /billing/callback:
+    get:
+      tags: [Billing]
+      operationId: billingCallback
+      summary: CreditGuard redirect after token page
+      description: |
+        Browser landing after hosted page success, error, or cancel.
+        CreditGuard is given:
+        - successUrl / errorUrl = `{public_base}/billing/callback`
+        - cancelUrl = `{public_base}/billing/callback?outcome=cancel`
+
+        Required: session `uniqueid` (also accepts `uniqueID` / `uniqueId`).
+        Optional: `outcome=cancel` for the cancel URL.
+
+        Flow: load `billing_sessions` by uniqueid → reject missing /
+        already-final / expired sessions → `inquireTransactions` → if
+        succeeded with `card_id`, persist token (revoke prior active
+        method) → else if `outcome=cancel` and no card, mark canceled →
+        else mark failed.
+
+        All responses are **HTML 200**.
+      parameters:
+        - name: uniqueid
+          in: query
+          required: false
+          description: |
+            Session id created at start (uuid hex). Required in practice;
+            missing uniqueid (and aliases) yields HTML "חסר מזהה".
+          schema:
+            type: string
+        - name: uniqueID
+          in: query
+          required: false
+          description: Alias for uniqueid (checked if uniqueid is empty)
+          schema:
+            type: string
+        - name: uniqueId
+          in: query
+          required: false
+          description: Alias for uniqueid (checked last)
+          schema:
+            type: string
+        - name: outcome
+          in: query
+          required: false
+          description: |
+            Set to `cancel` on the cancel URL. Compared case-insensitively.
+            Cancel is applied only if inquire did not return a card_id.
+          schema:
+            type: string
+            enum: [cancel]
+      responses:
+        "200":
+          description: |
+            HTML result page. Titles used in code:
+            - חסר מזהה — no uniqueid
+            - סשן לא נמצא — no matching billing_sessions row
+            - הכרטיס כבר שמור — session already succeeded (ok styling)
+            - הסשן הסתיים — status already failed / canceled / expired
+            - הקישור פג תוקף — expires_at in the past
+            - שגיאה בשמירה — inquire ok but DB persist failed
+            - הכרטיס נשמר — token stored (ok styling; last4 if present)
+            - הפעולה בוטלה — cancel without card
+            - לא נשמר כרטיס — inquire failed or no token
+          content:
+            text/html:
+              schema:
+                type: string
+              examples:
+                saved:
+                  summary: Token stored
+                  value: |
+                    HTML title הכרטיס נשמר — פרטי הכרטיס נשמרו בהצלחה.
+                canceled:
+                  summary: User canceled
+                  value: |
+                    HTML title הפעולה בוטלה — שמירת הכרטיס בוטלה.
+                missingId:
+                  summary: No uniqueid
+                  value: |
+                    HTML title חסר מזהה — לא התקבל מזהה סשן.
+
+components:
+  parameters:
+    BusinessCode:
+      name: business_code
+      in: query
+      required: true
+      description: |
+        `businesses.business_code`. Must match an existing row after
+        signature verification. Part of the HMAC payload.
+      schema:
+        type: string
+    Exp:
+      name: exp
+      in: query
+      required: true
+      description: |
+        Unix timestamp (seconds). Must parse as int and be strictly
+        greater than current `time.time()`. Part of the HMAC payload as
+        the integer string used at sign time.
+      schema:
+        type: integer
+        format: int64
+    Sig:
+      name: sig
+      in: query
+      required: true
+      description: |
+        HMAC-SHA256 hex digest of UTF-8 `{business_code}.{exp}`, keyed
+        by `BILLING_LINK_SECRET` or `VAPI_SECRET`. Compared with
+        `hmac.compare_digest` after lowercasing the provided value.
+      schema:
+        type: string
+        pattern: "^[0-9a-fA-F]{64}$"
+
+  schemas:
+    BillingHealth:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - terminal_configured
+        - user_configured
+        - mid_configured
+        - password_configured
+        - link_secret_configured
+        - relay_host
+      properties:
+        ok:
+          type: boolean
+          description: True iff user, password, terminal, and mid are all set
+        terminal_configured:
+          type: boolean
+          description: CREDITGUARD_TERMINAL is non-empty
+        user_configured:
+          type: boolean
+          description: CREDITGUARD_USER is non-empty
+        mid_configured:
+          type: boolean
+          description: CREDITGUARD_MID is non-empty
+        password_configured:
+          type: boolean
+          description: CREDITGUARD_PASSWORD is non-empty (boolean only)
+        link_secret_configured:
+          type: boolean
+          description: BILLING_LINK_SECRET or VAPI_SECRET is non-empty
+        relay_host:
+          type: string
+          description: |
+            Hostname parsed from CREDITGUARD_RELAY_URL
+            (default relay host cguat2.creditguard.co.il). Empty if parse fails.

@@ -151,6 +151,50 @@ export type Database = {
           },
         ]
       }
+      billing_sessions: {
+        Row: {
+          business_code: string
+          completed_at: string | null
+          created_at: string
+          error_text: string | null
+          expires_at: string
+          id: string
+          payment_method_id: string | null
+          status: string
+          uniqueid: string
+        }
+        Insert: {
+          business_code: string
+          completed_at?: string | null
+          created_at?: string
+          error_text?: string | null
+          expires_at: string
+          id?: string
+          payment_method_id?: string | null
+          status?: string
+          uniqueid: string
+        }
+        Update: {
+          business_code?: string
+          completed_at?: string | null
+          created_at?: string
+          error_text?: string | null
+          expires_at?: string
+          id?: string
+          payment_method_id?: string | null
+          status?: string
+          uniqueid?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_sessions_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "business_payment_methods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_members: {
         Row: {
           business_code: string
@@ -191,6 +235,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "business_members_business_code_fkey"
+            columns: ["business_code"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["business_code"]
+          },
+        ]
+      }
+      business_payment_methods: {
+        Row: {
+          business_code: string
+          cg_card_exp: string | null
+          cg_card_id: string | null
+          cg_card_last4: string | null
+          created_at: string
+          id: string
+          provider: string
+          status: string
+          tokenized_at: string | null
+          uniqueid: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_code: string
+          cg_card_exp?: string | null
+          cg_card_id?: string | null
+          cg_card_last4?: string | null
+          created_at?: string
+          id?: string
+          provider?: string
+          status?: string
+          tokenized_at?: string | null
+          uniqueid?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_code?: string
+          cg_card_exp?: string | null
+          cg_card_id?: string | null
+          cg_card_last4?: string | null
+          created_at?: string
+          id?: string
+          provider?: string
+          status?: string
+          tokenized_at?: string | null
+          uniqueid?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_payment_methods_business_code_fkey"
             columns: ["business_code"]
             isOneToOne: false
             referencedRelation: "businesses"

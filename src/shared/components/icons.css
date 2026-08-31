@@ -15,8 +15,24 @@
   animation: icon-spin 2.2s linear infinite;
 }
 
+[data-icon="plus"] {
+  width: 18px;
+  height: 18px;
+}
+
+[data-icon="plus"] [data-part="outer"] {
+  stroke: #111111;
+  stroke-width: 4.6;
+}
+
+[data-icon="plus"] [data-part="inner"] {
+  stroke: color-mix(in srgb, currentColor 36%, #5eead4);
+  stroke-width: 2;
+}
+
 :is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="plus"],
-:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="google"] {
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="google"],
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="card"] {
   animation: icon-pulse 0.9s ease-in-out infinite;
 }
 

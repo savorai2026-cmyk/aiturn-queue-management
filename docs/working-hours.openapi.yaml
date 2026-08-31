@@ -1,0 +1,222 @@
+openapi: 3.0.3
+info:
+  title: Featurn working hours JSON
+  description: |
+    מבנה העמודה `businesses.working_hours` ב-Supabase.
+
+    נשמר כ-JSON על רשומת העסק. השבוע הרגיל מוגדר לפי ימי השבוע;
+    חריגים לתאריך ספציפי נמצאים במפתח `exceptions`.
+  version: 1.0.0
+
+tags:
+  - name: WorkingHours
+    description: קסטום שעות פעילות של עסק
+
+paths:
+  /rest/v1/businesses:
+    patch:
+      tags: [WorkingHours]
+      summary: עדכון שעות פעילות
+      description: |
+        כך האפליקציה שומרת את הטופס (שעות פעילות + ימים מיוחדים).
+        הפילטר הוא `business_code=eq.{code}`.
+      parameters:
+        - in: query
+          name: business_code
+          required: true
+          schema:
+            type: string
+          example: eq.abc123
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperatingHoursUpdate'
+            examples:
+              splitTuesday:
+                summary: שלישי עם הפסקת צהריים + יום מיוחד סגור
+                value:
+                  max_adv_booking_days: 30
+                  working_hours:
+                    sunday:
+                      is_closed: false
+                      shifts:
+                        - start: '09:00'
+                          end: '18:00'
+                    monday:
+                      is_closed: false
+                      shifts:
+                        - start: '09:00'
+                          end: '18:00'
+                    tuesday:
+                      is_closed: false
+                      shifts:
+                        - start: '09:00'
+                          end: '14:00'
+                        - start: '15:00'
+                          end: '18:00'
+                    wednesday:
+                      is_closed: false
+                      shifts:
+                        - start: '09:00'
+                          end: '18:00'
+                    thursday:
+                      is_closed: false
+                      shifts:
+                        - start: '09:00'
+                          end: '18:00'
+                    friday:
+                      is_closed: false
+                      shifts:
+                        - start: '09:00'
+                          end: '13:00'
+                    saturday:
+                      is_closed: true
+                      shifts: []
+                    exceptions:
+                      - date: '2026-09-25'
+                        is_closed: true
+                        shifts: []
+                        note: יום גיבוש
+      responses:
+        '204':
+          description: נשמר
+        '400':
+          description: JSON לא תקין
+
+components:
+  schemas:
+    OperatingHoursUpdate:
+      type: object
+      required: [working_hours]
+      properties:
+        working_hours:
+          $ref: '#/components/schemas/WorkingHours'
+        max_adv_booking_days:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 365
+          description: כמה ימים קדימה אפשר לקבוע תור. `null` = ללא הגבלה.
+
+    WorkingHours:
+      type: object
+      description: |
+        מפתחות ימי השבוע הם באנגלית (sunday…saturday).
+        `exceptions` הוא מערך חריגים לתאריך, לא יום בשבוע.
+      additionalProperties: false
+      properties:
+        sunday:
+          $ref: '#/components/schemas/WorkingDay'
+        monday:
+          $ref: '#/components/schemas/WorkingDay'
+        tuesday:
+          $ref: '#/components/schemas/WorkingDay'
+        wednesday:
+          $ref: '#/components/schemas/WorkingDay'
+        thursday:
+          $ref: '#/components/schemas/WorkingDay'
+        friday:
+          $ref: '#/components/schemas/WorkingDay'
+        saturday:
+          $ref: '#/components/schemas/WorkingDay'
+        exceptions:
+          type: array
+          description: ימים מיוחדים. דורסים את השבוע הרגיל רק בתאריך הזה.
+          items:
+            $ref: '#/components/schemas/WorkingHourException'
+
+    WorkingDay:
+      type: object
+      description: יום בשבוע הרגיל.
+      properties:
+        is_closed:
+          type: boolean
+          description: |
+            `true` אם היום סגור, או אם אין מקטעי שעות תקפים.
+        shifts:
+          type: array
+          description: |
+            מקטעי עבודה באותו יום, בלי חפיפה.
+            הפסקה היא הרווח בין מקטע למקטע (למשל 14:00–15:00 לא מופיע כמקטע).
+          items:
+            $ref: '#/components/schemas/WorkingShift'
+        start:
+          allOf:
+            - $ref: '#/components/schemas/TimeHm'
+          deprecated: true
+          description: פורמט ישן. אם `shifts` ריק, המערכת ממירה ל-`shifts[0]`.
+        end:
+          allOf:
+            - $ref: '#/components/schemas/TimeHm'
+          deprecated: true
+          description: פורמט ישן. אם `shifts` ריק, המערכת ממירה ל-`shifts[0]`.
+      example:
+        is_closed: false
+        shifts:
+          - start: '09:00'
+            end: '13:00'
+          - start: '16:00'
+            end: '20:00'
+
+    WorkingHourException:
+      type: object
+      required: [date, is_closed, shifts]
+      properties:
+        date:
+          $ref: '#/components/schemas/DateKey'
+        is_closed:
+          type: boolean
+        shifts:
+          type: array
+          description: ריק כשהיום סגור. לפתוח — לפחות מקטע אחד, בלי חפיפה.
+          items:
+            $ref: '#/components/schemas/WorkingShift'
+        note:
+          type: string
+          maxLength: 80
+          description: תווית שמוצגת ביומן (אופציונלי).
+        start:
+          allOf:
+            - $ref: '#/components/schemas/TimeHm'
+          deprecated: true
+        end:
+          allOf:
+            - $ref: '#/components/schemas/TimeHm'
+          deprecated: true
+      example:
+        date: '2026-09-25'
+        is_closed: false
+        shifts:
+          - start: '09:00'
+            end: '12:00'
+        note: ערב חג
+
+    WorkingShift:
+      type: object
+      required: [start, end]
+      properties:
+        start:
+          $ref: '#/components/schemas/TimeHm'
+        end:
+          $ref: '#/components/schemas/TimeHm'
+      description: |
+        `end` חייב להיות מאוחר מ-`start`.
+        מקטע הבא באותו יום חייב להתחיל אחרי (או ב) סיום הקודם — בלי חפיפה.
+      example:
+        start: '09:00'
+        end: '14:00'
+
+    TimeHm:
+      type: string
+      pattern: '^\d{2}:\d{2}$'
+      example: '09:00'
+      description: שעה מקומית `HH:mm`. גם `HH:mm:ss` מתקבל ונחתך ל-`HH:mm`.
+
+    DateKey:
+      type: string
+      format: date
+      pattern: '^\d{4}-\d{2}-\d{2}$'
+      example: '2026-09-25'
+      description: תאריך קלנדרי `YYYY-MM-DD`, בלי אזור זמן.

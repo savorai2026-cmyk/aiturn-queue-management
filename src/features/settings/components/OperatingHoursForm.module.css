@@ -18,13 +18,6 @@
   font-size: 16px;
 }
 
-.bookingRow {
-  display: grid;
-  grid-template-columns: 160px 1fr;
-  gap: 16px;
-  align-items: end;
-}
-
 .field {
   display: flex;
   flex-direction: column;
@@ -34,8 +27,8 @@
   font-weight: 600;
 }
 
-.input {
-  width: 100%;
+.input,
+.bookingInput {
   padding: 8px 12px;
   border: 1px solid var(--color-line);
   border-radius: 7px;
@@ -45,7 +38,17 @@
   background: #ffffff;
 }
 
-.input:focus {
+.input {
+  width: 100%;
+}
+
+.bookingInput {
+  width: 88px;
+  text-align: center;
+}
+
+.input:focus,
+.bookingInput:focus {
   outline: none;
   border-color: var(--color-teal-600);
 }
@@ -55,28 +58,49 @@
   color: var(--color-text-muted);
 }
 
-.presets {
+.bookingSentence {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: 500;
 }
 
-.preset {
-  padding: 8px 12px;
-  border: 1px solid var(--color-line);
+.bookingRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.unlimitedBtn {
+  padding: 8px 14px;
+  border: 1px solid var(--color-teal-600);
   border-radius: 999px;
-  background: var(--color-surface);
-  color: var(--color-navy-800);
+  background: #ecfdf8;
+  color: var(--color-teal-600);
   font: inherit;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
 }
 
-.presetActive {
+.unlimitedBtn:hover {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.unlimitedBtnActive {
   border-color: var(--color-teal-600);
-  background: #ecfdf8;
-  color: var(--color-teal-700, #0f766e);
+  background: var(--color-teal-600);
+  color: #ffffff;
+}
+
+.unlimitedBtnActive:hover {
+  background: #0f766e;
+  color: #ffffff;
 }
 
 .hint,
@@ -252,7 +276,6 @@
 }
 
 @media (max-width: 700px) {
-  .bookingRow,
   .daysHead,
   .dayRow {
     grid-template-columns: 1fr 1fr;

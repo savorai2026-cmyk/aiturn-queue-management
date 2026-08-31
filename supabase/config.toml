@@ -3,3 +3,6 @@ project_id = "pcslxlckklfmkaskkbry"
 
 [functions.scheduler]
 verify_jwt = true
+
+[functions.billing-start]
+verify_jwt = true

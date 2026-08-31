@@ -28,10 +28,19 @@ function Svg({
 
 export function PlusIcon() {
   return (
-    <Svg icon="plus" strokeWidth={2.75}>
-      <path d="M12 5v7" />
-      <path d="M5 12h14" />
-    </Svg>
+    <svg
+      viewBox="0 0 24 24"
+      width={18}
+      height={18}
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      data-icon="plus"
+    >
+      <path data-part="outer" d="M12 4v16M4 12h16" />
+      <path data-part="inner" d="M12 4v16M4 12h16" />
+    </svg>
   );
 }
 
@@ -64,6 +73,16 @@ export function SaveIcon() {
       <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
       <polyline points="17 21 17 13 7 13 7 21" />
       <polyline points="7 3 7 8 15 8" />
+    </Svg>
+  );
+}
+
+export function CardIcon() {
+  return (
+    <Svg icon="card">
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <path d="M2 10h20" />
+      <path data-part="chip" d="M6 15h4" />
     </Svg>
   );
 }

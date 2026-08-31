@@ -79,8 +79,6 @@ const DEFAULT_OPEN_START = '09:00';
 const DEFAULT_OPEN_END = '18:00';
 const DEFAULT_FRIDAY_END = '13:00';
 
-export const BOOKING_WINDOW_PRESETS = [7, 14, 30, 60, 90] as const;
-
 function readTime(value: unknown): string | null {
   if (typeof value !== 'string') {
     return null;

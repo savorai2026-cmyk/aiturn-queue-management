@@ -15,6 +15,9 @@ import type {
   Service,
 } from '../settings.types';
 import { useSettings } from '../useSettings';
+import { useBusiness } from '../../business/BusinessContextState';
+import { usePaymentMethod } from '../../billing/usePaymentMethod';
+import PaymentMethodSettings from '../../billing/PaymentMethodSettings';
 import {
   ErrorState,
   LoadingState,
@@ -41,13 +44,14 @@ import StatusModal from './StatusModal';
 import TimezoneSelect from './TimezoneSelect';
 import styles from './Settings.module.css';
 
-type SettingsTab = 'business' | 'hours' | 'services' | 'statuses';
+type SettingsTab = 'business' | 'hours' | 'services' | 'statuses' | 'payment';
 
 const SETTINGS_TABS: SettingsTab[] = [
   'business',
   'hours',
   'services',
   'statuses',
+  'payment',
 ];
 
 function readStoredSettingsTab(businessCode: string): SettingsTab {
@@ -76,6 +80,8 @@ export default function Settings({
   );
   const { business, services, statuses, error, isLoading, refresh } =
     useSettings(businessCode);
+  const { activeBusiness } = useBusiness();
+  const payment = usePaymentMethod(businessCode);
   const { visibleFieldsFor, toggleField } = useUiPreferences(businessCode);
 
   useEffect(() => {
@@ -137,6 +143,13 @@ export default function Settings({
         >
           הגדרת סטטוסים
         </button>
+        <span className={styles.tabDivider} aria-hidden="true" />
+        <button
+          className={`${styles.tabBtn} ${activeTab === 'payment' ? styles.activeTab : ''}`}
+          onClick={() => setActiveTab('payment')}
+        >
+          אמצעי תשלום
+        </button>
       </div>
 
       <div className={styles.contentCard}>
@@ -165,13 +178,22 @@ export default function Settings({
             onToggleField={(key) => toggleField('services', key)}
             onServicesChanged={refresh}
           />
-        ) : (
+        ) : activeTab === 'statuses' ? (
           <StatusesTable
             businessCode={businessCode}
             statuses={statuses}
             visibleFields={visibleFieldsFor('statuses')}
             onToggleField={(key) => toggleField('statuses', key)}
             onStatusesChanged={refresh}
+          />
+        ) : (
+          <PaymentMethodSettings
+            businessCode={businessCode}
+            role={activeBusiness?.role ?? 'viewer'}
+            paymentMethod={payment.paymentMethod}
+            isLoading={payment.isLoading}
+            error={payment.error}
+            onRefresh={payment.refresh}
           />
         )}
       </div>

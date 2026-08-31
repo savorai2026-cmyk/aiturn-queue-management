@@ -91,16 +91,6 @@ export function useAppointments(businessCode: string) {
         },
         scheduleRefresh,
       )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'statuses',
-          filter: `business_code=eq.${businessCode}`,
-        },
-        scheduleRefresh,
-      )
       .subscribe();
 
     return () => {
