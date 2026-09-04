@@ -57,3 +57,15 @@ export function assignGroupRoles(
 
   return roles;
 }
+
+export function allowCalendarEventOverlap(input: {
+  stillDisplay?: string;
+  stillAppointmentId?: number;
+  movingAppointmentId?: number;
+}) {
+  if (input.stillDisplay === 'background') return true;
+  return (
+    input.stillAppointmentId != null &&
+    input.stillAppointmentId === input.movingAppointmentId
+  );
+}

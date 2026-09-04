@@ -1,5 +1,9 @@
-import { useState } from 'react';
-import { formatClientCell, toClientDetailRows } from '../clients.mappers';
+import { useMemo, useState } from 'react';
+import {
+  formatClientCell,
+  matchesClientSearch,
+  toClientDetailRows,
+} from '../clients.mappers';
 import { deleteClient } from '../clients.api';
 import type { Client, ClientColumnKey } from '../clients.types';
 import { useClients } from '../useClients';
@@ -16,6 +20,7 @@ import IconButton, {
   PlusIcon,
   TrashIcon,
 } from '../../../shared/components/IconButton';
+import { SearchIcon } from '../../../shared/components/icons';
 import { getErrorMessage } from '../../../shared/errors';
 import AddClientModal from './AddClientModal';
 import styles from './ClientManagement.module.css';
@@ -32,13 +37,22 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const visibleKeys = visibleFieldsFor('clients');
   const activeColumns = CLIENT_FIELDS.filter((field) =>
     visibleKeys.includes(field.key),
   );
+  const filteredClients = useMemo(
+    () => clients.filter((client) => matchesClientSearch(client, searchQuery)),
+    [clients, searchQuery],
+  );
   const selectedClient =
     clients.find((client) => client.id === selectedClientId) ?? null;
+  const hasSearch = searchQuery.trim().length > 0;
+  const listTitle = hasSearch
+    ? `ניהול לקוחות (${filteredClients.length} מתוך ${clients.length})`
+    : `ניהול לקוחות (${clients.length})`;
 
   const handleEdit = (client: Client) => {
     setEditingClient(client);
@@ -81,7 +95,7 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h2 className={styles.title}>ניהול לקוחות ({clients.length})</h2>
+        <h2 className={styles.title}>{listTitle}</h2>
 
         <div className={styles.tableControls}>
           <DisplayToolbar
@@ -104,6 +118,31 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
         </div>
       </div>
 
+      <div className={styles.searchRow}>
+        <label className={styles.searchField}>
+          <span className={styles.searchIcon} aria-hidden="true">
+            <SearchIcon />
+          </span>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="חיפוש לפי שם, נייד או תעודת זהות"
+            aria-label="חיפוש לקוחות לפי שם, נייד או תעודת זהות"
+            className={styles.searchInput}
+          />
+          {hasSearch ? (
+            <button
+              type="button"
+              className={styles.searchClear}
+              onClick={() => setSearchQuery('')}
+            >
+              נקה
+            </button>
+          ) : null}
+        </label>
+      </div>
+
       {actionError && (
         <p className={styles.actionError} role="alert">
           {actionError}
@@ -121,7 +160,7 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
             </tr>
           </thead>
           <tbody>
-            {clients.map((client) => (
+            {filteredClients.map((client) => (
               <tr
                 key={client.id}
                 className={
@@ -159,10 +198,12 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
                 ))}
               </tr>
             ))}
-            {clients.length === 0 && (
+            {filteredClients.length === 0 && (
               <tr>
                 <td colSpan={activeColumns.length + 1} className={styles.emptyState}>
-                  לא נמצאו לקוחות במערכת
+                  {clients.length === 0
+                    ? 'לא נמצאו לקוחות במערכת'
+                    : 'לא נמצאו לקוחות מתאימים לחיפוש'}
                 </td>
               </tr>
             )}

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { CheckIcon, PencilIcon } from '../../../shared/components/icons';
 import HelpTip from '../../../shared/components/HelpTip';
+import modal from '../../../shared/components/modalShell.module.css';
 import styles from './RescheduleConfirmModal.module.css';
 
 export interface ReschedulePreview {
@@ -42,7 +43,7 @@ export default function RescheduleConfirmModal({
 
   return (
     <div
-      className={styles.overlay}
+      className={`${modal.overlay} ${styles.overlay}`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !isSaving) {
           onCancel();
@@ -50,7 +51,7 @@ export default function RescheduleConfirmModal({
       }}
     >
       <section
-        className={styles.content}
+        className={`${modal.content} ${styles.content}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="reschedule-title"
@@ -60,6 +61,7 @@ export default function RescheduleConfirmModal({
           להעביר את התור?
         </h2>
 
+        <div className={modal.scroll}>
         <p id="reschedule-question" className={styles.question}>
           להעביר ללקוח <strong>{preview.clientName}</strong> את התור מ-
           <strong>{preview.fromLabel}</strong> ל-
@@ -100,6 +102,7 @@ export default function RescheduleConfirmModal({
             {errorMessage}
           </p>
         )}
+        </div>
 
         <div className={styles.actions}>
           <div className={styles.editRow}>

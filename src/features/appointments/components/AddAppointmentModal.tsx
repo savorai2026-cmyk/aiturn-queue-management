@@ -35,6 +35,7 @@ import HelpTip from '../../../shared/components/HelpTip';
 import { DateField } from '../../../shared/components/DateField';
 import { HourMinuteField } from '../../../shared/components/HourMinuteField';
 import { PlusIcon, SearchIcon } from '../../../shared/components/icons';
+import modal from '../../../shared/components/modalShell.module.css';
 import styles from './AddAppointmentModal.module.css';
 
 interface AddAppointmentModalProps {
@@ -357,7 +358,7 @@ export default function AddAppointmentModal({
 
   return (
     <div
-      className={styles.overlay}
+      className={`${modal.overlay} ${styles.overlay}`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !isSaving) {
           onClose();
@@ -365,7 +366,7 @@ export default function AddAppointmentModal({
       }}
     >
       <section
-        className={styles.content}
+        className={`${modal.content} ${styles.content}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="add-appointment-title"
@@ -392,7 +393,8 @@ export default function AddAppointmentModal({
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form className={modal.form} onSubmit={handleSubmit}>
+          <div className={modal.scroll}>
           <div className={styles.formGroup}>
             <label htmlFor="appointment-client">בחר לקוח *</label>
             <select
@@ -611,6 +613,7 @@ export default function AddAppointmentModal({
               className={styles.textarea}
               rows={2}
             />
+          </div>
           </div>
 
           <div className={styles.actions}>

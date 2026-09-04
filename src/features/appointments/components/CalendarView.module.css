@@ -127,6 +127,16 @@
   box-shadow: inset 0 0 0 2px rgba(20, 184, 166, 0.28);
 }
 
+:global(.fc-timegrid-event),
+:global(.fc-daygrid-event) {
+  cursor: grab;
+}
+
+:global(.fc-event-dragging),
+:global(.fc-event-mirror) {
+  cursor: grabbing;
+}
+
 :global(.fc-event.event-selected) {
   box-shadow:
     0 0 0 2px #ffffff,

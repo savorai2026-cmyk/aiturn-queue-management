@@ -12,6 +12,7 @@ import { getAppointmentSaveErrorMessage } from '../../../shared/errors';
 import { DateField } from '../../../shared/components/DateField';
 import { HourMinuteField } from '../../../shared/components/HourMinuteField';
 import { SaveIcon } from '../../../shared/components/icons';
+import modal from '../../../shared/components/modalShell.module.css';
 import styles from './EditAppointmentModal.module.css';
 
 const ILS_FORMATTER = new Intl.NumberFormat('he-IL', {
@@ -82,7 +83,7 @@ export default function EditAppointmentModal({
 
   return (
     <div
-      className={styles.overlay}
+      className={`${modal.overlay} ${styles.overlay}`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !isSaving) {
           onClose();
@@ -90,7 +91,7 @@ export default function EditAppointmentModal({
       }}
     >
       <section
-        className={styles.content}
+        className={`${modal.content} ${styles.content}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="edit-appointment-title"
@@ -99,6 +100,7 @@ export default function EditAppointmentModal({
           עריכת תור · {appointment.patientName}
         </h2>
 
+        <div className={modal.scroll}>
         <p className={styles.banner}>
           אפשר לערוך את פרטי התור לפני השמירה. המועד החדש כבר מעודכן בטופס.
         </p>
@@ -255,6 +257,7 @@ export default function EditAppointmentModal({
             {displayedError}
           </p>
         )}
+        </div>
 
         <div className={styles.actions}>
           <button

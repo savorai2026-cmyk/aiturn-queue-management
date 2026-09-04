@@ -18,6 +18,7 @@ import type {
   StatusFormValues,
 } from '../settings.types';
 import { PlusIcon, SaveIcon } from '../../../shared/components/icons';
+import modal from '../../../shared/components/modalShell.module.css';
 import styles from './AddServiceModal.module.css';
 
 interface StatusModalProps {
@@ -166,7 +167,7 @@ export default function StatusModal({
 
   return (
     <div
-      className={styles.overlay}
+      className={`${modal.overlay} ${styles.overlay}`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !isSaving) {
           onClose();
@@ -174,7 +175,7 @@ export default function StatusModal({
       }}
     >
       <section
-        className={styles.content}
+        className={`${modal.content} ${styles.content}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="status-modal-title"
@@ -189,7 +190,8 @@ export default function StatusModal({
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form className={modal.form} onSubmit={handleSubmit}>
+          <div className={modal.scroll}>
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
               <label htmlFor="status-code">קוד סטטוס *</label>
@@ -267,6 +269,7 @@ export default function StatusModal({
                 />
               </div>
             </div>
+          </div>
           </div>
 
           <div className={styles.actions}>

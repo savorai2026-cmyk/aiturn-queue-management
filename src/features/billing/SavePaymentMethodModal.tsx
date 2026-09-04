@@ -13,6 +13,7 @@ import {
   isTerminalBillingSession,
 } from './billing.mappers';
 import type { PaymentMethodSummary } from './billing.types';
+import modal from '../../shared/components/modalShell.module.css';
 import styles from './SavePaymentMethodModal.module.css';
 
 const POLL_MS = 2000;
@@ -150,9 +151,9 @@ export default function SavePaymentMethodModal({
   const last4 = formatCardLast4(paymentMethod?.last4 ?? null);
 
   return (
-    <div className={styles.overlay}>
+    <div className={`${modal.overlay} ${styles.overlay}`}>
       <section
-        className={styles.content}
+        className={`${modal.content} ${styles.content}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="billing-title"
@@ -162,6 +163,7 @@ export default function SavePaymentMethodModal({
           {title}
         </h2>
 
+        <div className={modal.scroll}>
         {flow === 'saved' ? (
           <div className={styles.success} role="status">
             <CheckIcon />
@@ -202,6 +204,7 @@ export default function SavePaymentMethodModal({
             ) : null}
           </>
         )}
+        </div>
 
         <div className={styles.actions}>
           {flow === 'saved' ? (

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import FullCalendar from '@fullcalendar/react';
-import type { EventDropArg, EventInput } from '@fullcalendar/core';
+import type { EventApi, EventDropArg, EventInput } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -24,6 +24,7 @@ import {
   readCalendarLocation,
   writeCalendarLocation,
 } from '../../../app/uiLocation';
+import { allowCalendarEventOverlap } from '../calendarGrouping';
 import {
   ErrorState,
   LoadingState,
@@ -154,11 +155,7 @@ export default function CalendarView({
     const start = storedLocation?.date ?? toDateKey(new Date());
     return { start, end: start };
   });
-  const [dragTooltip, setDragTooltip] = useState<{
-    x: number;
-    y: number;
-    time: string;
-  } | null>(null);
+  const dragTooltipRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const media = window.matchMedia(MOBILE_QUERY);
@@ -325,23 +322,64 @@ export default function CalendarView({
   const slotMinutes =
     slotDurationMinutes && slotDurationMinutes > 0 ? slotDurationMinutes : 30;
 
+  const hideDragTooltip = useCallback(() => {
+    const tooltip = dragTooltipRef.current;
+    if (!tooltip) return;
+    tooltip.hidden = true;
+    tooltip.textContent = '';
+  }, []);
+
   const handleDragMove = useCallback(
     (event: MouseEvent) => {
+      const tooltip = dragTooltipRef.current;
+      if (!tooltip) return;
+
       const time = readSnappedTimeFromPoint(
         event.clientX,
         event.clientY,
         slotMinutes,
       );
-      if (!time) return;
-      setDragTooltip({ x: event.clientX, y: event.clientY, time });
+      if (!time) {
+        tooltip.hidden = true;
+        return;
+      }
+
+      tooltip.hidden = false;
+      tooltip.textContent = time;
+      tooltip.style.left = `${event.clientX + 12}px`;
+      tooltip.style.top = `${event.clientY + 12}px`;
     },
     [slotMinutes],
   );
 
+  const startDragTracking = useCallback(() => {
+    document.addEventListener('mousemove', handleDragMove);
+  }, [handleDragMove]);
+
   const stopDragTracking = useCallback(() => {
     document.removeEventListener('mousemove', handleDragMove);
-    setDragTooltip(null);
-  }, [handleDragMove]);
+    hideDragTooltip();
+  }, [handleDragMove, hideDragTooltip]);
+
+  useEffect(
+    () => () => {
+      document.removeEventListener('mousemove', handleDragMove);
+    },
+    [handleDragMove],
+  );
+
+  const handleEventOverlap = useCallback(
+    (stillEvent: EventApi, movingEvent: EventApi | null) =>
+      allowCalendarEventOverlap({
+        stillDisplay: stillEvent.display,
+        stillAppointmentId: (stillEvent.extendedProps as CalendarEventProps)
+          .appointmentId,
+        movingAppointmentId: (movingEvent?.extendedProps as
+          | CalendarEventProps
+          | undefined)?.appointmentId,
+      }),
+    [],
+  );
 
   const onDropRequestRef = useRef(onDropRequest);
   const hasPendingMoveRef = useRef(hasPendingMove);
@@ -428,7 +466,7 @@ export default function CalendarView({
         snapDuration="00:05:00"
         validRange={bookingRangeEnd ? { end: bookingRangeEnd } : undefined}
         businessHours={businessHours.length > 0 ? businessHours : undefined}
-        eventOverlap={false}
+        eventOverlap={handleEventOverlap}
         editable
         eventDurationEditable={false}
         eventResizableFromStart={false}
@@ -488,9 +526,7 @@ export default function CalendarView({
           onSelectTime?.(null);
           calendarRef.current?.getApi().changeView('timeGridDay', date);
         }}
-        eventDragStart={() => {
-          document.addEventListener('mousemove', handleDragMove);
-        }}
+        eventDragStart={startDragTracking}
         eventDragStop={stopDragTracking}
         eventDrop={handleEventDrop}
         eventClick={(clickInfo) => {
@@ -510,14 +546,7 @@ export default function CalendarView({
         }}
       />
 
-      {dragTooltip && (
-        <div
-          className={styles.dragTooltip}
-          style={{ left: dragTooltip.x + 12, top: dragTooltip.y + 12 }}
-        >
-          {dragTooltip.time}
-        </div>
-      )}
+      <div ref={dragTooltipRef} className={styles.dragTooltip} hidden />
 
       {isBlocked && (
         <div className={styles.blockingOverlay} role="status">

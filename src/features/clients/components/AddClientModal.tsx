@@ -3,15 +3,23 @@ import {
   createClient,
   updateClient,
 } from '../clients.api';
-import type {
-  Client,
-  ClientFormValues,
+import {
+  BOOKING_POLICY_OPTIONS,
+  PAYMENT_REQUIREMENT_OPTIONS,
+  type Client,
+  type ClientFormValues,
 } from '../clients.types';
+import {
+  parseBookingPolicy,
+  parsePaymentRequirement,
+} from '../clients.mappers';
 import {
   errorIncludes,
   getErrorMessage,
 } from '../../../shared/errors';
+import HelpTip from '../../../shared/components/HelpTip';
 import { PlusIcon, SaveIcon, WhatsAppIcon } from '../../../shared/components/icons';
+import modal from '../../../shared/components/modalShell.module.css';
 import styles from './AddClientModal.module.css';
 
 interface AddClientModalProps {
@@ -29,6 +37,8 @@ function getInitialFormData(client: Client | null): ClientFormValues {
     city: client?.city || '',
     gender: client?.gender || 'M',
     national_id: client?.national_id || '',
+    booking_policy: parseBookingPolicy(client?.booking_policy),
+    payment_requirement: parsePaymentRequirement(client?.payment_requirement),
     allows_sms: client?.allows_sms ?? true,
     street: client?.street || '',
     building_number: client?.building_number || '',
@@ -88,8 +98,8 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
   };
 
   return (
-    <div className={styles.overlay}>
-      <div className={styles.content}>
+    <div className={`${modal.overlay} ${styles.overlay}`}>
+      <div className={`${modal.content} ${styles.content}`}>
         <h2 className={styles.title}>
           {clientToEdit ? 'עריכת פרטי לקוח' : 'הוספת לקוח חדש'}
         </h2>
@@ -100,7 +110,8 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form className={modal.form} onSubmit={handleSubmit}>
+          <div className={modal.scroll}>
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
               <label>שם מלא *</label>
@@ -336,6 +347,50 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
               />
             </div>
 
+            <section className={styles.policySection}>
+              <h3 className={styles.policyHeading}>הגדרות הזמנה</h3>
+
+              <div className={styles.formGroup}>
+                <label className={styles.labelWithTip} htmlFor="booking_policy">
+                  מדיניות קביעת תור
+                  <HelpTip text="קביעה מיידית מאשרת תור מרחוק מיד. דורש אישור יוצר תור במצב ממתין לאישור עד שתאשרו ביומן. חסום מונע קביעה מרחוק." />
+                </label>
+                <select
+                  id="booking_policy"
+                  name="booking_policy"
+                  value={formData.booking_policy}
+                  onChange={handleChange}
+                  className={styles.select}
+                >
+                  {BOOKING_POLICY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.labelWithTip} htmlFor="payment_requirement">
+                  דרישת תשלום
+                  <HelpTip text="ללא תשלום מאשר את התור בלי גבייה. מקדמה גובה את אחוז הפיקדון של העסק. תשלום מלא דורש את מלוא מחיר התור." />
+                </label>
+                <select
+                  id="payment_requirement"
+                  name="payment_requirement"
+                  value={formData.payment_requirement}
+                  onChange={handleChange}
+                  className={styles.select}
+                >
+                  {PAYMENT_REQUIREMENT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </section>
+
             <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
               <div className={styles.checkboxGroup}>
                 <input 
@@ -348,6 +403,7 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
                 <label htmlFor="allows_sms">שליחת הודעות SMS מותרת</label>
               </div>
             </div>
+          </div>
           </div>
 
           <div className={styles.actions}>

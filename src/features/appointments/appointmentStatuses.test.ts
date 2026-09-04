@@ -29,6 +29,8 @@ describe('appointmentStatuses', () => {
     const resolved = resolveStatusCatalog([]);
     expect(resolved.map((item) => item.status_code)).toEqual([
       '01',
+      '04',
+      '05',
       '02',
       '03',
       '09',

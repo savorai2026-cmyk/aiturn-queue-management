@@ -299,6 +299,7 @@ export type Database = {
           business_name: string
           contact_phone: string | null
           created_at: string | null
+          deposit_percent: number
           email: string | null
           is_active: boolean | null
           max_adv_booking_days: number | null
@@ -316,6 +317,7 @@ export type Database = {
           business_name: string
           contact_phone?: string | null
           created_at?: string | null
+          deposit_percent?: number
           email?: string | null
           is_active?: boolean | null
           max_adv_booking_days?: number | null
@@ -333,6 +335,7 @@ export type Database = {
           business_name?: string
           contact_phone?: string | null
           created_at?: string | null
+          deposit_percent?: number
           email?: string | null
           is_active?: boolean | null
           max_adv_booking_days?: number | null
@@ -353,6 +356,7 @@ export type Database = {
           apartment_number: string | null
           birth_date_gregorian: string | null
           birth_date_hebrew: string | null
+          booking_policy: 'instant' | 'approval' | 'blocked'
           building_number: string | null
           business_code: string
           city: string | null
@@ -368,6 +372,7 @@ export type Database = {
           last_contact: string | null
           mobile_phone: string
           national_id: string | null
+          payment_requirement: 'none' | 'deposit' | 'full'
           po_box: string | null
           preferred_channel: string | null
           street: string | null
@@ -381,6 +386,7 @@ export type Database = {
           apartment_number?: string | null
           birth_date_gregorian?: string | null
           birth_date_hebrew?: string | null
+          booking_policy?: 'instant' | 'approval' | 'blocked'
           building_number?: string | null
           business_code: string
           city?: string | null
@@ -396,6 +402,7 @@ export type Database = {
           last_contact?: string | null
           mobile_phone: string
           national_id?: string | null
+          payment_requirement?: 'none' | 'deposit' | 'full'
           po_box?: string | null
           preferred_channel?: string | null
           street?: string | null
@@ -409,6 +416,7 @@ export type Database = {
           apartment_number?: string | null
           birth_date_gregorian?: string | null
           birth_date_hebrew?: string | null
+          booking_policy?: 'instant' | 'approval' | 'blocked'
           building_number?: string | null
           business_code?: string
           city?: string | null
@@ -424,6 +432,7 @@ export type Database = {
           last_contact?: string | null
           mobile_phone?: string
           national_id?: string | null
+          payment_requirement?: 'none' | 'deposit' | 'full'
           po_box?: string | null
           preferred_channel?: string | null
           street?: string | null

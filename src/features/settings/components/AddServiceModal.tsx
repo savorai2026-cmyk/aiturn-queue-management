@@ -14,6 +14,7 @@ import type {
   ServiceUpdate,
 } from '../settings.types';
 import { PlusIcon, SaveIcon } from '../../../shared/components/icons';
+import modal from '../../../shared/components/modalShell.module.css';
 import styles from './AddServiceModal.module.css';
 
 interface AddServiceModalProps {
@@ -196,7 +197,7 @@ export default function AddServiceModal({
 
   return (
     <div
-      className={styles.overlay}
+      className={`${modal.overlay} ${styles.overlay}`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !isSaving) {
           onClose();
@@ -204,7 +205,7 @@ export default function AddServiceModal({
       }}
     >
       <section
-        className={styles.content}
+        className={`${modal.content} ${styles.content}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="service-modal-title"
@@ -219,7 +220,8 @@ export default function AddServiceModal({
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form className={modal.form} onSubmit={handleSubmit}>
+          <div className={modal.scroll}>
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
               <label htmlFor="service-title">שם השירות *</label>
@@ -332,6 +334,7 @@ export default function AddServiceModal({
               />
               שירות פעיל
             </label>
+          </div>
           </div>
 
           <div className={styles.actions}>

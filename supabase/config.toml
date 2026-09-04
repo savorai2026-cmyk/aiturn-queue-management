@@ -1,4 +1,8 @@
-# Edge Functions used as a CORS-safe proxy to the external scheduler.
+# Edge Functions used as a CORS-safe proxy to the partner Flask API
+# (docs/appointment-app.openapi.yaml). The scheduler function maps:
+# slots → GET /api/v1/slots
+# book/cancel/reschedule/events/appointments → POST /{action}
+# with x-vapi-secret when VAPI_SECRET (or SCHEDULER_API_SECRET) is set.
 project_id = "pcslxlckklfmkaskkbry"
 
 [functions.scheduler]

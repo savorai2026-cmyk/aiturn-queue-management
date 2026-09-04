@@ -1,27 +1,15 @@
 .overlay {
-  position: fixed;
-  top: 0; 
-  left: 0; 
-  right: 0; 
-  bottom: 0;
-  padding: 18px;
+  z-index: 9999;
   background-color: rgba(7, 48, 75, 0.48);
   backdrop-filter: blur(2px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
 }
 
 .content {
+  --modal-max-width: 650px;
   padding: 28px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-card);
   background-color: var(--color-surface);
-  width: 100%;
-  max-width: 650px;
-  max-height: 90vh;
-  overflow-y: auto;
   box-shadow: var(--shadow-floating);
 }
 
@@ -37,26 +25,56 @@
 
 .formGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 15px 20px;
 }
 
 .formGroup {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .formGroupFull {
   grid-column: 1 / -1;
 }
 
+.policySection {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 15px 20px;
+  margin-top: 4px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.policyHeading {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-navy-900);
+}
+
+.labelWithTip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .inlineFields {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
+  min-width: 0;
 }
 
 .inlineFields > div {
-  flex: 1;
+  flex: 1 1 120px;
+  min-width: 0;
 }
 
 .error {
@@ -86,6 +104,9 @@
 }
 
 .input, .select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   padding: 8px 12px;
   border: 1px solid var(--color-line);
   border-radius: 7px;
@@ -127,11 +148,13 @@
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 25px;
+  margin-top: 16px;
   border-top: 1px solid var(--color-line);
   padding-top: 15px;
+  flex: 0 0 auto;
 }
 
 .btnCancel {
@@ -172,10 +195,14 @@
 
 @media (max-width: 600px) {
   .content {
-    padding: 22px 18px;
+    padding: 22px 16px;
   }
 
   .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .policySection {
     grid-template-columns: 1fr;
   }
 }

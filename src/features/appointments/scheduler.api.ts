@@ -2,6 +2,7 @@ import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '../../supabaseClient';
 import { getErrorMessage } from '../../shared/errors';
 import { addMinutesToTime, parseSchedulerDateTime } from './time';
+import { collectSchedulerSlotValues } from './scheduler.mappers';
 import type {
   BookAppointmentPayload,
   SchedulerSlot,
@@ -12,8 +13,10 @@ type SchedulerAction = 'book' | 'slots' | 'cancel' | 'reschedule';
 interface SchedulerSuccessBody {
   success?: boolean;
   message?: string;
+  user_message?: string;
   error?: string;
   slots?: unknown;
+  available_slots?: unknown;
   data?: {
     slots?: unknown;
   };
@@ -33,7 +36,8 @@ async function invokeScheduler<T>(
     if (error instanceof FunctionsHttpError) {
       try {
         const body = (await error.context.json()) as SchedulerSuccessBody;
-        message = body.error || body.message || message;
+        message =
+          body.error || body.user_message || body.message || message;
       } catch {
         // Keep the original Functions error message.
       }
@@ -44,7 +48,9 @@ async function invokeScheduler<T>(
 
   const body = (data ?? {}) as SchedulerSuccessBody;
   if (body.success === false) {
-    throw new Error(body.message || body.error || 'הפעולה נכשלה');
+    throw new Error(
+      body.user_message || body.message || body.error || 'הפעולה נכשלה',
+    );
   }
 
   return body as T;
@@ -61,10 +67,10 @@ export async function bookAppointment(payload: BookAppointmentPayload) {
     client_name: payload.clientName,
     client_phone: payload.clientPhone,
     appointment_time: payload.appointmentTime,
-    force_booking: false,
     service_id: primary.serviceId,
     duration: primary.duration,
     price: primary.price,
+    force_booking: true,
     services: payload.services.map((service) => ({
       service_id: service.serviceId,
       duration: service.duration,
@@ -85,26 +91,21 @@ export async function getSchedulerSlots(payload: {
   const body = await invokeScheduler<SchedulerSuccessBody>('slots', {
     business_code: payload.businessCode,
     date: payload.date,
-    service_id: payload.serviceId,
     duration: payload.duration,
   });
 
-  const rawSlots = Array.isArray(body.slots)
-    ? body.slots
-    : Array.isArray(body.data?.slots)
-      ? body.data.slots
-      : [];
+  const rawSlots = collectSchedulerSlotValues(
+    body.slots ?? body.available_slots ?? body.data?.slots,
+  );
 
   return rawSlots.flatMap((slot) => {
-    if (typeof slot !== 'string') {
-      return [];
-    }
+    const parsed = parseSchedulerDateTime(slot);
+    if (!parsed.time) return [];
 
-    const { time } = parseSchedulerDateTime(slot);
     return [
       {
-        startTime: time,
-        endTime: addMinutesToTime(time, payload.duration),
+        startTime: parsed.time,
+        endTime: addMinutesToTime(parsed.time, payload.duration),
       },
     ];
   });
@@ -135,6 +136,6 @@ export async function rescheduleAppointment(payload: {
     service_id: payload.serviceId,
     current_appointment_time: payload.currentAppointmentTime,
     new_appointment_time: payload.newAppointmentTime,
-    force_booking: false,
+    force_booking: true,
   });
 }

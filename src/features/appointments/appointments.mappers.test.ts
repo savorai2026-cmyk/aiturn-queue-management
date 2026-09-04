@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assignGroupRoles } from './calendarGrouping';
+import { assignGroupRoles, allowCalendarEventOverlap } from './calendarGrouping';
 import {
   toAppointmentDetails,
   toAppointmentEditValues,
@@ -220,5 +220,35 @@ describe('assignGroupRoles', () => {
     expect(roles.get('a')).toBe('start');
     expect(roles.get('b')).toBe('end');
     expect(roles.get('c')).toBe('single');
+  });
+});
+
+describe('allowCalendarEventOverlap', () => {
+  it('allows overlapping background day markers', () => {
+    expect(
+      allowCalendarEventOverlap({
+        stillDisplay: 'background',
+        stillAppointmentId: undefined,
+        movingAppointmentId: 42,
+      }),
+    ).toBe(true);
+  });
+
+  it('allows overlapping other services of the same appointment', () => {
+    expect(
+      allowCalendarEventOverlap({
+        stillAppointmentId: 42,
+        movingAppointmentId: 42,
+      }),
+    ).toBe(true);
+  });
+
+  it('rejects overlapping a different appointment', () => {
+    expect(
+      allowCalendarEventOverlap({
+        stillAppointmentId: 7,
+        movingAppointmentId: 42,
+      }),
+    ).toBe(false);
   });
 });

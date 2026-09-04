@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatClientCell,
+  matchesClientSearch,
   normalizeClientValues,
 } from './clients.mappers';
 import type { Client } from './clients.types';
@@ -30,6 +31,8 @@ const CLIENT: Client = {
   acquisition_source: null,
   preferred_channel: null,
   last_contact: null,
+  booking_policy: 'instant',
+  payment_requirement: 'none',
   created_at: '2026-08-14T10:00:00Z',
   updated_at: '2026-08-14T10:00:00Z',
 };
@@ -40,6 +43,12 @@ describe('formatClientCell', () => {
     expect(formatClientCell({ ...CLIENT, gender: 'F' }, 'gender')).toBe('נקבה');
     expect(formatClientCell(CLIENT, 'allows_sms')).toBe('כן');
     expect(formatClientCell({ ...CLIENT, allows_sms: false }, 'allows_sms')).toBe('לא');
+    expect(formatClientCell(CLIENT, 'booking_policy')).toBe('קביעה מיידית');
+    expect(formatClientCell({ ...CLIENT, booking_policy: 'blocked' }, 'booking_policy')).toBe('חסום');
+    expect(formatClientCell(CLIENT, 'payment_requirement')).toBe('ללא תשלום');
+    expect(
+      formatClientCell({ ...CLIENT, payment_requirement: 'deposit' }, 'payment_requirement'),
+    ).toBe('מקדמה');
   });
 
   it('normalizes scalar and empty values', () => {
@@ -59,6 +68,8 @@ describe('normalizeClientValues', () => {
       city: ' ',
       gender: 'M',
       national_id: '',
+      booking_policy: 'approval',
+      payment_requirement: 'full',
       allows_sms: true,
       street: '',
       building_number: '',
@@ -81,6 +92,8 @@ describe('normalizeClientValues', () => {
       city: null,
       gender: 'M',
       national_id: null,
+      booking_policy: 'approval',
+      payment_requirement: 'full',
       allows_sms: true,
       street: null,
       building_number: null,
@@ -97,5 +110,26 @@ describe('normalizeClientValues', () => {
       acquisition_source: null,
       preferred_channel: null,
     });
+  });
+});
+
+describe('matchesClientSearch', () => {
+  const withId = { ...CLIENT, national_id: '123456782' };
+
+  it('matches name, mobile, and national id', () => {
+    expect(matchesClientSearch(CLIENT, '')).toBe(true);
+    expect(matchesClientSearch(CLIENT, 'ישראל')).toBe(true);
+    expect(matchesClientSearch(CLIENT, 'ישראלי')).toBe(true);
+    expect(matchesClientSearch(CLIENT, '050-000')).toBe(true);
+    expect(matchesClientSearch(CLIENT, '+972500000000')).toBe(true);
+    expect(matchesClientSearch(withId, '123-456')).toBe(true);
+    expect(matchesClientSearch(CLIENT, 'משה')).toBe(false);
+    expect(matchesClientSearch(CLIENT, '051')).toBe(false);
+  });
+
+  it('requires every search token to match', () => {
+    expect(matchesClientSearch(withId, 'ישראל 050')).toBe(true);
+    expect(matchesClientSearch(withId, 'ישראל 123')).toBe(true);
+    expect(matchesClientSearch(withId, 'ישראל 051')).toBe(false);
   });
 });

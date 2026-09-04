@@ -34,6 +34,7 @@ export type BusinessSettings = Pick<
   | 'agent_phone_number'
   | 'timezone'
   | 'slot_duration_minutes'
+  | 'deposit_percent'
   | 'max_adv_booking_days'
   | 'working_hours'
   | 'vapi_assistant_id'

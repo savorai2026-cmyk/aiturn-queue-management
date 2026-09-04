@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { DetailRow } from './types';
+import modal from '../components/modalShell.module.css';
 import styles from './RecordDetailsModal.module.css';
 
 interface RecordDetailsModalProps {
@@ -26,7 +27,7 @@ export default function RecordDetailsModal({
 
   return (
     <div
-      className={styles.overlay}
+      className={`${modal.overlay} ${styles.overlay}`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
@@ -34,7 +35,7 @@ export default function RecordDetailsModal({
       }}
     >
       <section
-        className={styles.content}
+        className={`${modal.content} ${styles.content}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="record-details-title"
@@ -42,7 +43,7 @@ export default function RecordDetailsModal({
         <h2 id="record-details-title" className={styles.title}>
           {title}
         </h2>
-        <div className={styles.list}>
+        <div className={`${modal.scroll} ${styles.list}`}>
           {rows.map((row) => (
             <div key={row.key} className={styles.row}>
               <span className={styles.label}>{row.label}</span>

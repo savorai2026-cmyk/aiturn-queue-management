@@ -1,8 +1,12 @@
-import type {
-  Client,
-  ClientColumnKey,
-  ClientFormValues,
-  ClientUpdate,
+import {
+  BOOKING_POLICY_OPTIONS,
+  PAYMENT_REQUIREMENT_OPTIONS,
+  type BookingPolicy,
+  type Client,
+  type ClientColumnKey,
+  type ClientFormValues,
+  type ClientUpdate,
+  type PaymentRequirement,
 } from './clients.types';
 import { CLIENT_FIELDS } from '../../shared/displayFields/catalogs';
 import type { DetailRow } from '../../shared/displayFields/types';
@@ -10,6 +14,62 @@ import type { DetailRow } from '../../shared/displayFields/types';
 function emptyToNull(value: string) {
   const normalized = value.trim();
   return normalized || null;
+}
+
+function labelFor<T extends string>(
+  options: { value: T; label: string }[],
+  value: T,
+) {
+  return options.find((option) => option.value === value)?.label ?? value;
+}
+
+export function parseBookingPolicy(
+  value: string | null | undefined,
+): BookingPolicy {
+  return value === 'approval' || value === 'blocked' ? value : 'instant';
+}
+
+export function parsePaymentRequirement(
+  value: string | null | undefined,
+): PaymentRequirement {
+  return value === 'deposit' || value === 'full' ? value : 'none';
+}
+
+function normalizeSearchText(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function digitsOnly(value: string) {
+  return value.replace(/\D/g, '');
+}
+
+function normalizePhoneDigits(value: string) {
+  let digits = digitsOnly(value);
+  if (digits.startsWith('972')) {
+    digits = `0${digits.slice(3)}`;
+  }
+  return digits;
+}
+
+function clientMatchesToken(client: Client, token: string) {
+  const name = normalizeSearchText(client.full_name ?? '');
+  if (name.includes(token)) return true;
+
+  const tokenDigits = digitsOnly(token);
+  if (!tokenDigits) return false;
+
+  const phone = normalizePhoneDigits(client.mobile_phone);
+  if (phone.includes(normalizePhoneDigits(token))) return true;
+
+  const nationalId = digitsOnly(client.national_id ?? '');
+  return nationalId.includes(tokenDigits);
+}
+
+export function matchesClientSearch(client: Client, query: string) {
+  const normalized = normalizeSearchText(query);
+  if (!normalized) return true;
+
+  return normalized.split(' ').every((token) => clientMatchesToken(client, token));
 }
 
 export function normalizeClientValues(
@@ -22,6 +82,8 @@ export function normalizeClientValues(
     city: emptyToNull(values.city),
     gender: values.gender,
     national_id: emptyToNull(values.national_id),
+    booking_policy: values.booking_policy,
+    payment_requirement: values.payment_requirement,
     allows_sms: values.allows_sms,
     street: emptyToNull(values.street),
     building_number: emptyToNull(values.building_number),
@@ -48,6 +110,14 @@ export function formatClientCell(
     if (client.gender === 'M') return 'זכר';
     if (client.gender === 'F') return 'נקבה';
     return '';
+  }
+
+  if (column === 'booking_policy') {
+    return labelFor(BOOKING_POLICY_OPTIONS, client.booking_policy);
+  }
+
+  if (column === 'payment_requirement') {
+    return labelFor(PAYMENT_REQUIREMENT_OPTIONS, client.payment_requirement);
   }
 
   if (column === 'allows_sms') {

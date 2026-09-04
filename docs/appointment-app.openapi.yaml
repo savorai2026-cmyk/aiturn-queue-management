@@ -1,0 +1,1488 @@
+openapi: 3.0.3
+info:
+  title: Appointment app HTTP API
+  version: "1.0.0"
+  description: |
+    Full HTTP surface of the Flask app in `app.py`. Routes are registered
+    on the Flask `app` object (no separate blueprints). `strict_slashes`
+    is false, so trailing slashes are accepted.
+
+    **Do not invent extra paths.** This document matches the handlers in
+    `app.py` plus the billing implementations in `billing/routes.py`.
+
+    Auth when `VAPI_SECRET` is set (`_unauthorized_if_needed`): header
+    `x-vapi-secret` (or `X-Vapi-Secret`) equal to the secret, **or**
+    `Authorization` equal to the secret, **or** `Authorization: Bearer {secret}`.
+    If `VAPI_SECRET` is unset, those checks are skipped (except
+    `/conversations/purge`, which always requires a secret).
+
+    Vapi tool POSTs accept either a Vapi tool-call envelope
+    (`message.toolCalls[0].function.arguments`) or the same fields on the
+    JSON root. Scheduler mutations also accept a list under `events`,
+    `appointments`, or `items` (max 20).
+
+    CORS (`Access-Control-Allow-Origin: *`) is added on every response.
+    Allowed methods: GET, POST, PUT, PATCH, HEAD, OPTIONS.
+    Allowed headers: Content-Type, Authorization, x-vapi-secret.
+
+    Billing HTML pages always return **HTTP 200**. See tag Billing.
+servers:
+  - url: /
+    description: Same origin as the Flask app
+  - url: https://{host}
+    description: Public Cloud Run (or other) base URL
+    variables:
+      host:
+        default: appointment-app-43062247540.europe-west1.run.app
+        description: Hostname only; set from VAPI_SERVER_BASE_URL in deployment
+tags:
+  - name: Vapi
+    description: |
+      Voice assistant server URL (`/vapi-init`) and tool webhooks
+      (`/book`, `/cancel`, `/reschedule`, `/slots`, `/appointments`, `/events`).
+  - name: Slots
+    description: Direct availability lookup (not the Vapi tool webhook)
+  - name: WhatsApp
+    description: Meta Cloud API verification (GET) and inbound webhook (POST)
+  - name: Billing
+    description: CreditGuard card-token enrollment (subset also in billing.openapi.yaml)
+  - name: Conversations
+    description: Retention purge of conversation_logs (not a public CRUD API)
+
+paths:
+  /api/v1/slots:
+    get:
+      tags: [Slots]
+      operationId: getSlots
+      summary: List available slots for a date
+      description: |
+        Direct GET availability. **No** `x-vapi-secret` check.
+        Query `business_code`, `date`, and `duration` are all required.
+        Optional `strict=true` enables strict mode in `check_availability`.
+        Example from the handler docstring:
+        `/api/v1/slots?business_code=RUTH_LEV&date=2026-07-20&duration=45&strict=true`
+      parameters:
+        - name: business_code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: true
+          description: Date string passed through to `check_availability`
+          schema:
+            type: string
+            example: "2026-07-20"
+        - name: duration
+          in: query
+          required: true
+          description: Duration in minutes (parsed as int)
+          schema:
+            type: integer
+            example: 45
+        - name: strict
+          in: query
+          required: false
+          description: Compared case-insensitively to the string `true`
+          schema:
+            type: string
+            default: "false"
+      responses:
+        "200":
+          description: Availability payload
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [business_code, date, available_slots]
+                properties:
+                  business_code:
+                    type: string
+                  date:
+                    type: string
+                  available_slots: {}
+        "400":
+          description: Missing business_code, date, or duration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+              example:
+                error: Missing required parameters
+        "500":
+          description: Exception from `check_availability`
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+
+  /book:
+    post:
+      tags: [Vapi]
+      operationId: vapiBook
+      summary: Vapi tool — book appointment(s)
+      description: |
+        Vapi server URL for `scheduler_book_appointment` (`tool_schemas.py` → `/book`).
+        Default action is `book`. Required per event (unless supplied via a
+        batch list): `business_code`, `client_phone`, `service_id`,
+        `duration`, `price`, `appointment_time`. Optional `client_name`,
+        `force_booking`.
+
+        Success for the Vapi envelope is HTTP 200 when `success` or
+        `action_required` is true; otherwise HTTP 500 with the same
+        `results[]` shape. Missing required fields without a batch list
+        return HTTP 400 `{success: false, error}`.
+      security:
+        - VapiSecret: []
+        - VapiAuthorization: []
+        - VapiBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VapiSchedulerRequest"
+            examples:
+              vapiToolCall:
+                summary: Vapi toolCalls envelope
+                value:
+                  message:
+                    toolCalls:
+                      - id: "call_1"
+                        function:
+                          name: scheduler_book_appointment
+                          arguments:
+                            business_code: "example-business"
+                            client_phone: "0501234567"
+                            client_name: "דנה"
+                            service_id: 1
+                            duration: 45
+                            price: 120
+                            appointment_time: "2026-09-10T10:00:00"
+                            force_booking: false
+              flat:
+                summary: Flat JSON (also accepted)
+                value:
+                  business_code: "example-business"
+                  client_phone: "0501234567"
+                  service_id: 1
+                  duration: 45
+                  price: 120
+                  appointment_time: "2026-09-10T10:00:00"
+      responses:
+        "200":
+          description: Vapi tool result (booking succeeded or action_required)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapiToolResults"
+        "400":
+          description: Missing required fields / too many events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchedulerError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Scheduler returned unsuccessful result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapiToolResults"
+
+  /cancel:
+    post:
+      tags: [Vapi]
+      operationId: vapiCancel
+      summary: Vapi tool — cancel appointment(s)
+      description: |
+        Vapi server URL for `scheduler_cancel_appointment` → `/cancel`.
+        Default action is `cancel`. Required: `business_code`, `client_phone`.
+        Optional `appointment_time` (required in product terms when the
+        client has several active appointments).
+
+        `_mutation_response(..., ok_on_user_message=True)`: HTTP 200 if
+        `success`, `action_required`, **or** `user_message` is set.
+      security:
+        - VapiSecret: []
+        - VapiAuthorization: []
+        - VapiBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VapiSchedulerRequest"
+      responses:
+        "200":
+          description: Vapi tool result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapiToolResults"
+        "400":
+          description: Missing required fields / too many events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchedulerError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Unsuccessful cancel without user_message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapiToolResults"
+
+  /reschedule:
+    post:
+      tags: [Vapi]
+      operationId: vapiReschedule
+      summary: Vapi tool — move appointment, or suggest slots
+      description: |
+        Vapi server URL for `scheduler_move_appointment` → `/reschedule`.
+        If there is **no** events list **and** `new_appointment_time` is
+        missing: requires `business_code`, `client_phone`, `service_id`;
+        then calls `get_suggested_slots` (date defaults to Israel today)
+        and always returns HTTP 200 Vapi results.
+
+        Otherwise default action is `reschedule`. Required:
+        `business_code`, `client_phone`, `service_id`, `new_appointment_time`.
+        Optional `current_appointment_time`, `force_booking`.
+        Missing `new_appointment_time` after the suggest-slots branch
+        yields a Hebrew `user_message` (not `_bad_request`).
+        Uses `ok_on_user_message=True` for the mutation path.
+      security:
+        - VapiSecret: []
+        - VapiAuthorization: []
+        - VapiBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VapiSchedulerRequest"
+      responses:
+        "200":
+          description: Slot suggestions or reschedule Vapi result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapiToolResults"
+        "400":
+          description: Missing fields for suggest-slots or mutation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchedulerError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Unsuccessful mutation without user_message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapiToolResults"
+
+  /events:
+    post:
+      tags: [Vapi]
+      operationId: vapiEvents
+      summary: Batch book / cancel / reschedule
+      description: |
+        Runs `_run_scheduler_events`. Requires either a list under
+        `events` / `appointments` / `items`, or a top-level `action`.
+        Per-item `action` (or `type`) maps:
+        book/create/schedule/add → book;
+        cancel/delete/remove → cancel;
+        reschedule/move/update/shift → reschedule.
+
+        If the request looks like a Vapi tool call (`toolCall.id` or
+        `message.toolCalls`), response is the Vapi `results[]` envelope
+        (`ok_on_user_message=True`). Otherwise JSON
+        `{success, user_message, items, error}` with HTTP 200 when
+        success, action_required, or user_message; else HTTP 400.
+      security:
+        - VapiSecret: []
+        - VapiAuthorization: []
+        - VapiBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VapiSchedulerRequest"
+            example:
+              business_code: "example-business"
+              client_phone: "0501234567"
+              events:
+                - action: book
+                  service_id: 1
+                  duration: 45
+                  price: 120
+                  appointment_time: "2026-09-10T10:00:00"
+                - action: cancel
+                  appointment_time: "2026-09-11T11:00:00"
+      responses:
+        "200":
+          description: Vapi envelope or direct JSON success
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/VapiToolResults"
+                  - $ref: "#/components/schemas/EventsDirectResponse"
+        "400":
+          description: Missing events/action, validation, or failed direct response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SchedulerError"
+                  - $ref: "#/components/schemas/EventsDirectResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Vapi envelope for unsuccessful mutation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapiToolResults"
+
+  /slots:
+    post:
+      tags: [Vapi]
+      operationId: vapiSuggestSlots
+      summary: Vapi tool — suggested slots
+      description: |
+        Vapi server URL for `scheduler_get_slots` → `/slots`.
+        Required `business_code`. Optional `date` (YYYY-MM-DD),
+        `service_id`, `duration`. Empty date is treated as None
+        (system suggests nearby days). Always HTTP 200 Vapi results
+        when authorized and `business_code` is present.
+      security:
+        - VapiSecret: []
+        - VapiAuthorization: []
+        - VapiBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VapiSchedulerRequest"
+      responses:
+        "200":
+          description: Suggested slots as Vapi tool result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapiToolResults"
+        "400":
+          description: Missing business_code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchedulerError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /appointments:
+    post:
+      tags: [Vapi]
+      operationId: vapiListAppointments
+      summary: Vapi tool — list client appointments
+      description: |
+        Vapi server URL for `scheduler_list_appointments` → `/appointments`.
+        Required `business_code`, `client_phone`. Optional
+        `appointment_date` (YYYY-MM-DD), `service_id`.
+        HTTP 200 if `success` or `user_message`; else HTTP 500 Vapi envelope.
+      security:
+        - VapiSecret: []
+        - VapiAuthorization: []
+        - VapiBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VapiSchedulerRequest"
+      responses:
+        "200":
+          description: List result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapiToolResults"
+        "400":
+          description: Missing business_code or client_phone
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchedulerError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: List failed without user_message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapiToolResults"
+
+  /vapi-init:
+    options:
+      tags: [Vapi]
+      operationId: vapiInitOptions
+      summary: CORS preflight
+      description: Returns empty body HTTP 200. No auth.
+      responses:
+        "200":
+          description: Empty body
+          content:
+            text/plain:
+              schema:
+                type: string
+    head:
+      tags: [Vapi]
+      operationId: vapiInitHead
+      summary: Health-style probe
+      description: Same JSON as GET. No auth.
+      responses:
+        "200":
+          description: Endpoint alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapiInitProbe"
+    get:
+      tags: [Vapi]
+      operationId: vapiInitGet
+      summary: Probe that vapi-init is mounted
+      description: |
+        Returns `{"status":"ok","endpoint":"vapi-init"}`. No secret check.
+        Additional Flask routes (same handler): `/vapi-init/<path:rest>`,
+        `/<path:prefix>/vapi-init`, `/<path:prefix>/vapi-init/<path:rest>`.
+        The 404 handler also forwards paths that are `/vapi-init`, end
+        with `/vapi-init`, or contain `/vapi-init/`.
+      responses:
+        "200":
+          description: Probe JSON
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapiInitProbe"
+              example:
+                status: ok
+                endpoint: vapi-init
+    post:
+      tags: [Vapi]
+      operationId: vapiInitPost
+      summary: Vapi server URL — assistant-request and end-of-call-report
+      description: |
+        Reads JSON `message.type`.
+
+        - `end-of-call-report`: requires Vapi auth if `VAPI_SECRET` is set;
+          persists via `record_vapi_report`; `{"status":"ok"}` or 500
+          `{"status":"error"}`.
+        - `assistant-request`: requires Vapi auth if set; returns
+          `assistantId` + `assistantOverrides` (model tools, firstMessage,
+          variableValues, artifactPlan, serverMessages).
+        - any other type: HTTP 200 `{"status":"ignored","reason":"not an assistant-request"}`
+          **without** auth.
+        PUT and PATCH use this same handler as POST.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VapiServerMessage"
+            examples:
+              assistantRequest:
+                summary: assistant-request
+                value:
+                  message:
+                    type: assistant-request
+                    call:
+                      customer:
+                        number: "+972501234567"
+              endOfCall:
+                summary: end-of-call-report
+                value:
+                  message:
+                    type: end-of-call-report
+                    call:
+                      customer:
+                        number: "+972501234567"
+      responses:
+        "200":
+          description: Assistant overrides, ok, or ignored
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/VapiInitProbe"
+                  - $ref: "#/components/schemas/VapiIgnored"
+                  - $ref: "#/components/schemas/VapiAssistantResponse"
+                  - type: object
+                    properties:
+                      status:
+                        type: string
+                        enum: [ok]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: end-of-call-report persist failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [error]
+    put:
+      tags: [Vapi]
+      operationId: vapiInitPut
+      summary: Same handler as POST
+      description: Flask allows PUT on vapi-init; body handling matches POST.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VapiServerMessage"
+      responses:
+        "200":
+          description: Same as POST
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: end-of-call-report persist failed
+    patch:
+      tags: [Vapi]
+      operationId: vapiInitPatch
+      summary: Same handler as POST
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VapiServerMessage"
+      responses:
+        "200":
+          description: Same as POST
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: end-of-call-report persist failed
+
+  /vapi-init/{rest}:
+    parameters:
+      - name: rest
+        in: path
+        required: true
+        description: Extra path after /vapi-init (Flask `<path:rest>`)
+        schema:
+          type: string
+    get:
+      tags: [Vapi]
+      operationId: vapiInitRestGet
+      summary: Alias of GET /vapi-init
+      responses:
+        "200":
+          description: Probe JSON
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapiInitProbe"
+    options:
+      tags: [Vapi]
+      operationId: vapiInitRestOptions
+      summary: Alias of OPTIONS /vapi-init
+      responses:
+        "200":
+          description: Empty body
+    head:
+      tags: [Vapi]
+      operationId: vapiInitRestHead
+      summary: Alias of HEAD /vapi-init
+      responses:
+        "200":
+          description: Same as GET
+    post:
+      tags: [Vapi]
+      operationId: vapiInitRestPost
+      summary: Alias of POST /vapi-init
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VapiServerMessage"
+      responses:
+        "200":
+          description: Same as POST /vapi-init
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: end-of-call-report persist failed
+    put:
+      tags: [Vapi]
+      operationId: vapiInitRestPut
+      summary: Alias of PUT /vapi-init
+      responses:
+        "200":
+          description: Same as POST /vapi-init
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    patch:
+      tags: [Vapi]
+      operationId: vapiInitRestPatch
+      summary: Alias of PATCH /vapi-init
+      responses:
+        "200":
+          description: Same as POST /vapi-init
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /{prefix}/vapi-init:
+    parameters:
+      - name: prefix
+        in: path
+        required: true
+        description: Flask `<path:prefix>` before /vapi-init
+        schema:
+          type: string
+    get:
+      tags: [Vapi]
+      operationId: vapiInitPrefixedGet
+      summary: Alias of GET /vapi-init
+      responses:
+        "200":
+          description: Probe JSON
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapiInitProbe"
+    options:
+      tags: [Vapi]
+      operationId: vapiInitPrefixedOptions
+      summary: Alias of OPTIONS /vapi-init
+      responses:
+        "200":
+          description: Empty body
+    head:
+      tags: [Vapi]
+      operationId: vapiInitPrefixedHead
+      summary: Alias of HEAD /vapi-init
+      responses:
+        "200":
+          description: Same as GET
+    post:
+      tags: [Vapi]
+      operationId: vapiInitPrefixedPost
+      summary: Alias of POST /vapi-init
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VapiServerMessage"
+      responses:
+        "200":
+          description: Same as POST /vapi-init
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: end-of-call-report persist failed
+    put:
+      tags: [Vapi]
+      operationId: vapiInitPrefixedPut
+      summary: Alias of PUT /vapi-init
+      responses:
+        "200":
+          description: Same as POST /vapi-init
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    patch:
+      tags: [Vapi]
+      operationId: vapiInitPrefixedPatch
+      summary: Alias of PATCH /vapi-init
+      responses:
+        "200":
+          description: Same as POST /vapi-init
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /{prefix}/vapi-init/{rest}:
+    parameters:
+      - name: prefix
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: rest
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Vapi]
+      operationId: vapiInitPrefixedRestGet
+      summary: Alias of GET /vapi-init
+      responses:
+        "200":
+          description: Probe JSON
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapiInitProbe"
+    options:
+      tags: [Vapi]
+      operationId: vapiInitPrefixedRestOptions
+      summary: Alias of OPTIONS /vapi-init
+      responses:
+        "200":
+          description: Empty body
+    head:
+      tags: [Vapi]
+      operationId: vapiInitPrefixedRestHead
+      summary: Alias of HEAD /vapi-init
+      responses:
+        "200":
+          description: Same as GET
+    post:
+      tags: [Vapi]
+      operationId: vapiInitPrefixedRestPost
+      summary: Alias of POST /vapi-init
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VapiServerMessage"
+      responses:
+        "200":
+          description: Same as POST /vapi-init
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: end-of-call-report persist failed
+    put:
+      tags: [Vapi]
+      operationId: vapiInitPrefixedRestPut
+      summary: Alias of PUT /vapi-init
+      responses:
+        "200":
+          description: Same as POST /vapi-init
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    patch:
+      tags: [Vapi]
+      operationId: vapiInitPrefixedRestPatch
+      summary: Alias of PATCH /vapi-init
+      responses:
+        "200":
+          description: Same as POST /vapi-init
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /whatsapp/webhook:
+    get:
+      tags: [WhatsApp]
+      operationId: whatsappVerify
+      summary: Meta webhook verification
+      description: |
+        Meta Cloud API handshake. Succeeds when `hub.mode` is `subscribe`
+        **and** `WHATSAPP_VERIFY_TOKEN` is non-empty **and**
+        `hub.verify_token` equals that env value. Response body is
+        `hub.challenge` (or empty string) with HTTP 200.
+        Otherwise JSON `{"error":"forbidden"}` HTTP 403.
+        No `x-vapi-secret`.
+      parameters:
+        - name: hub.mode
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [subscribe]
+        - name: hub.verify_token
+          in: query
+          required: false
+          description: Must match env WHATSAPP_VERIFY_TOKEN
+          schema:
+            type: string
+        - name: hub.challenge
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Echo of hub.challenge
+          content:
+            text/plain:
+              schema:
+                type: string
+        "403":
+          description: Token/mode mismatch or verify token unset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+              example:
+                error: forbidden
+    post:
+      tags: [WhatsApp]
+      operationId: whatsappInbound
+      summary: Inbound WhatsApp webhook
+      description: |
+        No Vapi secret. If `WHATSAPP_PROVIDER` is unset / unknown /
+        missing credentials, HTTP 503 `{"ok":false,"reason":"provider_not_configured"}`.
+
+        JSON is parsed by the selected provider (`meta`/`cloud`/`facebook`
+        or `greenapi`/`green-api`/`green`). Unparsed payloads return
+        HTTP 200 `{"ok":true,"ignored":true}`. Parsed messages are handled
+        asynchronously from the HTTP perspective; handler then
+        `{"ok":true}` HTTP 200.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/MetaWhatsAppWebhook"
+                - $ref: "#/components/schemas/GreenApiWhatsAppWebhook"
+            examples:
+              meta:
+                summary: Meta Cloud API (parsed fields)
+                value:
+                  entry:
+                    - changes:
+                        - value:
+                            messages:
+                              - id: "wamid.example"
+                                from: "972501234567"
+                                type: text
+                                text:
+                                  body: "שלום"
+              greenapi:
+                summary: GreenAPI incomingMessageReceived
+                value:
+                  typeWebhook: incomingMessageReceived
+                  idMessage: "true_972501234567@c.us_AAAA"
+                  senderData:
+                    chatId: "972501234567@c.us"
+                    sender: "972501234567@c.us"
+                  messageData:
+                    typeMessage: textMessage
+                    textMessageData:
+                      textMessage: "שלום"
+      responses:
+        "200":
+          description: Processed or ignored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsAppPostOk"
+        "503":
+          description: WHATSAPP_PROVIDER not configured
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, reason]
+                properties:
+                  ok:
+                    type: boolean
+                    enum: [false]
+                  reason:
+                    type: string
+                    enum: [provider_not_configured]
+
+  /conversations/purge:
+    post:
+      tags: [Conversations]
+      operationId: conversationsPurge
+      summary: Flush WhatsApp sessions and purge expired logs
+      description: |
+        **Always** requires a secret: `CONVERSATIONS_PURGE_SECRET` if set,
+        else `VAPI_SECRET`. Empty secret → 401. Header match is the same
+        as Vapi tools (`x-vapi-secret` / `Authorization` / Bearer).
+
+        Then flushes expired WhatsApp sessions for `BUSINESS_CODE` using
+        `whatsapp_session_minutes() * 60`, then `purge_expired_logs`.
+        No request body is read. Returns `{ok: true, detail, recording, metrics, held}`.
+      security:
+        - VapiSecret: []
+        - VapiAuthorization: []
+        - VapiBearer: []
+      responses:
+        "200":
+          description: Purge stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationsPurgeResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /billing/health:
+    get:
+      tags: [Billing]
+      operationId: billingHealth
+      summary: CreditGuard / signing configuration probe
+      description: |
+        Returns whether CreditGuard terminal credentials and link secret
+        are present. Does not expose secret values. `ok` is true only when
+        user, password, terminal, and mid are all set
+        (`config.is_terminal_configured()`). HTTP 200 when `ok` is true,
+        HTTP 503 otherwise.
+      responses:
+        "200":
+          description: Terminal credentials are configured (`ok` is true)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingHealth"
+              example:
+                ok: true
+                terminal_configured: true
+                user_configured: true
+                mid_configured: true
+                password_configured: true
+                link_secret_configured: true
+                relay_host: cguat2.creditguard.co.il
+        "503":
+          description: Terminal credentials incomplete (`ok` is false)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingHealth"
+
+  /billing/start:
+    get:
+      tags: [Billing]
+      operationId: billingStart
+      summary: Open a signed owner session and redirect to CreditGuard
+      description: |
+        **Not a public unauthenticated API.** HMAC-SHA256 over
+        `{business_code}.{exp}` using `BILLING_LINK_SECRET` (fallback
+        `VAPI_SECRET`). Links are generated server-side
+        (`billing.links.build_start_url` or `python -m billing`).
+
+        On success: persist `billing_sessions` + pending
+        `payment_methods`, **302** to CreditGuard `mpiHostedPageUrl`.
+        All failure paths return **HTML 200** (not 4xx). Session TTL
+        after start is 3600 seconds.
+      parameters:
+        - $ref: "#/components/parameters/BusinessCode"
+        - $ref: "#/components/parameters/Exp"
+        - $ref: "#/components/parameters/Sig"
+      responses:
+        "302":
+          description: Location is CreditGuard mpiHostedPageUrl
+          headers:
+            Location:
+              description: CreditGuard mpiHostedPageUrl
+              schema:
+                type: string
+                format: uri
+        "200":
+          description: |
+            HTML error page (always status 200). Titles used in code:
+            - קישור לא תקין — signature / exp / secret / params invalid
+            - לא ניתן להתחיל — CreditGuard terminal not configured
+            - שגיאה — business lookup or session persist failed
+            - עסק לא נמצא — no `businesses` row for `business_code`
+            - לא ניתן לפתוח את דף התשלום — CreditGuard Token setup failed
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /billing/callback:
+    get:
+      tags: [Billing]
+      operationId: billingCallback
+      summary: CreditGuard redirect after token page
+      description: |
+        Browser landing after hosted page success, error, or cancel.
+        CreditGuard is given successUrl / errorUrl =
+        `{public_base}/billing/callback` and cancelUrl =
+        `{public_base}/billing/callback?outcome=cancel`.
+
+        Required in practice: session `uniqueid` (aliases `uniqueID` /
+        `uniqueId`). Does **not** trust CreditGuard query fields as truth:
+        inquires the transaction server-side, then persists `cg_card_id` /
+        last4. All responses are **HTML 200**.
+      parameters:
+        - name: uniqueid
+          in: query
+          required: false
+          description: Session id (uuid hex). Missing yields HTML "חסר מזהה".
+          schema:
+            type: string
+        - name: uniqueID
+          in: query
+          required: false
+          description: Alias if uniqueid is empty
+          schema:
+            type: string
+        - name: uniqueId
+          in: query
+          required: false
+          description: Alias checked last
+          schema:
+            type: string
+        - name: outcome
+          in: query
+          required: false
+          description: `cancel` on the cancel URL (case-insensitive)
+          schema:
+            type: string
+            enum: [cancel]
+      responses:
+        "200":
+          description: |
+            HTML result page. Titles used in code:
+            - חסר מזהה — no uniqueid
+            - סשן לא נמצא — no matching billing_sessions row
+            - הכרטיס כבר שמור — session already succeeded
+            - הסשן הסתיים — status already failed / canceled / expired
+            - הקישור פג תוקף — expires_at in the past
+            - שגיאה בשמירה — inquire ok but DB persist failed
+            - הכרטיס נשמר — token stored
+            - הפעולה בוטלה — cancel without card
+            - לא נשמר כרטיס — inquire failed or no token
+          content:
+            text/html:
+              schema:
+                type: string
+
+components:
+  securitySchemes:
+    VapiSecret:
+      type: apiKey
+      in: header
+      name: x-vapi-secret
+      description: Compared to VAPI_SECRET (or CONVERSATIONS_PURGE_SECRET on purge)
+    VapiAuthorization:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Raw secret equal to VAPI_SECRET (no Bearer prefix)
+    VapiBearer:
+      type: http
+      scheme: bearer
+      description: Authorization Bearer {VAPI_SECRET}
+
+  parameters:
+    BusinessCode:
+      name: business_code
+      in: query
+      required: true
+      description: |
+        `businesses.business_code`. Must match an existing row after
+        signature verification. Part of the HMAC payload.
+      schema:
+        type: string
+    Exp:
+      name: exp
+      in: query
+      required: true
+      description: |
+        Unix timestamp (seconds). Must parse as int and be strictly
+        greater than current `time.time()`. Part of the HMAC payload.
+      schema:
+        type: integer
+        format: int64
+    Sig:
+      name: sig
+      in: query
+      required: true
+      description: |
+        HMAC-SHA256 hex digest of UTF-8 `{business_code}.{exp}`, keyed
+        by BILLING_LINK_SECRET or VAPI_SECRET. Compared with
+        hmac.compare_digest after lowercasing.
+      schema:
+        type: string
+        pattern: "^[0-9a-fA-F]{64}$"
+
+  responses:
+    Unauthorized:
+      description: VAPI_SECRET (or purge secret) set and header did not match
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorMessage"
+          example:
+            error: Unauthorized
+
+  schemas:
+    ErrorMessage:
+      type: object
+      properties:
+        error:
+          type: string
+
+    SchedulerError:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        error:
+          type: string
+          description: |
+            Missing required fields, Missing events, Too many events (max 20),
+            or similar.
+
+    VapiToolResults:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            required: [toolCallId, result]
+            properties:
+              toolCallId:
+                type: string
+                description: From message.toolCalls[0].id, else "1"
+              result:
+                description: user_message or error string from the scheduler
+                type: string
+
+    EventsDirectResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        user_message:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+        error:
+          type: string
+
+    VapiSchedulerRequest:
+      type: object
+      description: |
+        Union of Vapi envelope and flat fields. `_parse_vapi_request`
+        reads message.toolCalls[0].function.arguments (object or JSON string).
+        `_field` then falls back to the root body. Batch lists:
+        events / appointments / items (max 20). Event date aliases:
+        appointment_time, start, datetime, dateTime, date+start_time;
+        new_appointment_time, new_start, to; current_appointment_time,
+        from, original_start; duration from start/end if omitted.
+      additionalProperties: true
+      properties:
+        message:
+          $ref: "#/components/schemas/VapiToolCallMessage"
+        business_code:
+          type: string
+        client_phone:
+          type: string
+        client_name:
+          type: string
+        service_id:
+          type: integer
+        duration:
+          type: integer
+        price:
+          type: integer
+        appointment_time:
+          type: string
+          description: ISO 8601 YYYY-MM-DDTHH:mm:ss (Asia/Jerusalem naive after parse)
+        force_booking:
+          type: boolean
+        current_appointment_time:
+          type: string
+        new_appointment_time:
+          type: string
+        appointment_date:
+          type: string
+          description: YYYY-MM-DD filter for list
+        date:
+          type: string
+          description: YYYY-MM-DD for slots / reschedule-suggest
+        action:
+          type: string
+          description: Default action for /events or per-item
+        events:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: true
+        appointments:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: true
+        items:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: true
+
+    VapiToolCallMessage:
+      type: object
+      properties:
+        toolCalls:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              function:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  arguments:
+                    description: Object or JSON string of tool arguments
+                    oneOf:
+                      - type: object
+                        additionalProperties: true
+                      - type: string
+
+    VapiServerMessage:
+      type: object
+      additionalProperties: true
+      properties:
+        message:
+          type: object
+          additionalProperties: true
+          properties:
+            type:
+              type: string
+              description: assistant-request, end-of-call-report, or other (ignored)
+            toolCalls:
+              type: array
+              items:
+                type: object
+            call:
+              type: object
+              properties:
+                customer:
+                  type: object
+                  properties:
+                    number:
+                      type: string
+                      description: Customer phone; normalized via helper.normalize_phone
+
+    VapiInitProbe:
+      type: object
+      required: [status, endpoint]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        endpoint:
+          type: string
+          enum: [vapi-init]
+
+    VapiIgnored:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ignored]
+        reason:
+          type: string
+          enum: ["not an assistant-request"]
+
+    VapiAssistantResponse:
+      type: object
+      description: Shape returned for assistant-request (fields from app.py)
+      properties:
+        assistantId:
+          type: string
+        assistantOverrides:
+          type: object
+          properties:
+            firstMessage:
+              type: string
+            artifactPlan: {}
+            serverMessages:
+              type: array
+              items:
+                type: string
+              example: [end-of-call-report]
+            model:
+              type: object
+              properties:
+                provider:
+                  type: string
+                model:
+                  type: string
+                temperature:
+                  type: number
+                tools:
+                  type: array
+                  description: Output of build_scheduler_tools (book/slots/cancel/reschedule/appointments)
+                  items:
+                    type: object
+            variableValues:
+              type: object
+              additionalProperties: true
+              properties:
+                callerFound:
+                  type: string
+                firstName:
+                  type: string
+                fullName:
+                  type: string
+                callerNumber:
+                  type: string
+                gender:
+                  type: string
+                id:
+                  type: string
+                email:
+                  type: string
+                today_date:
+                  type: string
+                today_spoken:
+                  type: string
+                currentDay:
+                  type: string
+                currentTime:
+                  type: string
+                currentTimeSpoken:
+                  type: string
+                speech_style:
+                  type: string
+                services_list:
+                  type: string
+
+    MetaWhatsAppWebhook:
+      type: object
+      description: Meta Cloud API webhook; first parseable text/interactive/button message is used
+      additionalProperties: true
+      properties:
+        entry:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              changes:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    value:
+                      type: object
+                      properties:
+                        messages:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                              from:
+                                type: string
+                              type:
+                                type: string
+                                enum: [text, interactive, button]
+                              text:
+                                type: object
+                                properties:
+                                  body:
+                                    type: string
+                              interactive:
+                                type: object
+                              button:
+                                type: object
+
+    GreenApiWhatsAppWebhook:
+      type: object
+      description: Parsed only when typeWebhook is incomingMessageReceived; group chats @g.us ignored
+      additionalProperties: true
+      properties:
+        typeWebhook:
+          type: string
+          enum: [incomingMessageReceived]
+        idMessage:
+          type: string
+        senderData:
+          type: object
+          properties:
+            chatId:
+              type: string
+            sender:
+              type: string
+        messageData:
+          type: object
+          additionalProperties: true
+          properties:
+            typeMessage:
+              type: string
+
+    WhatsAppPostOk:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+          enum: [true]
+        ignored:
+          type: boolean
+
+    ConversationsPurgeResult:
+      type: object
+      required: [ok, detail, recording, metrics, held]
+      properties:
+        ok:
+          type: boolean
+          enum: [true]
+        detail:
+          type: integer
+          description: Rows with transcript/summary/tool_calls nulled
+        recording:
+          type: integer
+          description: Rows with recording fields nulled
+        metrics:
+          type: integer
+          description: conversation_logs rows deleted
+        held:
+          type: integer
+          description: Businesses skipped because legal_hold is set
+
+    BillingHealth:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - terminal_configured
+        - user_configured
+        - mid_configured
+        - password_configured
+        - link_secret_configured
+        - relay_host
+      properties:
+        ok:
+          type: boolean
+          description: True iff user, password, terminal, and mid are all set
+        terminal_configured:
+          type: boolean
+        user_configured:
+          type: boolean
+        mid_configured:
+          type: boolean
+        password_configured:
+          type: boolean
+          description: Boolean only; password value is never returned
+        link_secret_configured:
+          type: boolean
+          description: BILLING_LINK_SECRET or VAPI_SECRET is non-empty
+        relay_host:
+          type: string
+          description: Hostname from CREDITGUARD_RELAY_URL

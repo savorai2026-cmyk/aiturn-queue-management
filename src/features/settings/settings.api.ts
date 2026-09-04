@@ -10,6 +10,7 @@ import type {
   ServiceInsert,
   ServiceUpdate,
 } from './settings.types';
+import { parseDepositPercent } from './settings.mappers';
 
 export async function getBusinessSettings(
   businessCode: string,
@@ -24,6 +25,7 @@ export async function getBusinessSettings(
       agent_phone_number,
       timezone,
       slot_duration_minutes,
+      deposit_percent,
       max_adv_booking_days,
       working_hours,
       vapi_assistant_id,
@@ -36,7 +38,10 @@ export async function getBusinessSettings(
     throw new Error(error.message);
   }
 
-  return data;
+  return {
+    ...data,
+    deposit_percent: parseDepositPercent(data.deposit_percent),
+  };
 }
 
 export async function getServices(businessCode: string): Promise<Service[]> {

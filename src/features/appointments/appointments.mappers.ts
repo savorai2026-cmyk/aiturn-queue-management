@@ -170,9 +170,6 @@ export function toCalendarEvents(
       end: `${event.appointment.appointment_date}T${formatTimeHm(event.service.endTime)}`,
       backgroundColor: event.color,
       borderColor: event.color,
-      editable: false,
-      startEditable: false,
-      durationEditable: false,
       classNames: [`event-group-${groupRole}`],
       extendedProps,
     };

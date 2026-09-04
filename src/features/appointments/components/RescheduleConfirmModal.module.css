@@ -1,18 +1,11 @@
 .overlay {
-  position: fixed;
-  inset: 0;
-  padding: 18px;
+  z-index: 9999;
   background-color: rgba(7, 48, 75, 0.48);
   backdrop-filter: blur(2px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
 }
 
 .content {
-  width: 100%;
-  max-width: 520px;
+  --modal-max-width: 520px;
   padding: 24px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-card);
@@ -33,6 +26,7 @@
   color: var(--color-text);
   font-size: 15px;
   line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 
 .question strong {
@@ -95,8 +89,10 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+  margin-top: 14px;
   padding-top: 14px;
   border-top: 1px solid var(--color-line);
+  flex: 0 0 auto;
 }
 
 .editRow {

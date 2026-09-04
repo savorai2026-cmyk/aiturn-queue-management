@@ -3,6 +3,8 @@ import type { DisplayField, DisplayScope } from './types';
 export const CLIENT_FIELDS: DisplayField[] = [
   { key: 'full_name', label: 'שם מלא', defaultVisible: true },
   { key: 'mobile_phone', label: 'נייד', defaultVisible: true, dir: 'ltr' },
+  { key: 'booking_policy', label: 'מדיניות קביעה', defaultVisible: true },
+  { key: 'payment_requirement', label: 'דרישת תשלום', defaultVisible: true },
   { key: 'city', label: 'עיר', defaultVisible: true },
   { key: 'last_contact', label: 'תאריך הצטרפות', defaultVisible: true },
   { key: 'id', label: 'מזהה', defaultVisible: true },
@@ -64,6 +66,7 @@ export const BUSINESS_FIELDS: DisplayField[] = [
   { key: 'agent_phone_number', label: 'טלפון סוכן', defaultVisible: false, dir: 'ltr' },
   { key: 'timezone', label: 'אזור זמן', defaultVisible: false, dir: 'ltr' },
   { key: 'slot_duration_minutes', label: 'משך משבצת (דקות)', defaultVisible: false },
+  { key: 'deposit_percent', label: 'אחוז מקדמה', defaultVisible: true },
 ];
 
 const CATALOGS: Record<DisplayScope, DisplayField[]> = {

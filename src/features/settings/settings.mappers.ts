@@ -66,10 +66,28 @@ export function toStatusDetailRows(status: AppointmentStatusRow): DetailRow[] {
   }));
 }
 
+export function parseDepositPercent(value: unknown): number {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function normalizeDepositPercent(value: unknown): number | null {
+  if (value === '' || value == null) return 0;
+
+  const raw = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(raw) || raw < 0 || raw > 100) return null;
+  return Math.round(raw * 100) / 100;
+}
+
 export function formatBusinessField(
   business: BusinessSettings,
   key: string,
 ): string {
+  if (key === 'deposit_percent') {
+    const percent = parseDepositPercent(business.deposit_percent);
+    return `${percent.toLocaleString('he-IL', { maximumFractionDigits: 2 })}%`;
+  }
+
   const value = business[key as keyof BusinessSettings];
   if (value == null || value === '') return '';
   return String(value);

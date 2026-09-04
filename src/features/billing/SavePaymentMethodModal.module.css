@@ -1,19 +1,11 @@
 .overlay {
-  position: fixed;
-  inset: 0;
   z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px;
   background-color: rgba(7, 48, 75, 0.48);
   backdrop-filter: blur(2px);
 }
 
 .content {
-  width: min(100%, 520px);
-  max-height: 90vh;
-  overflow-y: auto;
+  --modal-max-width: 520px;
   padding: 28px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-card);
@@ -92,7 +84,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  margin-top: 8px;
+  margin-top: 16px;
+  flex: 0 0 auto;
 }
 
 .primary,

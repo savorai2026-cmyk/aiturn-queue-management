@@ -1,19 +1,11 @@
 .overlay {
-  position: fixed;
-  inset: 0;
   z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px;
   background: rgba(7, 48, 75, 0.48);
   backdrop-filter: blur(2px);
 }
 
 .content {
-  width: min(100%, 620px);
-  max-height: 90vh;
-  overflow-y: auto;
+  --modal-max-width: 620px;
   padding: 28px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-card);
@@ -40,7 +32,7 @@
 
 .formGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px 18px;
 }
 
@@ -149,11 +141,13 @@
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 24px;
+  margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--color-line);
+  flex: 0 0 auto;
 }
 
 .btnCancel,

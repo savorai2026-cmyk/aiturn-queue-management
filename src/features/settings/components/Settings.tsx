@@ -4,6 +4,8 @@ import { getErrorMessage } from '../../../shared/errors';
 import {
   formatServiceCell,
   formatStatusCell,
+  normalizeDepositPercent,
+  parseDepositPercent,
   toBusinessDetailRows,
   toServiceDetailRows,
   toStatusDetailRows,
@@ -211,6 +213,7 @@ function toEditableSettings(
     agent_phone_number: business.agent_phone_number,
     timezone: business.timezone,
     slot_duration_minutes: business.slot_duration_minutes,
+    deposit_percent: parseDepositPercent(business.deposit_percent),
     vapi_assistant_id: business.vapi_assistant_id,
     wa_instance_id: business.wa_instance_id,
   };
@@ -263,7 +266,23 @@ function BusinessSettingsForm({
     setMessage(null);
 
     try {
-      await updateBusinessSettings(business.business_code, formData);
+      const depositPercent = normalizeDepositPercent(formData.deposit_percent);
+      if (depositPercent == null) {
+        setMessage({
+          text: 'אחוז המקדמה חייב להיות מספר בין 0 ל-100.',
+          type: 'error',
+        });
+        return;
+      }
+
+      await updateBusinessSettings(business.business_code, {
+        ...formData,
+        deposit_percent: depositPercent,
+      });
+      setFormData((previous) => ({
+        ...previous,
+        deposit_percent: depositPercent,
+      }));
       await onSaved();
       setMessage({
         text: 'הנתונים נשמרו בהצלחה.',
@@ -379,6 +398,36 @@ function BusinessSettingsForm({
           </div>
         )}
       </div>
+
+      <section className={styles.depositSection}>
+        <div className={styles.labelRow}>
+          <h3 className={styles.depositHeading}>אחוז מקדמה</h3>
+          <HelpTip text="חל רק על לקוחות שדרישת התשלום שלהם היא מקדמה. הסכום הוא אחוז ממחיר התור. 0 משמעו בלי גבייה. תשלום מלא בכרטיס הלקוח תמיד גובה 100%." />
+        </div>
+        <label className={styles.depositSentence} htmlFor="business-deposit-percent">
+          <span>מקדמה לקביעת תור היא</span>
+          <input
+            id="business-deposit-percent"
+            type="number"
+            name="deposit_percent"
+            min="0"
+            max="100"
+            step="0.01"
+            dir="ltr"
+            value={Number.isFinite(formData.deposit_percent) ? formData.deposit_percent : ''}
+            onChange={(event) => {
+              const { value } = event.target;
+              setFormData((previous) => ({
+                ...previous,
+                deposit_percent: value === '' ? 0 : Number(value),
+              }));
+            }}
+            className={styles.depositInput}
+            aria-label="אחוז מקדמה ממחיר התור"
+          />
+          <span>% ממחיר התור</span>
+        </label>
+      </section>
 
       {message && (
         <p className={styles[message.type]} role="status">

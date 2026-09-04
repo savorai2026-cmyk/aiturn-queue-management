@@ -20,6 +20,8 @@ export interface StatusCatalogItem {
 
 export const FALLBACK_STATUS_CATALOG: StatusCatalogItem[] = [
   { status_code: '01', status_text: 'ממתין', color: '#607482' },
+  { status_code: '04', status_text: 'ממתין לאישור', color: '#0a527f' },
+  { status_code: '05', status_text: 'ממתין לתשלום', color: '#14b8a6' },
   { status_code: '02', status_text: 'מתוזמן', color: '#0d9488' },
   { status_code: '03', status_text: 'הושלם', color: '#073f67' },
   { status_code: '09', status_text: 'לא הגיע', color: '#b45309' },
@@ -35,7 +37,7 @@ const LEGACY_STATUS_CODES: Record<string, string> = {
   cancelled: '10',
 };
 
-const PREFERRED_ORDER = ['01', '02', '03', '09', '10'];
+const PREFERRED_ORDER = ['01', '04', '05', '02', '03', '09', '10'];
 const CLOSED_STATUS_CODES = new Set(['03', '09', '10', 'completed', 'no_show', 'canceled', 'cancelled']);
 const CANCELED_STATUS_CODES = new Set(['10', 'canceled', 'cancelled']);
 

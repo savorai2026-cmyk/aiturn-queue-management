@@ -1,19 +1,11 @@
 .overlay {
-  position: fixed;
-  inset: 0;
   z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px;
   background-color: rgba(7, 48, 75, 0.48);
   backdrop-filter: blur(2px);
 }
 
 .content {
-  width: min(100%, 560px);
-  max-height: 90vh;
-  overflow-y: auto;
+  --modal-max-width: 560px;
   padding: 24px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-card);
@@ -33,6 +25,7 @@
   display: grid;
   gap: 12px;
   margin: 0 0 18px;
+  min-width: 0;
 }
 
 .row {
@@ -55,6 +48,7 @@
 
 .close {
   display: block;
+  flex: 0 0 auto;
   margin-inline-start: auto;
   padding: 8px 16px;
   border: 0;
