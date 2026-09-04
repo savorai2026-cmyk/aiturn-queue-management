@@ -27,6 +27,7 @@ import { toDateKey, toSchedulerDateTime } from '../time';
 import { getBookingMaxDate } from '../workingHours';
 import {
   errorIncludes,
+  getAppointmentCreateErrorMessage,
   getErrorMessage,
   getSchedulerUnavailableMessage,
   isSchedulerUnavailable,
@@ -309,13 +310,18 @@ export default function AddAppointmentModal({
       return;
     }
 
+    if (!selectedClient.mobile_phone?.trim()) {
+      setErrorMessage('ללקוח שנבחר חסר מספר טלפון. יש לעדכן את כרטיס הלקוח.');
+      return;
+    }
+
     setIsSaving(true);
 
     try {
       await bookAppointment({
         businessCode,
         clientName: selectedClient.full_name || '',
-        clientPhone: selectedClient.mobile_phone,
+        clientPhone: selectedClient.mobile_phone.trim(),
         appointmentTime: toSchedulerDateTime(
           formData.appointment_date,
           formData.start_time,
@@ -341,9 +347,7 @@ export default function AddAppointmentModal({
       } else if (isSchedulerUnavailable(error)) {
         setErrorMessage(getSchedulerUnavailableMessage('create'));
       } else {
-        setErrorMessage(
-          'לא ניתן ליצור את התור. בדוק את הפרטים ונסה שוב.',
-        );
+        setErrorMessage(getAppointmentCreateErrorMessage(error));
       }
     } finally {
       setIsSaving(false);

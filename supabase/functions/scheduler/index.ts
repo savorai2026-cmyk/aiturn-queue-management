@@ -31,12 +31,7 @@ function queryValue(payload: Record<string, unknown>, key: string): string {
 }
 
 function schedulerSecret() {
-  return (
-    Deno.env.get('VAPI_SECRET') ||
-    Deno.env.get('SCHEDULER_API_SECRET') ||
-    Deno.env.get('BILLING_LINK_SECRET') ||
-    ''
-  );
+  return Deno.env.get('VAPI_SECRET') || Deno.env.get('SCHEDULER_API_SECRET') || '';
 }
 
 function upstreamHeaders(method: string) {
@@ -124,11 +119,15 @@ function normalizeUpstreamBody(
 
   const resultText = vapiResultText(record);
   if (resultText || Array.isArray(record.results)) {
+    const actionRequired = record.action_required === true;
     return {
-      success: ok && record.success !== false,
-      user_message: resultText,
+      success: ok || actionRequired,
+      action_required: actionRequired,
+      user_message:
+        resultText ||
+        (typeof record.user_message === 'string' ? record.user_message : undefined),
       message: resultText,
-      error: ok ? undefined : resultText || 'הפעולה נכשלה',
+      error: ok || actionRequired ? undefined : resultText || 'הפעולה נכשלה',
       results: record.results,
     };
   }
@@ -152,7 +151,8 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
-  const schedulerBaseUrl = Deno.env.get('SCHEDULER_API_URL');
+  const schedulerBaseUrl =
+    Deno.env.get('SCHEDULER_API_URL') || Deno.env.get('BILLING_PUBLIC_BASE_URL');
   if (!schedulerBaseUrl) {
     return jsonResponse(
       { error: 'SCHEDULER_API_URL is not configured' },

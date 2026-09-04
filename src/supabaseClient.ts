@@ -4,8 +4,19 @@ import {
 } from '@supabase/supabase-js';
 import type { Database } from './types/database';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+interface FeaturnRuntimeConfig {
+  VITE_SUPABASE_URL?: string;
+  VITE_SUPABASE_ANON_KEY?: string;
+}
+
+const runtimeConfig = (window as Window & {
+  __FEATURN_CONFIG__?: FeaturnRuntimeConfig;
+}).__FEATURN_CONFIG__;
+
+const supabaseUrl =
+  runtimeConfig?.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey =
+  runtimeConfig?.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(

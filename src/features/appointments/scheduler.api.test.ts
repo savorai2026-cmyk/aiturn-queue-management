@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { collectSchedulerSlotValues } from './scheduler.mappers';
+import {
+  collectSchedulerSlotValues,
+  isSchedulerSuccess,
+  schedulerFailureMessage,
+} from './scheduler.mappers';
 
 describe('collectSchedulerSlotValues', () => {
   it('reads ISO strings, clock times, and object aliases from the OpenAPI payload', () => {
@@ -25,5 +29,22 @@ describe('collectSchedulerSlotValues', () => {
   it('returns an empty list when the field is missing', () => {
     expect(collectSchedulerSlotValues(undefined)).toEqual([]);
     expect(collectSchedulerSlotValues({ available_slots: [] })).toEqual([]);
+  });
+});
+
+describe('isSchedulerSuccess', () => {
+  it('treats action_required as success even when success is false', () => {
+    expect(
+      isSchedulerSuccess({ success: false, action_required: true }),
+    ).toBe(true);
+  });
+
+  it('rejects an explicit unsuccessful payload', () => {
+    expect(isSchedulerSuccess({ success: false, error: 'Missing required fields' })).toBe(
+      false,
+    );
+    expect(
+      schedulerFailureMessage({ success: false, error: 'Missing required fields' }),
+    ).toBe('Missing required fields');
   });
 });

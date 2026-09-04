@@ -33,6 +33,38 @@ export function isSchedulerUnavailable(error: unknown): boolean {
   );
 }
 
+export function getAppointmentCreateErrorMessage(error: unknown): string {
+  if (
+    errorIncludes(error, 'prevent_overlapping_appointments') ||
+    errorIncludes(error, 'exclusion constraint') ||
+    errorIncludes(error, 'already exists')
+  ) {
+    return 'הזמן שנבחר מתנגש בתור קיים.';
+  }
+
+  if (errorIncludes(error, 'missing required')) {
+    return 'שירות הזימון דיווח שחסרים שדות חובה. בדוק לקוח, טלפון, שירות ושעה.';
+  }
+
+  if (
+    errorIncludes(error, 'unauthorized') ||
+    errorIncludes(error, 'x-vapi-secret')
+  ) {
+    return 'שירות הזימון דחה את הבקשה בגלל אימות. צריך ליישר את VAPI_SECRET.';
+  }
+
+  const message = getErrorMessage(error).trim();
+  if (
+    message &&
+    !errorIncludes(error, 'edge function') &&
+    !errorIncludes(error, 'failed to send a request')
+  ) {
+    return message;
+  }
+
+  return 'לא ניתן ליצור את התור. בדוק את הפרטים ונסה שוב.';
+}
+
 export function getSchedulerUnavailableMessage(action: 'create' | 'slots'): string {
   return action === 'slots'
     ? 'לא ניתן לחפש זמנים פנויים כי שירות הזימון (Webhook) לא זמין כרגע.'

@@ -2,7 +2,12 @@ import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '../../supabaseClient';
 import { getErrorMessage } from '../../shared/errors';
 import { addMinutesToTime, parseSchedulerDateTime } from './time';
-import { collectSchedulerSlotValues } from './scheduler.mappers';
+import {
+  collectSchedulerSlotValues,
+  isSchedulerSuccess,
+  schedulerFailureMessage,
+  type SchedulerResponseBody,
+} from './scheduler.mappers';
 import type {
   BookAppointmentPayload,
   SchedulerSlot,
@@ -10,11 +15,7 @@ import type {
 
 type SchedulerAction = 'book' | 'slots' | 'cancel' | 'reschedule';
 
-interface SchedulerSuccessBody {
-  success?: boolean;
-  message?: string;
-  user_message?: string;
-  error?: string;
+interface SchedulerSuccessBody extends SchedulerResponseBody {
   slots?: unknown;
   available_slots?: unknown;
   data?: {
@@ -47,10 +48,8 @@ async function invokeScheduler<T>(
   }
 
   const body = (data ?? {}) as SchedulerSuccessBody;
-  if (body.success === false) {
-    throw new Error(
-      body.user_message || body.message || body.error || 'הפעולה נכשלה',
-    );
+  if (!isSchedulerSuccess(body)) {
+    throw new Error(schedulerFailureMessage(body));
   }
 
   return body as T;
@@ -68,14 +67,13 @@ export async function bookAppointment(payload: BookAppointmentPayload) {
     client_phone: payload.clientPhone,
     appointment_time: payload.appointmentTime,
     service_id: primary.serviceId,
-    duration: primary.duration,
-    price: primary.price,
+    duration: Math.round(
+      payload.services.reduce((total, service) => total + service.duration, 0),
+    ),
+    price: Math.round(
+      payload.services.reduce((total, service) => total + service.price, 0),
+    ),
     force_booking: true,
-    services: payload.services.map((service) => ({
-      service_id: service.serviceId,
-      duration: service.duration,
-      price: service.price,
-    })),
     status: payload.status,
     client_notes: payload.clientNotes.trim() || undefined,
     business_notes: payload.businessNotes.trim() || undefined,

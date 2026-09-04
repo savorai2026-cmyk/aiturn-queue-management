@@ -1,3 +1,26 @@
+export interface SchedulerResponseBody {
+  success?: boolean;
+  action_required?: boolean;
+  message?: string;
+  user_message?: string;
+  error?: string;
+}
+
+export function schedulerFailureMessage(body: SchedulerResponseBody): string {
+  return (
+    body.user_message ||
+    body.message ||
+    body.error ||
+    'הפעולה נכשלה'
+  );
+}
+
+export function isSchedulerSuccess(body: SchedulerResponseBody): boolean {
+  if (body.action_required === true) return true;
+  if (body.success === false) return false;
+  return true;
+}
+
 export function collectSchedulerSlotValues(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
 
