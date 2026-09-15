@@ -73,10 +73,12 @@ export default function RescheduleConfirmModal({
             <dt>לקוח</dt>
             <dd>{preview.clientName}</dd>
           </div>
+          {preview.serviceTitle ? (
           <div>
             <dt>שירות</dt>
             <dd>{preview.serviceTitle}</dd>
           </div>
+          ) : null}
           <div>
             <dt>מ</dt>
             <dd>{preview.fromLabel}</dd>

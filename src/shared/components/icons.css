@@ -114,11 +114,6 @@
   animation: icon-look 1s ease-in-out infinite;
 }
 
-.fc-newAppointmentBtn-button:hover:not(:disabled)::before,
-.fc-newAppointmentBtn-button:focus-visible:not(:disabled)::before {
-  animation: icon-pulse 0.9s ease-in-out infinite;
-}
-
 @keyframes icon-spin {
   to {
     transform: rotate(360deg);
@@ -294,9 +289,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   :is(button, [role="button"]):is(:hover, :focus-visible) [data-icon],
-  :is(button, [role="button"]):is(:hover, :focus-visible) [data-icon] [data-part],
-  .fc-newAppointmentBtn-button:hover::before,
-  .fc-newAppointmentBtn-button:focus-visible::before {
+  :is(button, [role="button"]):is(:hover, :focus-visible) [data-icon] [data-part] {
     animation: none !important;
   }
 }

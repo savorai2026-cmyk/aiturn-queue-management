@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatClientCell,
-  matchesClientSearch,
+  filterAndSortClients,
   normalizeClientValues,
 } from './clients.mappers';
 import type { Client } from './clients.types';
@@ -113,23 +113,25 @@ describe('normalizeClientValues', () => {
   });
 });
 
-describe('matchesClientSearch', () => {
+describe('filterAndSortClients', () => {
   const withId = { ...CLIENT, national_id: '123456782' };
+  const other = { ...CLIENT, id: 8, full_name: 'משה כהן', city: 'חיפה' };
 
-  it('matches name, mobile, and national id', () => {
-    expect(matchesClientSearch(CLIENT, '')).toBe(true);
-    expect(matchesClientSearch(CLIENT, 'ישראל')).toBe(true);
-    expect(matchesClientSearch(CLIENT, 'ישראלי')).toBe(true);
-    expect(matchesClientSearch(CLIENT, '050-000')).toBe(true);
-    expect(matchesClientSearch(CLIENT, '+972500000000')).toBe(true);
-    expect(matchesClientSearch(withId, '123-456')).toBe(true);
-    expect(matchesClientSearch(CLIENT, 'משה')).toBe(false);
-    expect(matchesClientSearch(CLIENT, '051')).toBe(false);
+  it('filters by column and keeps phone matching flexible', () => {
+    expect(filterAndSortClients([CLIENT, other], { full_name: 'ישראל' }, null).map((row) => row.id)).toEqual([5]);
+    expect(filterAndSortClients([CLIENT], { mobile_phone: '050-000' }, null)).toHaveLength(1);
+    expect(filterAndSortClients([CLIENT], { mobile_phone: '+972500000000' }, null)).toHaveLength(1);
+    expect(filterAndSortClients([withId], { national_id: '123-456' }, null)).toHaveLength(1);
+    expect(filterAndSortClients([CLIENT], { city: 'חיפה' }, null)).toHaveLength(0);
+    expect(filterAndSortClients([CLIENT], { booking_policy: 'blocked' }, null)).toHaveLength(0);
+    expect(filterAndSortClients([CLIENT], { allows_sms: 'yes' }, null)).toHaveLength(1);
   });
 
-  it('requires every search token to match', () => {
-    expect(matchesClientSearch(withId, 'ישראל 050')).toBe(true);
-    expect(matchesClientSearch(withId, 'ישראל 123')).toBe(true);
-    expect(matchesClientSearch(withId, 'ישראל 051')).toBe(false);
+  it('sorts by the selected column', () => {
+    const sorted = filterAndSortClients([other, CLIENT], {}, {
+      key: 'full_name',
+      direction: 'asc',
+    });
+    expect(sorted.map((row) => row.full_name)).toEqual(['ישראל ישראלי', 'משה כהן']);
   });
 });

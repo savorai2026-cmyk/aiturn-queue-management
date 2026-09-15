@@ -88,8 +88,15 @@
 }
 
 .fieldValue {
-  color: var(--color-text);
-  font-weight: 500;
+  color: var(--color-navy-900);
+  font-weight: 600;
+}
+
+.fieldValue[dir="ltr"] {
+  display: block;
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: right;
 }
 
 .inlineFields {
@@ -168,61 +175,6 @@
   background: #fef2f2;
   color: #b91c1c;
   font-size: 13px;
-}
-
-.actionsTitle {
-  font-weight: 600;
-  color: var(--color-text);
-  margin-top: 12px;
-  margin-bottom: 10px;
-  font-size: 14px;
-}
-
-.btn {
-  width: 100%;
-  padding: 10px;
-  margin-bottom: 8px;
-  border: 1px solid var(--color-line);
-  border-radius: 7px;
-  background-color: var(--color-surface);
-  color: var(--color-text);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.btn:hover {
-  border-color: #a8c3cd;
-  background-color: var(--color-surface-muted);
-}
-
-.btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-  transform: none;
-  box-shadow: none;
-}
-
-.btn:disabled:hover {
-  border-color: #cbd5e1;
-  background-color: #ffffff;
-  transform: none;
-  box-shadow: none;
-}
-
-.btnPrimary {
-  border-color: var(--color-navy-800);
-  background-color: var(--color-navy-800);
-  color: #ffffff;
-}
-
-.btnPrimary:hover {
-  background-color: var(--color-navy-900);
 }
 
 .blockingOverlay {

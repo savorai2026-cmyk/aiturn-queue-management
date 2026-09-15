@@ -58,13 +58,28 @@ export async function deleteClient(
   businessCode: string,
   clientId: number,
 ): Promise<void> {
-  const { error } = await supabase
+  const appointmentsResult = await supabase
+    .from('appointments')
+    .delete()
+    .eq('business_code', businessCode)
+    .eq('client_id', clientId);
+
+  if (appointmentsResult.error) {
+    throw new Error(appointmentsResult.error.message);
+  }
+
+  const { data, error } = await supabase
     .from('clients')
     .delete()
     .eq('business_code', businessCode)
-    .eq('id', clientId);
+    .eq('id', clientId)
+    .select('id');
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  if (!data?.length) {
+    throw new Error('לא ניתן למחוק את הלקוח.');
   }
 }

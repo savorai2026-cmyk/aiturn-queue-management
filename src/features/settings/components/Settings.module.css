@@ -214,17 +214,7 @@
 .rowActions {
   display: flex;
   align-items: center;
-  gap: 6px;
-}
-
-.actionError {
-  width: fit-content;
-  margin: 0 0 16px;
-  padding: 9px 12px;
-  border-radius: 7px;
-  background: #fef2f2;
-  color: #b91c1c;
-  font-size: 14px;
+  gap: 5px;
 }
 
 .sectionToolbar {
@@ -232,12 +222,47 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .emptyServices {
   padding: 20px;
   text-align: center;
+}
+
+.inactiveRow td {
+  background: #f6f1ea !important;
+  color: #6b5e52;
+}
+
+.inactiveRow:hover td {
+  background: #efe6d8 !important;
+}
+
+:global(.data-table) tbody tr.inactiveRow:global(.is-selected) td,
+:global(.data-table) tbody tr.inactiveRow:global(.is-selected):hover td {
+  background: #eadcc8 !important;
+}
+
+.statusActive,
+.statusInactive {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.statusActive {
+  background: #ecfdf8;
+  color: #0f766e;
+}
+
+.statusInactive {
+  background: #fff7ed;
+  color: #c2410c;
 }
 
 .colorCell {
@@ -248,9 +273,9 @@
 }
 
 .colorBadge {
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
   border: 1px solid rgba(7, 63, 103, 0.12);
   border-radius: 50%;
 }

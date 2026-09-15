@@ -47,8 +47,14 @@ export default function RecordDetailsModal({
           {rows.map((row) => (
             <div key={row.key} className={styles.row}>
               <span className={styles.label}>{row.label}</span>
-              <span className={styles.value} dir={row.dir}>
-                {row.value || '—'}
+              <span className={styles.value}>
+                {row.dir === 'ltr' ? (
+                  <span className={styles.ltrValue} dir="ltr">
+                    {row.value || '—'}
+                  </span>
+                ) : (
+                  row.value || '—'
+                )}
               </span>
             </div>
           ))}

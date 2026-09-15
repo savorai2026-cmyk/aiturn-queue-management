@@ -47,9 +47,16 @@
 }
 
 .fieldValue {
-  color: var(--color-text);
-  font-weight: 500;
+  color: var(--color-navy-900);
+  font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+.fieldValue[dir="ltr"] {
+  display: block;
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: right;
 }
 
 .inlineFields {

@@ -10,6 +10,14 @@ import {
 } from './clients.types';
 import { CLIENT_FIELDS } from '../../shared/displayFields/catalogs';
 import type { DetailRow } from '../../shared/displayFields/types';
+import {
+  columnExactNumber,
+  columnTextIncludes,
+  compareByNumber,
+  compareByText,
+  type ColumnFilters,
+  type ColumnSort,
+} from '../../shared/displayFields/columnTable';
 
 function emptyToNull(value: string) {
   const normalized = value.trim();
@@ -35,10 +43,6 @@ export function parsePaymentRequirement(
   return value === 'deposit' || value === 'full' ? value : 'none';
 }
 
-function normalizeSearchText(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, ' ');
-}
-
 function digitsOnly(value: string) {
   return value.replace(/\D/g, '');
 }
@@ -51,25 +55,103 @@ function normalizePhoneDigits(value: string) {
   return digits;
 }
 
-function clientMatchesToken(client: Client, token: string) {
-  const name = normalizeSearchText(client.full_name ?? '');
-  if (name.includes(token)) return true;
+const CLIENT_PHONE_KEYS = new Set([
+  'mobile_phone',
+  'landline_phone',
+  'whatsapp_number',
+]);
 
-  const tokenDigits = digitsOnly(token);
-  if (!tokenDigits) return false;
+function matchesClientColumnFilters(client: Client, filters: ColumnFilters) {
+  return Object.entries(filters).every(([key, raw]) => {
+    const query = raw.trim();
+    if (!query) return true;
 
-  const phone = normalizePhoneDigits(client.mobile_phone);
-  if (phone.includes(normalizePhoneDigits(token))) return true;
+    if (key === 'booking_policy' || key === 'payment_requirement' || key === 'gender') {
+      return client[key] === query;
+    }
 
-  const nationalId = digitsOnly(client.national_id ?? '');
-  return nationalId.includes(tokenDigits);
+    if (key === 'allows_sms') {
+      if (query === 'yes') return Boolean(client.allows_sms);
+      if (query === 'no') return !client.allows_sms;
+      return true;
+    }
+
+    if (key === 'id') {
+      return columnExactNumber(client.id, query);
+    }
+
+    if (CLIENT_PHONE_KEYS.has(key) || key === 'national_id') {
+      const source = String(client[key as ClientColumnKey] ?? '');
+      const normalizedQuery = CLIENT_PHONE_KEYS.has(key)
+        ? normalizePhoneDigits(query)
+        : digitsOnly(query);
+      const normalizedSource = CLIENT_PHONE_KEYS.has(key)
+        ? normalizePhoneDigits(source)
+        : digitsOnly(source);
+      if (normalizedQuery) {
+        return normalizedSource.includes(normalizedQuery);
+      }
+      return columnTextIncludes(source, query);
+    }
+
+    return columnTextIncludes(
+      formatClientCell(client, key as ClientColumnKey),
+      query,
+    );
+  });
 }
 
-export function matchesClientSearch(client: Client, query: string) {
-  const normalized = normalizeSearchText(query);
-  if (!normalized) return true;
+function compareClients(left: Client, right: Client, sort: ColumnSort) {
+  if (sort.key === 'id') {
+    return compareByNumber(left.id, right.id, sort.direction);
+  }
 
-  return normalized.split(' ').every((token) => clientMatchesToken(client, token));
+  if (sort.key === 'allows_sms') {
+    return compareByNumber(
+      Number(Boolean(left.allows_sms)),
+      Number(Boolean(right.allows_sms)),
+      sort.direction,
+    );
+  }
+
+  if (sort.key === 'last_contact' || sort.key === 'birth_date_gregorian') {
+    return compareByNumber(
+      Date.parse(String(left[sort.key] ?? '')) || 0,
+      Date.parse(String(right[sort.key] ?? '')) || 0,
+      sort.direction,
+    );
+  }
+
+  if (CLIENT_PHONE_KEYS.has(sort.key) || sort.key === 'national_id') {
+    return compareByText(
+      normalizePhoneDigits(String(left[sort.key as ClientColumnKey] ?? '')),
+      normalizePhoneDigits(String(right[sort.key as ClientColumnKey] ?? '')),
+      sort.direction,
+    );
+  }
+
+  return compareByText(
+    formatClientCell(left, sort.key as ClientColumnKey),
+    formatClientCell(right, sort.key as ClientColumnKey),
+    sort.direction,
+  );
+}
+
+export function filterAndSortClients(
+  clients: Client[],
+  filters: ColumnFilters,
+  sort: ColumnSort | null,
+) {
+  const filtered = clients.filter((client) =>
+    matchesClientColumnFilters(client, filters),
+  );
+
+  if (!sort) return filtered;
+
+  return [...filtered].sort((left, right) => {
+    const compared = compareClients(left, right, sort);
+    return compared !== 0 ? compared : left.id - right.id;
+  });
 }
 
 export function normalizeClientValues(

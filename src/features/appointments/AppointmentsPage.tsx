@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   readCalendarLocation,
   writeCalendarLocation,
@@ -29,10 +29,7 @@ import {
   toLocalDateTime,
   toSchedulerDateTime,
 } from './time';
-import {
-  cancelAppointment,
-  rescheduleAppointment,
-} from './scheduler.api';
+import { rescheduleAppointment } from './scheduler.api';
 import { useAppointments, useCalendarSettings } from './useAppointments';
 import { getAppointmentSaveErrorMessage, getErrorMessage } from '../../shared/errors';
 import type {
@@ -133,12 +130,6 @@ export default function AppointmentsPage({
     [appointmentDetails, selectedId],
   );
 
-  const applySelection = useCallback((appointment: AppointmentDetails | null) => {
-    setSelectedId(appointment?.id ?? null);
-    setSelectedServiceId(appointment?.services[0]?.serviceId ?? null);
-    setSelectedDate(appointment?.appointment_date ?? null);
-  }, []);
-
   const displayedAppointment =
     selectedAppointment ??
     (isLoading ? null : pickDefaultAppointment(appointmentDetails));
@@ -171,6 +162,29 @@ export default function AppointmentsPage({
     }
 
     await runBusy(async () => {
+      const previousTime = toSchedulerDateTime(
+        displayedAppointment.appointment_date,
+        displayedAppointment.start_time,
+      );
+      const nextTime = toSchedulerDateTime(
+        values.appointment_date,
+        values.start_time,
+      );
+
+      if (previousTime !== nextTime) {
+        if (!displayedAppointment.clientPhone) {
+          throw new Error('חסר מספר טלפון ללקוח');
+        }
+
+        await rescheduleAppointment({
+          businessCode,
+          clientPhone: displayedAppointment.clientPhone,
+          serviceId: displayedAppointment.services[0]?.serviceId ?? 0,
+          currentAppointmentTime: previousTime,
+          newAppointmentTime: nextTime,
+        });
+      }
+
       await updateAppointment(
         businessCode,
         displayedAppointment.id,
@@ -192,31 +206,6 @@ export default function AppointmentsPage({
         }
       }
 
-      refresh();
-    });
-  };
-
-  const handleCancelAppointment = async () => {
-    if (!displayedAppointment?.clientPhone) {
-      throw new Error('חסר מספר טלפון ללקוח');
-    }
-
-    await runBusy(async () => {
-      await cancelAppointment({
-        businessCode,
-        clientPhone: displayedAppointment.clientPhone as string,
-        appointmentTime: toSchedulerDateTime(
-          displayedAppointment.appointment_date,
-          displayedAppointment.start_time,
-        ),
-      });
-      applySelection(
-        pickDefaultAppointment(
-          appointmentDetails.filter(
-            (appointment) => appointment.id !== displayedAppointment.id,
-          ),
-        ),
-      );
       refresh();
     });
   };
@@ -308,9 +297,7 @@ export default function AppointmentsPage({
           isBusy={isBusy}
           visibleFields={visibleFieldsFor('appointments')}
           onToggleField={(key) => toggleField('appointments', key)}
-          onMoveOptions={() => undefined}
           onSave={handleSave}
-          onCancelAppointment={handleCancelAppointment}
         />
       </aside>
 
@@ -363,7 +350,7 @@ export default function AppointmentsPage({
         <RescheduleConfirmModal
           preview={{
             clientName: pendingAppointment.patientName,
-            serviceTitle: pendingService?.title ?? 'שירות',
+            serviceTitle: pendingService?.title ?? '',
             fromLabel: formatMoveRange(
               pendingDrop.previousStart,
               pendingDrop.previousEnd,

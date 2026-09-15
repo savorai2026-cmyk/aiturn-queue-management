@@ -79,6 +79,10 @@ export interface CalendarEventProps {
   clientPhone: string | null;
   status: string;
   groupRole: 'single' | 'start' | 'middle' | 'end';
+  timeLabel: string;
+  serviceTitle: string;
+  clientName: string;
+  tooltip: string;
 }
 
 export interface BookAppointmentPayload {

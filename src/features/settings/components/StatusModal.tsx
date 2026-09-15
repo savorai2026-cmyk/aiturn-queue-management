@@ -17,7 +17,7 @@ import type {
   AppointmentStatusUpdate,
   StatusFormValues,
 } from '../settings.types';
-import { PlusIcon, SaveIcon } from '../../../shared/components/icons';
+import { SaveIcon } from '../../../shared/components/icons';
 import modal from '../../../shared/components/modalShell.module.css';
 import styles from './AddServiceModal.module.css';
 
@@ -292,10 +292,7 @@ export default function StatusModal({
                   שמור שינויים
                 </>
               ) : (
-                <>
-                  <PlusIcon />
-                  הוסף סטטוס
-                </>
+                'הוסף סטטוס'
               )}
             </button>
           </div>

@@ -571,6 +571,14 @@ export type Database = {
           start_time: string
         }[]
       }
+      delete_catalog_service: {
+        Args: { p_business_code: string; p_service_id: number }
+        Returns: undefined
+      }
+      delete_catalog_status: {
+        Args: { p_business_code: string; p_status_code: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

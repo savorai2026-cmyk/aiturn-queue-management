@@ -68,7 +68,7 @@ function AuthenticatedApp({ userEmail, onLogout }: AuthenticatedAppProps) {
   }
 
   return (
-    <div className="layout-container">
+    <div className={`layout-container${activeTab === 'calendar' ? ' is-page-flow' : ''}`}>
       <TopBar 
         activeTab={activeTab} 
         onTabChange={setActiveTab}

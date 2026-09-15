@@ -1,5 +1,13 @@
 import { BUSINESS_FIELDS, SERVICE_FIELDS, STATUS_FIELDS } from '../../shared/displayFields/catalogs';
 import type { DetailRow } from '../../shared/displayFields/types';
+import {
+  columnExactNumber,
+  columnTextIncludes,
+  compareByNumber,
+  compareByText,
+  type ColumnFilters,
+  type ColumnSort,
+} from '../../shared/displayFields/columnTable';
 import type {
   AppointmentStatusRow,
   BusinessSettings,
@@ -26,6 +34,92 @@ export function formatServiceCell(service: Service, key: string): string {
   if (key === 'service_code') return service.service_code ?? '';
   if (key === 'title') return service.title;
   return '';
+}
+
+const SERVICE_NUMERIC_KEYS = new Set([
+  'duration_minutes',
+  'price',
+  'buffer_time_minutes',
+  'deposit_amount',
+]);
+
+export type ServiceColumnFilters = ColumnFilters;
+export type ServiceSortState = ColumnSort;
+
+function serviceNumericValue(service: Service, key: string): number {
+  if (key === 'price') return Number(service.price);
+  if (key === 'duration_minutes') return Number(service.duration_minutes);
+  if (key === 'buffer_time_minutes') return Number(service.buffer_time_minutes ?? 0);
+  if (key === 'deposit_amount') return Number(service.deposit_amount ?? 0);
+  return 0;
+}
+
+export function matchesServiceColumnFilters(
+  service: Service,
+  filters: ColumnFilters,
+) {
+  return Object.entries(filters).every(([key, raw]) => {
+    const query = raw.trim();
+    if (!query) return true;
+
+    if (key === 'is_active') {
+      const isActive = Boolean(service.is_active);
+      if (query === 'active') return isActive;
+      if (query === 'inactive') return !isActive;
+      return true;
+    }
+
+    if (SERVICE_NUMERIC_KEYS.has(key)) {
+      return columnExactNumber(serviceNumericValue(service, key), query);
+    }
+
+    return columnTextIncludes(formatServiceCell(service, key), query);
+  });
+}
+
+export function compareServices(
+  left: Service,
+  right: Service,
+  sort: ColumnSort,
+) {
+  if (sort.key === 'is_active') {
+    return compareByNumber(
+      Number(Boolean(left.is_active)),
+      Number(Boolean(right.is_active)),
+      sort.direction,
+    );
+  }
+
+  if (SERVICE_NUMERIC_KEYS.has(sort.key)) {
+    return compareByNumber(
+      serviceNumericValue(left, sort.key),
+      serviceNumericValue(right, sort.key),
+      sort.direction,
+    );
+  }
+
+  return compareByText(
+    formatServiceCell(left, sort.key),
+    formatServiceCell(right, sort.key),
+    sort.direction,
+  );
+}
+
+export function filterAndSortServices(
+  services: Service[],
+  filters: ColumnFilters,
+  sort: ColumnSort | null,
+) {
+  const filtered = services.filter((service) =>
+    matchesServiceColumnFilters(service, filters),
+  );
+
+  if (!sort) return filtered;
+
+  return [...filtered].sort((left, right) => {
+    const compared = compareServices(left, right, sort);
+    return compared !== 0 ? compared : left.id - right.id;
+  });
 }
 
 export function toServiceDetailRows(service: Service): DetailRow[] {
@@ -55,6 +149,44 @@ export function formatStatusCell(
       : '';
   }
   return '';
+}
+
+export function filterAndSortStatuses(
+  statuses: AppointmentStatusRow[],
+  filters: ColumnFilters,
+  sort: ColumnSort | null,
+) {
+  const filtered = statuses.filter((status) =>
+    Object.entries(filters).every(([key, raw]) => {
+      const query = raw.trim();
+      if (!query) return true;
+      return columnTextIncludes(formatStatusCell(status, key), query);
+    }),
+  );
+
+  if (!sort) return filtered;
+
+  return [...filtered].sort((left, right) => {
+    if (sort.key === 'created_at') {
+      const compared = compareByNumber(
+        Date.parse(left.created_at ?? '') || 0,
+        Date.parse(right.created_at ?? '') || 0,
+        sort.direction,
+      );
+      return compared !== 0
+        ? compared
+        : left.status_code.localeCompare(right.status_code, 'he');
+    }
+
+    const compared = compareByText(
+      formatStatusCell(left, sort.key),
+      formatStatusCell(right, sort.key),
+      sort.direction,
+    );
+    return compared !== 0
+      ? compared
+      : left.status_code.localeCompare(right.status_code, 'he');
+  });
 }
 
 export function toStatusDetailRows(status: AppointmentStatusRow): DetailRow[] {

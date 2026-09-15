@@ -6,13 +6,12 @@ import {
   type FormEvent,
 } from 'react';
 import {
+  createAppointmentWithServices,
   getAppointmentClients,
   getAppointmentServiceOptions,
+  getAvailableAppointmentSlots,
 } from '../appointments.api';
-import {
-  bookAppointment,
-  getSchedulerSlots,
-} from '../scheduler.api';
+import { getSchedulerSlots } from '../scheduler.api';
 import {
   creatableStatuses,
   pickDefaultCreateStatus,
@@ -23,19 +22,19 @@ import type {
   AppointmentServiceOption,
   SchedulerSlot,
 } from '../appointments.types';
-import { toDateKey, toSchedulerDateTime } from '../time';
+import { toDateKey } from '../time';
 import { getBookingMaxDate } from '../workingHours';
 import {
-  errorIncludes,
   getAppointmentCreateErrorMessage,
   getErrorMessage,
   getSchedulerUnavailableMessage,
+  isOccupiedAppointmentSlotError,
   isSchedulerUnavailable,
 } from '../../../shared/errors';
 import HelpTip from '../../../shared/components/HelpTip';
 import { DateField } from '../../../shared/components/DateField';
 import { HourMinuteField } from '../../../shared/components/HourMinuteField';
-import { PlusIcon, SearchIcon } from '../../../shared/components/icons';
+import { SearchIcon } from '../../../shared/components/icons';
 import modal from '../../../shared/components/modalShell.module.css';
 import styles from './AddAppointmentModal.module.css';
 
@@ -253,12 +252,27 @@ export default function AddAppointmentModal({
     setSlotMessage('');
 
     try {
-      const slots = await getSchedulerSlots({
-        businessCode,
-        date: formData.appointment_date,
-        serviceId: selectedServiceIds[0],
-        duration: totalDurationMinutes,
-      });
+      let slots: SchedulerSlot[];
+
+      try {
+        slots = await getAvailableAppointmentSlots({
+          businessCode,
+          appointmentDate: formData.appointment_date,
+          serviceIds: selectedServiceIds,
+        });
+      } catch (localError) {
+        slots = await getSchedulerSlots({
+          businessCode,
+          date: formData.appointment_date,
+          serviceId: selectedServiceIds[0],
+          duration: totalDurationMinutes,
+        }).catch((schedulerError) => {
+          throw isSchedulerUnavailable(schedulerError)
+            ? schedulerError
+            : localError;
+        });
+      }
+
       setAvailableSlots(slots);
       setSlotMessage(
         slots.length === 0
@@ -318,19 +332,12 @@ export default function AddAppointmentModal({
     setIsSaving(true);
 
     try {
-      await bookAppointment({
+      await createAppointmentWithServices({
         businessCode,
-        clientName: selectedClient.full_name || '',
-        clientPhone: selectedClient.mobile_phone.trim(),
-        appointmentTime: toSchedulerDateTime(
-          formData.appointment_date,
-          formData.start_time,
-        ),
-        services: selectedServices.map((service) => ({
-          serviceId: service.id,
-          duration: service.duration_minutes,
-          price: service.price,
-        })),
+        clientId: selectedClient.id,
+        appointmentDate: formData.appointment_date,
+        startTime: formData.start_time,
+        serviceIds: selectedServiceIds,
         status: formData.status,
         clientNotes: formData.client_notes,
         businessNotes: formData.business_notes,
@@ -339,13 +346,11 @@ export default function AddAppointmentModal({
     } catch (error) {
       console.error('שגיאה ביצירת תור:', getErrorMessage(error));
 
-      if (errorIncludes(error, 'prevent_overlapping_appointments')) {
+      if (isOccupiedAppointmentSlotError(error)) {
         setErrorMessage(
           'הזמן שנבחר מתנגש בתור קיים. מוצגים זמנים פנויים חלופיים.',
         );
         await loadAvailableSlots();
-      } else if (isSchedulerUnavailable(error)) {
-        setErrorMessage(getSchedulerUnavailableMessage('create'));
       } else {
         setErrorMessage(getAppointmentCreateErrorMessage(error));
       }
@@ -634,12 +639,7 @@ export default function AddAppointmentModal({
               className={styles.btnSave}
               disabled={!canSubmit}
             >
-              {isSaving ? 'יוצר תור...' : (
-                <>
-                  <PlusIcon />
-                  צור תור
-                </>
-              )}
+              {isSaving ? 'יוצר תור...' : 'צור תור'}
             </button>
           </div>
         </form>

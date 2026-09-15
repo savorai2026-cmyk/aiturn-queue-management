@@ -7,7 +7,6 @@ import {
 import { formatTimeHm } from '../time';
 import {
   getStatusLabel,
-  isCanceledStatus,
   withCurrentStatus,
   type StatusCatalogItem,
 } from '../appointmentStatuses';
@@ -22,7 +21,7 @@ import { APPOINTMENT_FIELDS } from '../../../shared/displayFields/catalogs';
 import HelpTip from '../../../shared/components/HelpTip';
 import { DateField } from '../../../shared/components/DateField';
 import { HourMinuteField } from '../../../shared/components/HourMinuteField';
-import { BanIcon, MoveIcon, PencilIcon, SaveIcon, WhatsAppIcon } from '../../../shared/components/icons';
+import { PencilIcon, SaveIcon } from '../../../shared/components/icons';
 import styles from './SidePanel.module.css';
 
 const ILS_FORMATTER = new Intl.NumberFormat('he-IL', {
@@ -36,9 +35,7 @@ interface SidePanelProps {
   isBusy: boolean;
   visibleFields: string[];
   onToggleField: (key: string) => void;
-  onMoveOptions: () => void;
   onSave: (values: AppointmentEditValues) => Promise<void>;
-  onCancelAppointment: () => Promise<void>;
 }
 
 export const SidePanel = ({
@@ -47,9 +44,7 @@ export const SidePanel = ({
   isBusy,
   visibleFields,
   onToggleField,
-  onMoveOptions,
   onSave,
-  onCancelAppointment,
 }: SidePanelProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -90,20 +85,6 @@ export const SidePanel = ({
       setIsEditing(false);
     } catch (error) {
       setErrorMessage(getAppointmentSaveErrorMessage(error));
-    }
-  };
-
-  const handleCancel = async () => {
-    if (!window.confirm('לבטל את התור הנבחר?')) {
-      return;
-    }
-
-    setErrorMessage('');
-
-    try {
-      await onCancelAppointment();
-    } catch {
-      setErrorMessage('לא ניתן לבטל את התור כרגע.');
     }
   };
 
@@ -359,33 +340,6 @@ export const SidePanel = ({
             {errorMessage}
           </p>
         )}
-
-        <div className={styles.actionsTitle}>פעולות על התור</div>
-
-        <button
-          className={styles.btn}
-          type="button"
-          onClick={onMoveOptions}
-          disabled={isBusy || isCanceledStatus(appointment.status)}
-        >
-          <MoveIcon />
-          אפשרויות הזזה
-        </button>
-
-        <button
-          className={styles.btn}
-          type="button"
-          onClick={() => void handleCancel()}
-          disabled={isBusy || isCanceledStatus(appointment.status)}
-        >
-          <BanIcon />
-          ביטול תור
-        </button>
-
-        <button className={styles.btn} type="button" disabled title="בפיתוח">
-          <WhatsAppIcon />
-          שלח וואטסאפ חופשי
-        </button>
       </div>
 
       {isBusy && (

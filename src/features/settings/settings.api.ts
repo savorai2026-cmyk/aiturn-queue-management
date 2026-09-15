@@ -92,18 +92,63 @@ export async function updateService(
   return data;
 }
 
+function isMissingRpc(error: { code?: string; message: string }): boolean {
+  return (
+    error.code === 'PGRST202' ||
+    error.message.toLowerCase().includes('could not find the function')
+  );
+}
+
 export async function deleteService(
   businessCode: string,
   serviceId: number,
 ): Promise<void> {
-  const { error } = await supabase
+  const rpc = await supabase.rpc('delete_catalog_service', {
+    p_business_code: businessCode,
+    p_service_id: serviceId,
+  });
+
+  if (!rpc.error) {
+    return;
+  }
+
+  if (!isMissingRpc(rpc.error)) {
+    throw new Error(rpc.error.message);
+  }
+
+  const unlinkedAppointments = await supabase
+    .from('appointments')
+    .update({ service_id: null })
+    .eq('business_code', businessCode)
+    .eq('service_id', serviceId);
+
+  if (unlinkedAppointments.error) {
+    throw new Error(unlinkedAppointments.error.message);
+  }
+
+  const unlinkedLines = await supabase
+    .from('appointment_services')
+    .delete()
+    .eq('business_code', businessCode)
+    .eq('service_id', serviceId);
+
+  if (unlinkedLines.error) {
+    throw new Error(unlinkedLines.error.message);
+  }
+
+  const { data, error } = await supabase
     .from('services')
     .delete()
     .eq('business_code', businessCode)
-    .eq('id', serviceId);
+    .eq('id', serviceId)
+    .select('id');
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  if (!data?.length) {
+    throw new Error('לא ניתן למחוק את השירות. ייתכן שחסרה הרשאת מחיקה.');
   }
 }
 
@@ -163,14 +208,32 @@ export async function deleteStatus(
   businessCode: string,
   statusCode: string,
 ): Promise<void> {
-  const { error } = await supabase
+  const rpc = await supabase.rpc('delete_catalog_status', {
+    p_business_code: businessCode,
+    p_status_code: statusCode,
+  });
+
+  if (!rpc.error) {
+    return;
+  }
+
+  if (!isMissingRpc(rpc.error)) {
+    throw new Error(rpc.error.message);
+  }
+
+  const { data, error } = await supabase
     .from('statuses')
     .delete()
     .eq('business_code', businessCode)
-    .eq('status_code', statusCode);
+    .eq('status_code', statusCode)
+    .select('status_code');
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  if (!data?.length) {
+    throw new Error('לא ניתן למחוק את הסטטוס.');
   }
 }
 

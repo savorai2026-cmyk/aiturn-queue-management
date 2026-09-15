@@ -4,6 +4,8 @@ import { getErrorMessage } from '../../../shared/errors';
 import {
   formatServiceCell,
   formatStatusCell,
+  filterAndSortServices,
+  filterAndSortStatuses,
   normalizeDepositPercent,
   parseDepositPercent,
   toBusinessDetailRows,
@@ -32,15 +34,24 @@ import {
   STATUS_FIELDS,
 } from '../../../shared/displayFields/catalogs';
 import { useUiPreferences } from '../../../shared/displayFields/useUiPreferences';
+import ColumnTableHead, {
+  columnTableStyles,
+} from '../../../shared/displayFields/ColumnTableHead';
+import {
+  nextColumnSort,
+  visibleColumnFilters,
+  type ColumnFilters,
+  type ColumnSort,
+} from '../../../shared/displayFields/columnTable';
 import IconButton, {
   PencilIcon,
-  PlusIcon,
   TrashIcon,
 } from '../../../shared/components/IconButton';
 import { SaveIcon } from '../../../shared/components/icons';
 import HelpTip from '../../../shared/components/HelpTip';
 import { getTimezoneGroups } from '../timezones';
 import AddServiceModal from './AddServiceModal';
+import ConfirmDeleteModal from './ConfirmDeleteModal';
 import OperatingHoursForm from './OperatingHoursForm';
 import StatusModal from './StatusModal';
 import TimezoneSelect from './TimezoneSelect';
@@ -477,31 +488,48 @@ function ServicesTable({
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [deletingServiceId, setDeletingServiceId] = useState<number | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Service | null>(null);
+  const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
+  const [sort, setSort] = useState<ColumnSort | null>(null);
   const activeColumns = SERVICE_FIELDS.filter((field) =>
     visibleFields.includes(field.key),
   );
   const selectedService =
     services.find((service) => service.id === selectedServiceId) ?? null;
+  const visibleFilters = useMemo(
+    () =>
+      visibleColumnFilters(
+        columnFilters,
+        activeColumns.map((column) => column.key),
+      ),
+    [activeColumns, columnFilters],
+  );
+  const visibleSort =
+    sort && activeColumns.some((column) => column.key === sort.key) ? sort : null;
+  const visibleServices = useMemo(
+    () => filterAndSortServices(services, visibleFilters, visibleSort),
+    [services, visibleFilters, visibleSort],
+  );
+  const hasTableControls =
+    Object.keys(visibleFilters).length > 0 || visibleSort !== null;
 
-  const handleDelete = async (service = selectedService) => {
-    if (!service) return;
-    if (!window.confirm(`למחוק את השירות "${service.title}"?`)) {
-      return;
-    }
+  const handleDelete = async (service: Service) => {
+    if (deletingServiceId !== null) return;
 
     setActionError('');
+    setDeletingServiceId(service.id);
     try {
       await deleteService(businessCode, service.id);
+      setPendingDelete(null);
       setSelectedServiceId(null);
       onServicesChanged();
     } catch (error) {
-      const message = getErrorMessage(error).toLowerCase();
-      console.error('שגיאה במחיקת שירות:', getErrorMessage(error));
-      setActionError(
-        message.includes('foreign key') || message.includes('violat')
-          ? 'לא ניתן למחוק שירות שכבר בשימוש בתורים. אפשר לסמן אותו כלא פעיל.'
-          : 'לא ניתן למחוק את השירות.',
-      );
+      const message = getErrorMessage(error);
+      console.error('שגיאה במחיקת שירות:', message);
+      setActionError(message || 'לא ניתן למחוק את השירות.');
+    } finally {
+      setDeletingServiceId(null);
     }
   };
 
@@ -515,48 +543,91 @@ function ServicesTable({
           onViewDetails={() => setIsDetailsOpen(true)}
           canViewDetails={selectedService !== null}
         />
-        <button
-          type="button"
-          className={`${styles.btnPrimary} ${styles.addServiceButton}`}
-          onClick={() => setModalMode('add')}
-        >
-          <PlusIcon />
-          הוסף שירות
-        </button>
+        <div className={styles.toolbarActions}>
+          {hasTableControls ? (
+            <button
+              type="button"
+              className={columnTableStyles.clearButton}
+              onClick={() => {
+                setColumnFilters({});
+                setSort(null);
+              }}
+            >
+              נקה סינון ומיון
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className={`${styles.btnPrimary} ${styles.addServiceButton}`}
+            onClick={() => setModalMode('add')}
+          >
+            הוסף שירות
+          </button>
+        </div>
       </div>
 
-      {actionError && (
-        <p className={styles.actionError} role="alert">
-          {actionError}
-        </p>
+      {pendingDelete && (
+        <ConfirmDeleteModal
+          title="מחיקת שירות"
+          message={
+            <>
+              למחוק את השירות <strong>{pendingDelete.title}</strong>?
+            </>
+          }
+          isBusy={deletingServiceId !== null}
+          errorMessage={actionError}
+          onConfirm={() => void handleDelete(pendingDelete)}
+          onCancel={() => {
+            if (deletingServiceId !== null) return;
+            setPendingDelete(null);
+            setActionError('');
+          }}
+        />
       )}
 
       <table className={`data-table ${styles.table}`}>
-        <thead>
-          <tr>
-            <th>פעולות</th>
-            {activeColumns.map((column) => (
-              <th key={column.key}>{column.label}</th>
-            ))}
-          </tr>
-        </thead>
+        <ColumnTableHead
+          columns={activeColumns}
+          filters={columnFilters}
+          sort={visibleSort}
+          onSort={(key) => setSort((current) => nextColumnSort(current, key))}
+          onFilter={(key, value) =>
+            setColumnFilters((current) => ({ ...current, [key]: value }))
+          }
+          selectOptions={{
+            is_active: [
+              { value: 'active', label: 'פעיל' },
+              { value: 'inactive', label: 'לא פעיל' },
+            ],
+          }}
+        />
         <tbody>
-          {services.length === 0 ? (
+          {visibleServices.length === 0 ? (
             <tr>
               <td
                 colSpan={Math.max(activeColumns.length, 1) + 1}
                 className={styles.emptyServices}
               >
-                לא הוגדרו שירותים
+                {services.length === 0
+                  ? 'לא הוגדרו שירותים'
+                  : 'לא נמצאו שירותים מתאימים לסינון'}
               </td>
             </tr>
           ) : (
-            services.map((service) => (
+            visibleServices.map((service) => {
+              const isInactive = service.is_active === false;
+              const rowClass = [
+                selectedServiceId === service.id ? 'is-selected' : '',
+                isInactive ? styles.inactiveRow : '',
+              ]
+                .filter(Boolean)
+                .join(' ');
+
+              return (
               <tr
                 key={`${service.business_code}-${service.id}`}
-                className={
-                  selectedServiceId === service.id ? 'is-selected' : undefined
-                }
+                className={rowClass || undefined}
+                title={isInactive ? 'שירות לא פעיל' : undefined}
                 onClick={() => setSelectedServiceId(service.id)}
                 onDoubleClick={() => {
                   setSelectedServiceId(service.id);
@@ -578,10 +649,12 @@ function ServicesTable({
                     <IconButton
                       label="מחק שירות"
                       variant="danger"
+                      disabled={deletingServiceId !== null}
                       onClick={(event) => {
                         event.stopPropagation();
                         setSelectedServiceId(service.id);
-                        void handleDelete(service);
+                        setActionError('');
+                        setPendingDelete(service);
                       }}
                     >
                       <TrashIcon />
@@ -590,11 +663,22 @@ function ServicesTable({
                 </td>
                 {activeColumns.map((column) => (
                   <td key={column.key} dir={column.dir}>
-                    {formatServiceCell(service, column.key)}
+                    {column.key === 'is_active' ? (
+                      <span
+                        className={
+                          isInactive ? styles.statusInactive : styles.statusActive
+                        }
+                      >
+                        {formatServiceCell(service, column.key)}
+                      </span>
+                    ) : (
+                      formatServiceCell(service, column.key)
+                    )}
                   </td>
                 ))}
               </tr>
-            ))
+              );
+            })
           )}
         </tbody>
       </table>
@@ -641,27 +725,59 @@ function StatusesTable({
   );
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [deletingStatusCode, setDeletingStatusCode] = useState<string | null>(
+    null,
+  );
+  const [pendingDelete, setPendingDelete] =
+    useState<AppointmentStatusRow | null>(null);
+  const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
+  const [sort, setSort] = useState<ColumnSort | null>(null);
   const activeColumns = STATUS_FIELDS.filter((field) =>
     visibleFields.includes(field.key),
   );
   const selectedStatus =
     statuses.find((status) => status.status_code === selectedStatusCode) ??
     null;
+  const visibleFilters = useMemo(
+    () =>
+      visibleColumnFilters(
+        columnFilters,
+        activeColumns.map((column) => column.key),
+      ),
+    [activeColumns, columnFilters],
+  );
+  const visibleSort =
+    sort && activeColumns.some((column) => column.key === sort.key) ? sort : null;
+  const visibleStatuses = useMemo(
+    () => filterAndSortStatuses(statuses, visibleFilters, visibleSort),
+    [statuses, visibleFilters, visibleSort],
+  );
+  const hasTableControls =
+    Object.keys(visibleFilters).length > 0 || visibleSort !== null;
 
-  const handleDelete = async (status = selectedStatus) => {
-    if (!status) return;
-    if (!window.confirm(`למחוק את הסטטוס "${status.status_text}"?`)) {
-      return;
-    }
+  const handleDelete = async (status: AppointmentStatusRow) => {
+    if (deletingStatusCode !== null) return;
 
     setActionError('');
+    setDeletingStatusCode(status.status_code);
     try {
       await deleteStatus(businessCode, status.status_code);
+      setPendingDelete(null);
       setSelectedStatusCode(null);
       onStatusesChanged();
     } catch (error) {
-      console.error('שגיאה במחיקת סטטוס:', getErrorMessage(error));
-      setActionError('לא ניתן למחוק את הסטטוס.');
+      const message = getErrorMessage(error);
+      console.error('שגיאה במחיקת סטטוס:', message);
+      setActionError(
+        message.toLowerCase().includes('foreign key') ||
+          message.toLowerCase().includes('violat') ||
+          message.includes('fk_appointments_status') ||
+          message.includes('בשימוש')
+          ? 'לא ניתן למחוק סטטוס שכבר בשימוש בתורים.'
+          : message || 'לא ניתן למחוק את הסטטוס.',
+      );
+    } finally {
+      setDeletingStatusCode(null);
     }
   };
 
@@ -676,44 +792,71 @@ function StatusesTable({
           canViewDetails={selectedStatus !== null}
         />
         <div className={styles.toolbarActions}>
+          {hasTableControls ? (
+            <button
+              type="button"
+              className={columnTableStyles.clearButton}
+              onClick={() => {
+                setColumnFilters({});
+                setSort(null);
+              }}
+            >
+              נקה סינון ומיון
+            </button>
+          ) : null}
           <button
             type="button"
             className={`${styles.btnPrimary} ${styles.addServiceButton}`}
             onClick={() => setModalMode('add')}
           >
-            <PlusIcon />
             הוסף סטטוס
           </button>
         </div>
       </div>
 
-      {actionError && (
-        <p className={styles.actionError} role="alert">
-          {actionError}
-        </p>
+      {pendingDelete && (
+        <ConfirmDeleteModal
+          title="מחיקת סטטוס"
+          message={
+            <>
+              למחוק את הסטטוס <strong>{pendingDelete.status_text}</strong>?
+            </>
+          }
+          isBusy={deletingStatusCode !== null}
+          errorMessage={actionError}
+          onConfirm={() => void handleDelete(pendingDelete)}
+          onCancel={() => {
+            if (deletingStatusCode !== null) return;
+            setPendingDelete(null);
+            setActionError('');
+          }}
+        />
       )}
 
       <table className={`data-table ${styles.table}`}>
-        <thead>
-          <tr>
-            <th>פעולות</th>
-            {activeColumns.map((column) => (
-              <th key={column.key}>{column.label}</th>
-            ))}
-          </tr>
-        </thead>
+        <ColumnTableHead
+          columns={activeColumns}
+          filters={columnFilters}
+          sort={visibleSort}
+          onSort={(key) => setSort((current) => nextColumnSort(current, key))}
+          onFilter={(key, value) =>
+            setColumnFilters((current) => ({ ...current, [key]: value }))
+          }
+        />
         <tbody>
-          {statuses.length === 0 ? (
+          {visibleStatuses.length === 0 ? (
             <tr>
               <td
                 colSpan={Math.max(activeColumns.length, 1) + 1}
                 className={styles.emptyServices}
               >
-                לא הוגדרו סטטוסים
+                {statuses.length === 0
+                  ? 'לא הוגדרו סטטוסים'
+                  : 'לא נמצאו סטטוסים מתאימים לסינון'}
               </td>
             </tr>
           ) : (
-            statuses.map((status) => (
+            visibleStatuses.map((status) => (
               <tr
                 key={`${status.business_code}-${status.status_code}`}
                 className={
@@ -742,10 +885,12 @@ function StatusesTable({
                     <IconButton
                       label="מחק סטטוס"
                       variant="danger"
+                      disabled={deletingStatusCode !== null}
                       onClick={(event) => {
                         event.stopPropagation();
                         setSelectedStatusCode(status.status_code);
-                        void handleDelete(status);
+                        setActionError('');
+                        setPendingDelete(status);
                       }}
                     >
                       <TrashIcon />

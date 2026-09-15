@@ -118,6 +118,7 @@ export async function cancelAppointment(payload: {
     business_code: payload.businessCode,
     client_phone: payload.clientPhone,
     appointment_time: payload.appointmentTime,
+    action: 'cancel',
   });
 }
 

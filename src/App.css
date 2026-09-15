@@ -17,6 +17,7 @@
   --shadow-button-hover: 0 8px 16px -4px rgba(7, 63, 103, 0.28);
   --shadow-button-press: inset 0 3px 7px rgba(7, 48, 75, 0.32), inset 0 1px 1px rgba(7, 48, 75, 0.16);
   --radius-card: 10px;
+  --font-sans: "IBM Plex Sans Hebrew", "IBM Plex Sans", "Segoe UI", sans-serif;
   font-synthesis: none;
 }
 
@@ -27,12 +28,16 @@
 body, html, #root {
   margin: 0;
   padding: 0;
-  height: 100%;
+  min-height: 100%;
   min-width: 320px;
 }
 
+#root {
+  min-height: 100vh;
+}
+
 body {
-  font-family: Arial, "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   background:
     linear-gradient(180deg, rgba(20, 184, 166, 0.04), transparent 260px),
     var(--color-canvas);
@@ -199,8 +204,14 @@ textarea:focus-visible {
 .layout-container {
   display: flex;
   flex-direction: column;
+  height: 100vh;
   min-height: 100vh;
   overflow: hidden;
+}
+
+.layout-container.is-page-flow {
+  height: auto;
+  overflow: visible;
 }
 
 .main-content {
@@ -209,6 +220,11 @@ textarea:focus-visible {
   padding: 22px;
   gap: 22px;
   overflow: hidden;
+}
+
+.layout-container.is-page-flow .main-content {
+  overflow: visible;
+  align-items: flex-start;
 }
 
 .calendar-area {
@@ -222,6 +238,21 @@ textarea:focus-visible {
   box-shadow: var(--shadow-card);
   padding: 20px;
   overflow-y: auto;
+}
+
+.layout-container.is-page-flow .calendar-area {
+  overflow: visible;
+}
+
+.layout-container.is-page-flow .calendar-stage {
+  flex: none;
+  min-height: 0;
+  height: auto;
+  width: 100%;
+}
+
+.layout-container.is-page-flow .side-panel-wrapper {
+  align-self: flex-start;
 }
 
 .calendar-stage {
@@ -249,14 +280,22 @@ textarea:focus-visible {
   width: 100%;
   border-collapse: collapse;
   text-align: right;
-  font-size: 14px;
+  font-size: 13.5px;
 }
 
 .data-table th,
 .data-table td {
-  padding: 11px 14px;
+  padding: 7px 12px;
   border: 1px solid rgba(7, 63, 103, 0.1);
   vertical-align: middle;
+  line-height: 1.35;
+}
+
+.data-table th:first-child,
+.data-table td:first-child {
+  width: 1%;
+  padding-inline: 8px 10px;
+  white-space: nowrap;
 }
 
 .data-table th {
@@ -285,6 +324,12 @@ textarea:focus-visible {
 .data-table tbody tr.is-selected td,
 .data-table tbody tr.is-selected:hover td {
   background: rgba(20, 184, 166, 0.18);
+}
+
+.data-table td[dir="ltr"] {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: right;
 }
 
 .side-panel-wrapper {

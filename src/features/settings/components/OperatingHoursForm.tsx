@@ -16,7 +16,6 @@ import {
 } from '../../appointments/workingHours';
 import { toDateKey } from '../../appointments/time';
 import IconButton, {
-  PlusIcon,
   TrashIcon,
 } from '../../../shared/components/IconButton';
 import HelpTip from '../../../shared/components/HelpTip';
@@ -304,12 +303,11 @@ export default function OperatingHoursForm({
                         })
                       }
                     >
-                      <PlusIcon />
                       הוסף מקטע
                     </button>
                     <button
                       type="button"
-                      className={styles.addShift}
+                      className={styles.shiftPreset}
                       onClick={() =>
                         updateDay(day.key, {
                           shifts: [

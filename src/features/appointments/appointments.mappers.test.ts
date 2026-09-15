@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { assignGroupRoles, allowCalendarEventOverlap } from './calendarGrouping';
 import {
+  formatCalendarEventCopy,
+  getAppointmentColor,
   toAppointmentDetails,
   toAppointmentEditValues,
   toAppointmentUpdate,
   toCalendarEvents,
-  getAppointmentColor,
+  withCatalogServiceTitles,
 } from './appointments.mappers';
 import type { AppointmentWithClient } from './appointments.types';
 import { addMinutesToTime, formatTimeHm, toSchedulerDateTime, addMinutesToDateTime, shiftedAppointmentTimes } from './time';
@@ -63,29 +65,22 @@ function createAppointment(
 }
 
 describe('toCalendarEvents', () => {
-  it('renders each service as a separate event with computed times', () => {
+  it('renders a multi-service appointment as one calendar block', () => {
     const events = toCalendarEvents([createAppointment()]);
 
-    expect(events).toHaveLength(2);
+    expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({
-      id: '42:25',
-      title: 'ישראל ישראלי · עיצוב גבות',
+      id: '42',
+      title: "09:00 - 09:50 · עיצוב גבות, לק ג'ל · ישראל ישראלי",
       start: '2026-08-20T09:00',
-      end: '2026-08-20T09:25',
-    });
-    expect(events[1]).toMatchObject({
-      id: '42:34',
-      title: "לק ג'ל",
-      start: '2026-08-20T09:25',
       end: '2026-08-20T09:50',
     });
     expect(events[0].extendedProps).toMatchObject({
       appointmentId: 42,
       serviceId: 25,
-      groupRole: 'start',
-    });
-    expect(events[1].extendedProps).toMatchObject({
-      groupRole: 'end',
+      groupRole: 'single',
+      serviceTitle: "עיצוב גבות, לק ג'ל",
+      clientName: 'ישראל ישראלי',
     });
   });
 
@@ -128,8 +123,134 @@ describe('toCalendarEvents', () => {
     });
 
     const events = toCalendarEvents([first, second]);
+    expect(events).toHaveLength(2);
     expect(events[0].extendedProps).toMatchObject({ groupRole: 'single' });
     expect(events[1].extendedProps).toMatchObject({ groupRole: 'single' });
+  });
+
+  it('groups consecutive appointments of the same client visually', () => {
+    const first = createAppointment({
+      id: 1,
+      start_time: '09:00:00',
+      end_time: '09:25:00',
+      appointment_services: [
+        {
+          appointment_id: 1,
+          service_id: 25,
+          business_code: 'business-1',
+          position: 1,
+          title_snapshot: 'עיצוב גבות',
+          duration_minutes: 20,
+          buffer_time_minutes: 5,
+          price: 50,
+          created_at: '2026-08-20T08:00:00',
+        },
+      ],
+    });
+    const second = createAppointment({
+      id: 2,
+      start_time: '09:25:00',
+      end_time: '09:50:00',
+      appointment_services: [
+        {
+          appointment_id: 2,
+          service_id: 34,
+          business_code: 'business-1',
+          position: 1,
+          title_snapshot: "לק ג'ל",
+          duration_minutes: 25,
+          buffer_time_minutes: 0,
+          price: 80,
+          created_at: '2026-08-20T08:00:00',
+        },
+      ],
+    });
+
+    const events = toCalendarEvents([first, second]);
+    expect(events[0].extendedProps).toMatchObject({ groupRole: 'start' });
+    expect(events[1].extendedProps).toMatchObject({ groupRole: 'end' });
+  });
+
+  it('hides canceled appointments from the calendar', () => {
+    const events = toCalendarEvents([
+      createAppointment({ status: '10' }),
+      createAppointment({ id: 43, status: '02' }),
+    ]);
+
+    expect(events.map((event) => event.id)).toEqual(['43']);
+  });
+
+  it('uses the booked service name instead of a generic placeholder', () => {
+    const events = toCalendarEvents([
+      withCatalogServiceTitles(
+        createAppointment({
+          service_id: 25,
+          appointment_services: [],
+        }),
+        new Map([
+          [
+            25,
+            {
+              id: 25,
+              title: 'שעווה',
+              duration_minutes: 30,
+              buffer_time_minutes: 0,
+              price: 80,
+            },
+          ],
+        ]),
+      ),
+    ]);
+
+    expect(events[0]).toMatchObject({
+      title: '09:00 - 09:30 · שעווה · ישראל ישראלי',
+    });
+    expect(events[0].extendedProps).toMatchObject({
+      serviceTitle: 'שעווה',
+    });
+  });
+
+  it('omits a missing service name instead of writing שירות', () => {
+    const events = toCalendarEvents([
+      createAppointment({
+        service_id: null,
+        appointment_services: [],
+      }),
+    ]);
+
+    expect(events[0].title).toBe('09:00 - 09:50 · ישראל ישראלי');
+    expect(events[0].extendedProps).toMatchObject({
+      serviceTitle: '',
+    });
+  });
+});
+
+describe('formatCalendarEventCopy', () => {
+  it('orders time range, service, and client name', () => {
+    expect(
+      formatCalendarEventCopy({
+        time: '09:05:00',
+        endTime: '09:35:00',
+        serviceTitle: 'עיצוב גבות',
+        clientName: 'ישראל ישראלי',
+      }),
+    ).toEqual({
+      timeLabel: '09:05 - 09:35',
+      serviceTitle: 'עיצוב גבות',
+      clientName: 'ישראל ישראלי',
+      title: '09:05 - 09:35 · עיצוב גבות · ישראל ישראלי',
+      tooltip: '09:05 - 09:35 · עיצוב גבות · ישראל ישראלי',
+    });
+  });
+
+  it('keeps a single time when the end is missing', () => {
+    expect(
+      formatCalendarEventCopy({
+        time: '09:05:00',
+        serviceTitle: 'עיצוב גבות',
+        clientName: 'ישראל ישראלי',
+      }).timeLabel,
+    ).toBe('09:05');
   });
 });
 

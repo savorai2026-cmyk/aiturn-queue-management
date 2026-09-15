@@ -1,11 +1,16 @@
 import { useMemo, useState } from 'react';
 import {
   formatClientCell,
-  matchesClientSearch,
+  filterAndSortClients,
   toClientDetailRows,
 } from '../clients.mappers';
 import { deleteClient } from '../clients.api';
-import type { Client, ClientColumnKey } from '../clients.types';
+import {
+  BOOKING_POLICY_OPTIONS,
+  PAYMENT_REQUIREMENT_OPTIONS,
+  type Client,
+  type ClientColumnKey,
+} from '../clients.types';
 import { useClients } from '../useClients';
 import {
   ErrorState,
@@ -15,12 +20,19 @@ import DisplayToolbar from '../../../shared/displayFields/DisplayToolbar';
 import RecordDetailsModal from '../../../shared/displayFields/RecordDetailsModal';
 import { CLIENT_FIELDS } from '../../../shared/displayFields/catalogs';
 import { useUiPreferences } from '../../../shared/displayFields/useUiPreferences';
+import ColumnTableHead, {
+  columnTableStyles,
+} from '../../../shared/displayFields/ColumnTableHead';
+import {
+  nextColumnSort,
+  visibleColumnFilters,
+  type ColumnFilters,
+  type ColumnSort,
+} from '../../../shared/displayFields/columnTable';
 import IconButton, {
   PencilIcon,
-  PlusIcon,
   TrashIcon,
 } from '../../../shared/components/IconButton';
-import { SearchIcon } from '../../../shared/components/icons';
 import { getErrorMessage } from '../../../shared/errors';
 import AddClientModal from './AddClientModal';
 import styles from './ClientManagement.module.css';
@@ -28,6 +40,19 @@ import styles from './ClientManagement.module.css';
 interface ClientManagementProps {
   businessCode: string;
 }
+
+const CLIENT_SELECT_OPTIONS = {
+  booking_policy: BOOKING_POLICY_OPTIONS,
+  payment_requirement: PAYMENT_REQUIREMENT_OPTIONS,
+  gender: [
+    { value: 'M', label: 'זכר' },
+    { value: 'F', label: 'נקבה' },
+  ],
+  allows_sms: [
+    { value: 'yes', label: 'כן' },
+    { value: 'no', label: 'לא' },
+  ],
+};
 
 export default function ClientManagement({ businessCode }: ClientManagementProps) {
   const { clients, error, isLoading, refresh } = useClients(businessCode);
@@ -37,21 +62,29 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [actionError, setActionError] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
+  const [sort, setSort] = useState<ColumnSort | null>(null);
 
   const visibleKeys = visibleFieldsFor('clients');
   const activeColumns = CLIENT_FIELDS.filter((field) =>
     visibleKeys.includes(field.key),
   );
-  const filteredClients = useMemo(
-    () => clients.filter((client) => matchesClientSearch(client, searchQuery)),
-    [clients, searchQuery],
+  const visibleFilters = useMemo(
+    () => visibleColumnFilters(columnFilters, visibleKeys),
+    [columnFilters, visibleKeys],
+  );
+  const visibleSort =
+    sort && visibleKeys.includes(sort.key) ? sort : null;
+  const visibleClients = useMemo(
+    () => filterAndSortClients(clients, visibleFilters, visibleSort),
+    [clients, visibleFilters, visibleSort],
   );
   const selectedClient =
     clients.find((client) => client.id === selectedClientId) ?? null;
-  const hasSearch = searchQuery.trim().length > 0;
-  const listTitle = hasSearch
-    ? `ניהול לקוחות (${filteredClients.length} מתוך ${clients.length})`
+  const hasTableControls =
+    Object.keys(visibleFilters).length > 0 || visibleSort !== null;
+  const listTitle = hasTableControls
+    ? `ניהול לקוחות (${visibleClients.length} מתוך ${clients.length})`
     : `ניהול לקוחות (${clients.length})`;
 
   const handleEdit = (client: Client) => {
@@ -62,7 +95,11 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
 
   const handleDelete = async (client: Client) => {
     const label = client.full_name || client.mobile_phone || 'הלקוח';
-    if (!window.confirm(`למחוק את הלקוח "${label}"?`)) {
+    if (
+      !window.confirm(
+        `למחוק את הלקוח "${label}"? גם התורים שלו יימחקו.`,
+      )
+    ) {
       return;
     }
 
@@ -79,7 +116,7 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
       setActionError(
         message.includes('foreign key') || message.includes('violat')
           ? 'לא ניתן למחוק לקוח שיש לו תורים במערכת.'
-          : 'לא ניתן למחוק את הלקוח.',
+          : getErrorMessage(error) || 'לא ניתן למחוק את הלקוח.',
       );
     }
   };
@@ -105,6 +142,18 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
             onViewDetails={() => setIsDetailsOpen(true)}
             canViewDetails={selectedClient !== null}
           />
+          {hasTableControls ? (
+            <button
+              type="button"
+              className={columnTableStyles.clearButton}
+              onClick={() => {
+                setColumnFilters({});
+                setSort(null);
+              }}
+            >
+              נקה סינון ומיון
+            </button>
+          ) : null}
           <button
             className={styles.btnPrimary}
             onClick={() => {
@@ -112,35 +161,9 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
               setIsModalOpen(true);
             }}
           >
-            <PlusIcon />
             לקוח חדש
           </button>
         </div>
-      </div>
-
-      <div className={styles.searchRow}>
-        <label className={styles.searchField}>
-          <span className={styles.searchIcon} aria-hidden="true">
-            <SearchIcon />
-          </span>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="חיפוש לפי שם, נייד או תעודת זהות"
-            aria-label="חיפוש לקוחות לפי שם, נייד או תעודת זהות"
-            className={styles.searchInput}
-          />
-          {hasSearch ? (
-            <button
-              type="button"
-              className={styles.searchClear}
-              onClick={() => setSearchQuery('')}
-            >
-              נקה
-            </button>
-          ) : null}
-        </label>
       </div>
 
       {actionError && (
@@ -151,16 +174,18 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
 
       <div className={styles.tableResponsive}>
         <table className={`data-table ${styles.table}`}>
-          <thead>
-            <tr>
-              <th>פעולות</th>
-              {activeColumns.map((column) => (
-                <th key={column.key}>{column.label}</th>
-              ))}
-            </tr>
-          </thead>
+          <ColumnTableHead
+            columns={activeColumns}
+            filters={columnFilters}
+            sort={visibleSort}
+            onSort={(key) => setSort((current) => nextColumnSort(current, key))}
+            onFilter={(key, value) =>
+              setColumnFilters((current) => ({ ...current, [key]: value }))
+            }
+            selectOptions={CLIENT_SELECT_OPTIONS}
+          />
           <tbody>
-            {filteredClients.map((client) => (
+            {visibleClients.map((client) => (
               <tr
                 key={client.id}
                 className={
@@ -198,12 +223,12 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
                 ))}
               </tr>
             ))}
-            {filteredClients.length === 0 && (
+            {visibleClients.length === 0 && (
               <tr>
                 <td colSpan={activeColumns.length + 1} className={styles.emptyState}>
                   {clients.length === 0
                     ? 'לא נמצאו לקוחות במערכת'
-                    : 'לא נמצאו לקוחות מתאימים לחיפוש'}
+                    : 'לא נמצאו לקוחות מתאימים לסינון'}
                 </td>
               </tr>
             )}

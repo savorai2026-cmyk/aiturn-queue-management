@@ -13,7 +13,7 @@ import type {
   ServiceInsert,
   ServiceUpdate,
 } from '../settings.types';
-import { PlusIcon, SaveIcon } from '../../../shared/components/icons';
+import { SaveIcon } from '../../../shared/components/icons';
 import modal from '../../../shared/components/modalShell.module.css';
 import styles from './AddServiceModal.module.css';
 
@@ -357,10 +357,7 @@ export default function AddServiceModal({
                   שמור שינויים
                 </>
               ) : (
-                <>
-                  <PlusIcon />
-                  הוסף שירות
-                </>
+                'הוסף שירות'
               )}
             </button>
           </div>

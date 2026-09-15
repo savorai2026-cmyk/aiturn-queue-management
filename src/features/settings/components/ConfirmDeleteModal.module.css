@@ -1,0 +1,83 @@
+.overlay {
+  z-index: 9999;
+  background-color: rgba(7, 48, 75, 0.48);
+  backdrop-filter: blur(2px);
+}
+
+.content {
+  --modal-max-width: 420px;
+  padding: 24px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-floating);
+}
+
+.title {
+  margin: 0 0 12px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--color-teal-500);
+  color: var(--color-navy-900);
+  font-size: 18px;
+}
+
+.message {
+  margin: 0 0 18px;
+  color: var(--color-text);
+  font-size: 15px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.message strong {
+  color: var(--color-navy-900);
+}
+
+.error {
+  margin: -6px 0 16px;
+  padding: 9px 12px;
+  border-radius: 7px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 14px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-line);
+}
+
+.btnCancel,
+.btnDanger {
+  min-width: 96px;
+  padding: 10px 22px;
+  border-radius: 7px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btnCancel {
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.btnDanger {
+  border: 0;
+  background: #b91c1c;
+  color: #fff;
+}
+
+.btnDanger:hover {
+  background: #991b1b;
+}
+
+.btnCancel:disabled,
+.btnDanger:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

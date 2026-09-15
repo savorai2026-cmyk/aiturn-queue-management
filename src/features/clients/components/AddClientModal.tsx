@@ -18,7 +18,7 @@ import {
   getErrorMessage,
 } from '../../../shared/errors';
 import HelpTip from '../../../shared/components/HelpTip';
-import { PlusIcon, SaveIcon, WhatsAppIcon } from '../../../shared/components/icons';
+import { SaveIcon, WhatsAppIcon } from '../../../shared/components/icons';
 import modal from '../../../shared/components/modalShell.module.css';
 import styles from './AddClientModal.module.css';
 
@@ -409,11 +409,13 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
           <div className={styles.actions}>
             <button type="button" className={styles.btnCancel} onClick={onClose}>ביטול</button>
             <button type="submit" className={styles.btnSave} disabled={isSaving}>
-              {isSaving ? 'שומר...' : (
+              {isSaving ? 'שומר...' : clientToEdit ? (
                 <>
-                  {clientToEdit ? <SaveIcon /> : <PlusIcon />}
+                  <SaveIcon />
                   שמור לקוח
                 </>
+              ) : (
+                'שמור לקוח'
               )}
             </button>
           </div>

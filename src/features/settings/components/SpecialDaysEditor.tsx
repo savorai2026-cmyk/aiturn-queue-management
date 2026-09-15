@@ -1,5 +1,4 @@
 import IconButton, {
-  PlusIcon,
   TrashIcon,
 } from '../../../shared/components/IconButton';
 import { CopyIcon } from '../../../shared/components/icons';
@@ -98,7 +97,6 @@ export default function SpecialDaysEditor({
           className={styles.addBtn}
           onClick={() => onChange([...days, createBlankSpecialDay(weeklyDays)])}
         >
-          <PlusIcon />
           הוסף יום
         </button>
       </div>
@@ -229,7 +227,6 @@ export default function SpecialDaysEditor({
                       })
                     }
                   >
-                    <PlusIcon />
                     הוסף משמרת
                   </button>
                 </div>

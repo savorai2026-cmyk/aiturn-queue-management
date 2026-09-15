@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import FullCalendar from '@fullcalendar/react';
-import type { EventApi, EventDropArg, EventInput } from '@fullcalendar/core';
+import type {
+  EventApi,
+  EventContentArg,
+  EventDropArg,
+  EventInput,
+} from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -458,8 +463,12 @@ export default function CalendarView({
               }
         }
         events={calendarEvents}
-        height="100%"
+        height="auto"
+        stickyHeaderDates
         direction="rtl"
+        allDaySlot={false}
+        eventMinHeight={22}
+        displayEventTime={false}
         slotMinTime={slotRange.slotMinTime}
         slotMaxTime={slotRange.slotMaxTime}
         slotDuration={getSlotDuration(slotDurationMinutes)}
@@ -529,6 +538,35 @@ export default function CalendarView({
         eventDragStart={startDragTracking}
         eventDragStop={stopDragTracking}
         eventDrop={handleEventDrop}
+        eventDidMount={(info) => {
+          const props = info.event.extendedProps as CalendarEventProps;
+          if (props?.tooltip) {
+            info.el.title = props.tooltip;
+          }
+        }}
+        eventContent={(arg: EventContentArg) => {
+          if (arg.event.display === 'background') {
+            return arg.event.title;
+          }
+
+          const props = arg.event.extendedProps as CalendarEventProps;
+          const isGroupContinuation =
+            props.groupRole === 'middle' || props.groupRole === 'end';
+
+          return (
+            <div className={styles.eventInner} title={props.tooltip}>
+              {isGroupContinuation ? null : (
+                <span className={styles.eventTime}>{props.timeLabel}</span>
+              )}
+              {props.serviceTitle ? (
+                <span className={styles.eventService}>{props.serviceTitle}</span>
+              ) : null}
+              {isGroupContinuation ? null : (
+                <span className={styles.eventName}>{props.clientName}</span>
+              )}
+            </div>
+          );
+        }}
         eventClick={(clickInfo) => {
           clickInfo.jsEvent.preventDefault();
           const props = clickInfo.event.extendedProps as CalendarEventProps & {
