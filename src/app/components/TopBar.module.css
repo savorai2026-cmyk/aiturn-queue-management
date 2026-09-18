@@ -35,6 +35,8 @@
   gap: 7px;
   min-height: 38px;
   padding: 8px 15px;
+  overflow: hidden;
+  isolation: isolate;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.1);

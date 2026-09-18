@@ -1,4 +1,5 @@
 import { supabase } from '../../supabaseClient';
+import { getAuthEmailRedirectTo } from './authRedirect';
 
 interface Credentials {
   email: string;
@@ -14,7 +15,12 @@ export async function signInWithEmail(credentials: Credentials) {
 }
 
 export async function signUpWithEmail(credentials: Credentials) {
-  const { data, error } = await supabase.auth.signUp(credentials);
+  const { data, error } = await supabase.auth.signUp({
+    ...credentials,
+    options: {
+      emailRedirectTo: getAuthEmailRedirectTo(),
+    },
+  });
 
   if (error) {
     throw new Error(error.message);
@@ -30,8 +36,29 @@ export async function signInWithGoogle() {
     provider: 'google',
     options: {
       redirectTo: `${window.location.origin}/`,
+      queryParams: {
+        prompt: 'select_account',
+      },
     },
   });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function requestPasswordReset(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: getAuthEmailRedirectTo(),
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function updatePassword(password: string) {
+  const { error } = await supabase.auth.updateUser({ password });
 
   if (error) {
     throw new Error(error.message);

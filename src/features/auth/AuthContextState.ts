@@ -5,6 +5,7 @@ export interface AuthContextValue {
   session: Session | null;
   user: User | null;
   isLoading: boolean;
+  isPasswordRecovery: boolean;
   error: string | null;
   signOut: () => Promise<void>;
 }

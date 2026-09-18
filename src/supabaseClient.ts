@@ -31,7 +31,13 @@ const globalWithSupabase = globalThis as typeof globalThis & {
 // Reuse the client during Vite hot reloads to avoid duplicate auth listeners.
 export const supabase =
   globalWithSupabase.featurnSupabase ??
-  createClient<Database>(supabaseUrl, supabaseAnonKey);
+  createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      flowType: 'implicit',
+      detectSessionInUrl: true,
+      persistSession: true,
+    },
+  });
 
 if (import.meta.env.DEV) {
   globalWithSupabase.featurnSupabase = supabase;

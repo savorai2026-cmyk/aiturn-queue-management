@@ -64,6 +64,7 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
   const [actionError, setActionError] = useState('');
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<ColumnSort | null>(null);
+  const [filtersVisible, setFiltersVisible] = useState(false);
 
   const visibleKeys = visibleFieldsFor('clients');
   const activeColumns = CLIENT_FIELDS.filter((field) =>
@@ -81,8 +82,8 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
   );
   const selectedClient =
     clients.find((client) => client.id === selectedClientId) ?? null;
-  const hasTableControls =
-    Object.keys(visibleFilters).length > 0 || visibleSort !== null;
+  const hasActiveFilters = Object.keys(visibleFilters).length > 0;
+  const hasTableControls = hasActiveFilters || visibleSort !== null;
   const listTitle = hasTableControls
     ? `ניהול לקוחות (${visibleClients.length} מתוך ${clients.length})`
     : `ניהול לקוחות (${clients.length})`;
@@ -141,6 +142,9 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
             onToggle={(key) => toggleField('clients', key)}
             onViewDetails={() => setIsDetailsOpen(true)}
             canViewDetails={selectedClient !== null}
+            filtersVisible={filtersVisible}
+            filtersActive={hasActiveFilters}
+            onToggleFilters={() => setFiltersVisible((open) => !open)}
           />
           {hasTableControls ? (
             <button
@@ -178,6 +182,7 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
             columns={activeColumns}
             filters={columnFilters}
             sort={visibleSort}
+            showFilters={filtersVisible}
             onSort={(key) => setSort((current) => nextColumnSort(current, key))}
             onFilter={(key, value) =>
               setColumnFilters((current) => ({ ...current, [key]: value }))

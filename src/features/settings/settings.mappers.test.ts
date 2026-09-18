@@ -6,6 +6,7 @@ import {
   filterAndSortStatuses,
   normalizeDepositPercent,
   parseDepositPercent,
+  normalizeRetentionDays,
 } from './settings.mappers';
 import type { AppointmentStatusRow, BusinessSettings, Service } from './settings.types';
 
@@ -43,6 +44,13 @@ describe('deposit percent', () => {
     expect(normalizeDepositPercent('x')).toBeNull();
   });
 
+  it('accepts recording retention between 1 and 3650 days', () => {
+    expect(normalizeRetentionDays('')).toBe(90);
+    expect(normalizeRetentionDays(30)).toBe(30);
+    expect(normalizeRetentionDays(0)).toBeNull();
+    expect(normalizeRetentionDays(3651)).toBeNull();
+  });
+
   it('formats the business percent for details', () => {
     const business = {
       deposit_percent: 20,
@@ -52,6 +60,12 @@ describe('deposit percent', () => {
     expect(
       formatBusinessField({ ...business, deposit_percent: 12.5 }, 'deposit_percent'),
     ).toBe('12.5%');
+    expect(
+      formatBusinessField(
+        { ...business, agent_prompt: 'מספרה בתל אביב' } as BusinessSettings,
+        'agent_prompt',
+      ),
+    ).toBe('מספרה בתל אביב');
   });
 });
 

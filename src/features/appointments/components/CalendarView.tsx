@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import type {
   EventApi,
@@ -25,11 +25,24 @@ import {
 } from '../workingHours';
 import { addDaysToDateKey, snapMinutes, snapTimeHm, toDateKey, toLocalDateFromKey, toTimeHm } from '../time';
 import {
+  DRAG_PERIOD_HOVER_MS,
+  buildDropRange,
+  canNavigateByView,
+  findDragNavTarget,
+  isDateKeyBookable,
+  isSameSlot,
+  periodNavLabel,
+  readDateKeyFromPoint,
+} from '../calendarDragNav';
+import {
   isCalendarViewName,
   readCalendarLocation,
   writeCalendarLocation,
 } from '../../../app/uiLocation';
 import { allowCalendarEventOverlap } from '../calendarGrouping';
+import {
+  getIsraeliHolidaysInRange,
+} from '../israeliHolidays';
 import {
   ErrorState,
   LoadingState,
@@ -38,6 +51,19 @@ import type { Json } from '../../../types/database';
 import styles from './CalendarView.module.css';
 
 const MOBILE_QUERY = '(max-width: 767px)';
+const TODAY_HINT = 'מעבר להיום ביומן';
+
+function DragEdgeChevron({ direction }: { direction: 'prev' | 'next' }) {
+  return (
+    <svg className={styles.dragEdgeIcon} viewBox="0 0 24 24" aria-hidden="true">
+      {direction === 'next' ? (
+        <path d="M14.5 5.5 8 12l6.5 6.5" />
+      ) : (
+        <path d="M9.5 5.5 16 12l-6.5 6.5" />
+      )}
+    </svg>
+  );
+}
 
 export interface AppointmentDropRequest {
   revert: () => void;
@@ -49,6 +75,15 @@ export interface AppointmentDropRequest {
   nextStart: Date;
   nextEnd: Date | null;
 }
+
+type DragOrigin = {
+  appointmentId: number;
+  serviceId: number;
+  clientPhone: string | null;
+  start: Date;
+  end: Date | null;
+  label: string;
+};
 
 interface CalendarViewProps {
   businessCode: string;
@@ -161,6 +196,26 @@ export default function CalendarView({
     return { start, end: start };
   });
   const dragTooltipRef = useRef<HTMLDivElement | null>(null);
+  const dragGhostRef = useRef<HTMLDivElement | null>(null);
+  const dragOriginRef = useRef<DragOrigin | null>(null);
+  const lastPointerRef = useRef({ x: 0, y: 0 });
+  const hoverKeyRef = useRef('');
+  const hoverSinceRef = useRef(0);
+  const dropHandledRef = useRef(false);
+  const syntheticDragRef = useRef(false);
+  const navigatingRef = useRef(false);
+  const handleDragMoveRef = useRef<(event: PointerEvent) => void>(() => {});
+  const handlePointerUpRef = useRef<() => void>(() => {});
+  const viewTypeRef = useRef<string>(
+    storedLocation?.view ?? (isMobile ? 'timeGridDay' : 'timeGridWeek'),
+  );
+  const bookingRangeEndRef = useRef<string | null>(null);
+  const [calendarViewType, setCalendarViewType] = useState<string>(
+    storedLocation?.view ?? (isMobile ? 'timeGridDay' : 'timeGridWeek'),
+  );
+  const [viewCurrentStartKey, setViewCurrentStartKey] = useState(
+    () => storedLocation?.date ?? toDateKey(new Date()),
+  );
 
   useEffect(() => {
     const media = window.matchMedia(MOBILE_QUERY);
@@ -214,6 +269,36 @@ export default function CalendarView({
     applyDayMarks();
   }, [applyDayMarks, events, isMobile]);
 
+  const goToToday = useCallback(() => {
+    const today = new Date();
+    calendarRef.current?.getApi().today();
+    onSelectDate(toDateKey(today));
+    onSelectTime?.(null);
+  }, [onSelectDate, onSelectTime]);
+
+  const syncTodayButton = useCallback(() => {
+    const root = rootRef.current;
+    const api = calendarRef.current?.getApi();
+    const button = root?.querySelector<HTMLButtonElement>(
+      '.fc-goTodayBtn-button',
+    );
+    if (!button) return;
+
+    button.title = TODAY_HINT;
+    button.setAttribute('aria-label', TODAY_HINT);
+
+    const today = new Date();
+    const todayKey = toDateKey(today);
+    const viewHasToday = api
+      ? api.view.activeStart <= today && today < api.view.activeEnd
+      : false;
+    button.disabled = selectedDate === todayKey && viewHasToday;
+  }, [selectedDate]);
+
+  useLayoutEffect(() => {
+    syncTodayButton();
+  }, [isMobile, syncTodayButton, visibleRange]);
+
   useEffect(() => {
     writeCalendarLocation(businessCode, { selectedDate });
   }, [businessCode, selectedDate]);
@@ -237,6 +322,25 @@ export default function CalendarView({
   const bookingRangeEnd = useMemo(
     () => getBookingRangeEndExclusive(maxAdvBookingDays),
     [maxAdvBookingDays],
+  );
+  bookingRangeEndRef.current = bookingRangeEnd;
+
+  const holidaysByDate = useMemo(
+    () => getIsraeliHolidaysInRange(visibleRange.start, visibleRange.end),
+    [visibleRange.end, visibleRange.start],
+  );
+  const viewStartDate = toLocalDateFromKey(viewCurrentStartKey);
+  const canDragPrev = canNavigateByView(
+    viewStartDate,
+    calendarViewType,
+    -1,
+    bookingRangeEnd,
+  );
+  const canDragNext = canNavigateByView(
+    viewStartDate,
+    calendarViewType,
+    1,
+    bookingRangeEnd,
   );
 
   const calendarEvents = useMemo(
@@ -327,15 +431,237 @@ export default function CalendarView({
   const slotMinutes =
     slotDurationMinutes && slotDurationMinutes > 0 ? slotDurationMinutes : 30;
 
+  const onDropRequestRef = useRef(onDropRequest);
+  const hasPendingMoveRef = useRef(hasPendingMove);
+
+  useEffect(() => {
+    onDropRequestRef.current = onDropRequest;
+    hasPendingMoveRef.current = hasPendingMove;
+  }, [hasPendingMove, onDropRequest]);
+
   const hideDragTooltip = useCallback(() => {
     const tooltip = dragTooltipRef.current;
     if (!tooltip) return;
-    tooltip.hidden = true;
+    tooltip.style.display = 'none';
     tooltip.textContent = '';
   }, []);
 
+  const hideDragGhost = useCallback(() => {
+    const ghost = dragGhostRef.current;
+    if (!ghost) return;
+    ghost.style.display = 'none';
+  }, []);
+
+  const showDragGhost = useCallback(() => {
+    const ghost = dragGhostRef.current;
+    const origin = dragOriginRef.current;
+    if (!ghost || !origin) return;
+    ghost.style.display = 'block';
+    ghost.textContent = origin.label;
+  }, []);
+
+  const placeDragChrome = useCallback((clientX: number, clientY: number) => {
+    const tooltip = dragTooltipRef.current;
+    const ghost = dragGhostRef.current;
+    if (tooltip) {
+      tooltip.style.left = `${clientX + 12}px`;
+      tooltip.style.top = `${clientY + 12}px`;
+    }
+    if (ghost) {
+      ghost.style.left = `${clientX + 14}px`;
+      ghost.style.top = `${clientY + 36}px`;
+    }
+  }, []);
+
+  const clearDragHot = useCallback(() => {
+    rootRef.current
+      ?.querySelectorAll(`.${styles.dragNavHot}`)
+      .forEach((element) => element.classList.remove(styles.dragNavHot));
+  }, []);
+
+  const setDragHot = useCallback(
+    (target: Element | null) => {
+      clearDragHot();
+      if (target instanceof HTMLElement) {
+        target.classList.add(styles.dragNavHot);
+      }
+    },
+    [clearDragHot],
+  );
+
+  const onDragPointerMove = useCallback((event: PointerEvent) => {
+    handleDragMoveRef.current(event);
+  }, []);
+
+  const onDragPointerUp = useCallback(() => {
+    handlePointerUpRef.current();
+  }, []);
+
+  const cleanupDrag = useCallback(() => {
+    document.removeEventListener('pointermove', onDragPointerMove);
+    document.removeEventListener('pointerup', onDragPointerUp);
+    document.removeEventListener('pointercancel', onDragPointerUp);
+    hideDragTooltip();
+    hideDragGhost();
+    document.body.classList.remove('featurn-is-event-dragging');
+    rootRef.current?.classList.remove(styles.isDragging);
+    clearDragHot();
+    hoverKeyRef.current = '';
+    hoverSinceRef.current = 0;
+    dragOriginRef.current = null;
+    dropHandledRef.current = false;
+    syntheticDragRef.current = false;
+    navigatingRef.current = false;
+  }, [clearDragHot, hideDragGhost, hideDragTooltip, onDragPointerMove, onDragPointerUp]);
+
+  const requestMoveFromDrag = useCallback(
+    (
+      origin: DragOrigin,
+      nextStart: Date,
+      nextEnd: Date | null,
+      revert: () => void,
+    ) => {
+      if (hasPendingMoveRef.current) {
+        return false;
+      }
+
+      if (isSameSlot(origin.start, origin.end, nextStart, nextEnd)) {
+        return false;
+      }
+
+      if (!isDateKeyBookable(toDateKey(nextStart), bookingRangeEndRef.current)) {
+        return false;
+      }
+
+      onDropRequestRef.current({
+        revert: () => {
+          revert();
+          calendarRef.current?.getApi().gotoDate(origin.start);
+        },
+        appointmentId: origin.appointmentId,
+        serviceId: origin.serviceId,
+        clientPhone: origin.clientPhone,
+        previousStart: origin.start,
+        previousEnd: origin.end,
+        nextStart,
+        nextEnd,
+      });
+      calendarRef.current?.getApi().gotoDate(nextStart);
+      return true;
+    },
+    [],
+  );
+
+  const jumpViewDuringDrag = useCallback(
+    (nav: ReturnType<typeof findDragNavTarget>) => {
+      const api = calendarRef.current?.getApi();
+      if (!api || !nav || navigatingRef.current) {
+        return;
+      }
+
+      if (nav.type === 'period') {
+        if (
+          !canNavigateByView(
+            api.view.currentStart,
+            api.view.type,
+            nav.direction,
+            bookingRangeEndRef.current,
+          )
+        ) {
+          return;
+        }
+      }
+
+      syntheticDragRef.current = true;
+      navigatingRef.current = true;
+      showDragGhost();
+
+      if (nav.type === 'date') {
+        api.gotoDate(toLocalDateFromKey(nav.dateKey));
+      } else if (nav.direction === 1) {
+        api.next();
+      } else {
+        api.prev();
+      }
+
+      window.setTimeout(() => {
+        navigatingRef.current = false;
+      }, 280);
+    },
+    [showDragGhost],
+  );
+
+  const completeSyntheticDrop = useCallback(() => {
+    const origin = dragOriginRef.current;
+    const pointer = lastPointerRef.current;
+    if (!origin) {
+      return;
+    }
+
+    const dateKey = readDateKeyFromPoint(pointer.x, pointer.y);
+    if (!dateKey) {
+      return;
+    }
+
+    const viewType =
+      calendarRef.current?.getApi().view.type ?? viewTypeRef.current;
+    const time = readSnappedTimeFromPoint(
+      pointer.x,
+      pointer.y,
+      slotMinutes,
+    );
+    const moved = buildDropRange(
+      dateKey,
+      time,
+      origin.start,
+      origin.end,
+      viewType === 'dayGridMonth',
+    );
+    requestMoveFromDrag(origin, moved.nextStart, moved.nextEnd, () => {
+      calendarRef.current?.getApi().gotoDate(origin.start);
+    });
+  }, [requestMoveFromDrag, slotMinutes]);
+
   const handleDragMove = useCallback(
-    (event: MouseEvent) => {
+    (event: PointerEvent) => {
+      lastPointerRef.current = { x: event.clientX, y: event.clientY };
+      placeDragChrome(event.clientX, event.clientY);
+
+      const nav = findDragNavTarget(event.clientX, event.clientY);
+      const navKey = nav
+        ? nav.type === 'period'
+          ? `period:${nav.direction}`
+          : `date:${nav.dateKey}`
+        : '';
+
+      if (nav) {
+        const hot = document
+          .elementsFromPoint(event.clientX, event.clientY)
+          .find(
+            (element) =>
+              element instanceof HTMLElement &&
+              element.closest('[data-drag-nav]'),
+          );
+        setDragHot(
+          hot instanceof HTMLElement
+            ? (hot.closest('[data-drag-nav]') ?? hot)
+            : null,
+        );
+        if (hoverKeyRef.current !== navKey) {
+          hoverKeyRef.current = navKey;
+          hoverSinceRef.current = event.timeStamp;
+        } else if (
+          event.timeStamp - hoverSinceRef.current >=
+          DRAG_PERIOD_HOVER_MS
+        ) {
+          jumpViewDuringDrag(nav);
+          hoverSinceRef.current = event.timeStamp;
+        }
+      } else {
+        hoverKeyRef.current = '';
+        clearDragHot();
+      }
+
       const tooltip = dragTooltipRef.current;
       if (!tooltip) return;
 
@@ -344,33 +670,109 @@ export default function CalendarView({
         event.clientY,
         slotMinutes,
       );
-      if (!time) {
-        tooltip.hidden = true;
+      const dateKey = readDateKeyFromPoint(event.clientX, event.clientY);
+      const originTime = dragOriginRef.current
+        ? toTimeHm(dragOriginRef.current.start)
+        : null;
+      const navLabel =
+        nav?.type === 'period'
+          ? periodNavLabel(
+              viewTypeRef.current,
+              nav.direction === 1 ? 'next' : 'prev',
+            )
+          : null;
+
+      const tooltipParts = [
+        time ?? (dateKey ? originTime : null),
+        dateKey && !time ? dateKey.slice(8) : null,
+        navLabel,
+      ].filter(Boolean);
+
+      if (tooltipParts.length === 0) {
+        tooltip.style.display = 'none';
         return;
       }
 
-      tooltip.hidden = false;
-      tooltip.textContent = time;
-      tooltip.style.left = `${event.clientX + 12}px`;
-      tooltip.style.top = `${event.clientY + 12}px`;
+      tooltip.style.display = 'block';
+      tooltip.textContent = tooltipParts.join(' · ');
     },
-    [slotMinutes],
+    [
+      clearDragHot,
+      jumpViewDuringDrag,
+      placeDragChrome,
+      setDragHot,
+      slotMinutes,
+    ],
   );
 
-  const startDragTracking = useCallback(() => {
-    document.addEventListener('mousemove', handleDragMove);
-  }, [handleDragMove]);
+  const handlePointerUp = useCallback(() => {
+    window.setTimeout(() => {
+      if (!dropHandledRef.current && syntheticDragRef.current) {
+        completeSyntheticDrop();
+      }
+      cleanupDrag();
+    }, 0);
+  }, [cleanupDrag, completeSyntheticDrop]);
 
-  const stopDragTracking = useCallback(() => {
-    document.removeEventListener('mousemove', handleDragMove);
-    hideDragTooltip();
-  }, [handleDragMove, hideDragTooltip]);
+  handleDragMoveRef.current = handleDragMove;
+  handlePointerUpRef.current = handlePointerUp;
+
+  const startDragTracking = useCallback(
+    (info: { event: EventApi; jsEvent: MouseEvent }) => {
+      const start = info.event.start;
+      const props = info.event.extendedProps as CalendarEventProps;
+      dropHandledRef.current = false;
+      syntheticDragRef.current = false;
+      navigatingRef.current = false;
+      hoverKeyRef.current = '';
+      lastPointerRef.current = {
+        x: info.jsEvent.clientX,
+        y: info.jsEvent.clientY,
+      };
+      const label = [props?.clientName, props?.timeLabel]
+        .filter(Boolean)
+        .join(' · ');
+      dragOriginRef.current =
+        start && props?.appointmentId
+          ? {
+              appointmentId: props.appointmentId,
+              serviceId: props.serviceId,
+              clientPhone: props.clientPhone,
+              start,
+              end: info.event.end,
+              label: label || info.event.title || 'תור',
+            }
+          : null;
+      viewTypeRef.current =
+        calendarRef.current?.getApi().view.type ?? viewTypeRef.current;
+      const ghost = dragGhostRef.current;
+      if (ghost) {
+        ghost.textContent = dragOriginRef.current?.label ?? '';
+        ghost.style.display = 'none';
+      }
+      document.body.classList.add('featurn-is-event-dragging');
+      rootRef.current?.classList.add(styles.isDragging);
+      document.addEventListener('pointermove', onDragPointerMove);
+      document.addEventListener('pointerup', onDragPointerUp);
+      document.addEventListener('pointercancel', onDragPointerUp);
+    },
+    [onDragPointerMove, onDragPointerUp],
+  );
+
+  const handleEventDragStop = useCallback(() => {
+    if (syntheticDragRef.current) {
+      showDragGhost();
+    }
+  }, [showDragGhost]);
 
   useEffect(
     () => () => {
-      document.removeEventListener('mousemove', handleDragMove);
+      document.removeEventListener('pointermove', onDragPointerMove);
+      document.removeEventListener('pointerup', onDragPointerUp);
+      document.removeEventListener('pointercancel', onDragPointerUp);
+      document.body.classList.remove('featurn-is-event-dragging');
     },
-    [handleDragMove],
+    [onDragPointerMove, onDragPointerUp],
   );
 
   const handleEventOverlap = useCallback(
@@ -386,40 +788,39 @@ export default function CalendarView({
     [],
   );
 
-  const onDropRequestRef = useRef(onDropRequest);
-  const hasPendingMoveRef = useRef(hasPendingMove);
-
-  useEffect(() => {
-    onDropRequestRef.current = onDropRequest;
-    hasPendingMoveRef.current = hasPendingMove;
-  }, [hasPendingMove, onDropRequest]);
-
   const handleEventDrop = useCallback((info: EventDropArg) => {
+    dropHandledRef.current = true;
     const start = info.event.start;
     const previousStart = info.oldEvent.start;
     const props = info.event.extendedProps as CalendarEventProps;
+    const origin = dragOriginRef.current ?? (
+      start && previousStart && props?.appointmentId
+        ? {
+            appointmentId: props.appointmentId,
+            serviceId: props.serviceId,
+            clientPhone: props.clientPhone,
+            start: previousStart,
+            end: info.oldEvent.end,
+            label: '',
+          }
+        : null
+    );
 
-    if (!start || !previousStart || hasPendingMoveRef.current) {
+    if (!start || !previousStart || !origin) {
       info.revert();
       return;
     }
 
-    if (!props?.appointmentId) {
+    const applied = requestMoveFromDrag(
+      origin,
+      start,
+      info.event.end,
+      () => info.revert(),
+    );
+    if (!applied) {
       info.revert();
-      return;
     }
-
-    onDropRequestRef.current({
-      revert: () => info.revert(),
-      appointmentId: props.appointmentId,
-      serviceId: props.serviceId,
-      clientPhone: props.clientPhone,
-      previousStart,
-      previousEnd: info.oldEvent.end,
-      nextStart: start,
-      nextEnd: info.event.end,
-    });
-  }, []);
+  }, [requestMoveFromDrag]);
 
   if (isLoading) {
     return <LoadingState message="טוען תורים..." />;
@@ -430,7 +831,16 @@ export default function CalendarView({
   }
 
   return (
-    <div className={styles.calendarContainer} ref={rootRef}>
+    <div className={styles.calendarShell} ref={rootRef}>
+      <div
+        className={`${styles.dragEdge} ${canDragPrev ? '' : styles.dragEdgeDisabled}`}
+        data-drag-nav={canDragPrev ? 'prev' : undefined}
+        aria-label={periodNavLabel(calendarViewType, 'prev')}
+        aria-hidden={canDragPrev ? undefined : true}
+      >
+        <DragEdgeChevron direction="prev" />
+      </div>
+      <div className={styles.calendarContainer}>
       <FullCalendar
         ref={calendarRef}
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -448,16 +858,20 @@ export default function CalendarView({
             text: 'תור חדש',
             click: onAddAppointment,
           },
+          goTodayBtn: {
+            text: 'היום',
+            click: goToToday,
+          },
         }}
         headerToolbar={
           isMobile
             ? {
                 left: 'newAppointmentBtn',
                 center: 'prev,title,next',
-                right: 'today',
+                right: 'goTodayBtn',
               }
             : {
-                left: 'newAppointmentBtn prev,next today',
+                left: 'newAppointmentBtn prev,next goTodayBtn',
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay',
               }
@@ -472,6 +886,12 @@ export default function CalendarView({
         slotMinTime={slotRange.slotMinTime}
         slotMaxTime={slotRange.slotMaxTime}
         slotDuration={getSlotDuration(slotDurationMinutes)}
+        slotLabelFormat={{
+          hour: 'numeric',
+          minute: '2-digit',
+          omitZeroMinute: false,
+          meridiem: false,
+        }}
         snapDuration="00:05:00"
         validRange={bookingRangeEnd ? { end: bookingRangeEnd } : undefined}
         businessHours={businessHours.length > 0 ? businessHours : undefined}
@@ -481,8 +901,23 @@ export default function CalendarView({
         eventResizableFromStart={false}
         nowIndicator
         navLinks
+        views={{
+          dayGridMonth: {
+            navLinks: false,
+          },
+        }}
         datesSet={(info) => {
           applyDayMarks();
+          syncTodayButton();
+          const nextViewType = info.view.type;
+          const currentStartKey = toDateKey(info.view.currentStart);
+          viewTypeRef.current = nextViewType;
+          setCalendarViewType((current) =>
+            current === nextViewType ? current : nextViewType,
+          );
+          setViewCurrentStartKey((current) =>
+            current === currentStartKey ? current : currentStartKey,
+          );
           const start = toDateKey(info.start);
           const end = toDateKey(info.end);
           setVisibleRange((current) =>
@@ -490,18 +925,24 @@ export default function CalendarView({
               ? current
               : { start, end },
           );
-          if (isCalendarViewName(info.view.type)) {
+          if (isCalendarViewName(nextViewType)) {
             writeCalendarLocation(businessCode, {
-              date: toDateKey(info.view.currentStart),
-              view: info.view.type,
+              date: currentStartKey,
+              view: nextViewType,
             });
           }
         }}
         dayHeaderContent={(arg) => {
+          const holiday = holidaysByDate.get(toDateKey(arg.date)) ?? null;
           const note = specialNoteForDate(exceptions, arg.date);
           return (
             <span className={styles.dayHeaderInner}>
               <span>{arg.text}</span>
+              {holiday ? (
+                <span className={styles.holidayNote} title={holiday}>
+                  {holiday}
+                </span>
+              ) : null}
               {note ? (
                 <span className={styles.specialNote} title={note}>
                   {note}
@@ -512,15 +953,24 @@ export default function CalendarView({
         }}
         dayCellContent={(arg) => {
           if (arg.view.type !== 'dayGridMonth') return;
+          const holiday = holidaysByDate.get(toDateKey(arg.date)) ?? null;
           const note = specialNoteForDate(exceptions, arg.date);
-          if (!note) return;
           return (
-            <>
-              {arg.dayNumberText}
-              <span className={styles.monthNote} title={note}>
-                {note}
-              </span>
-            </>
+            <div className={styles.monthCell}>
+              <div className={styles.monthCellTop}>
+                <span className={styles.monthDayNum}>{arg.dayNumberText}</span>
+                {holiday ? (
+                  <span className={styles.monthHoliday} title={holiday}>
+                    {holiday}
+                  </span>
+                ) : null}
+              </div>
+              {note ? (
+                <span className={styles.monthNote} title={note}>
+                  {note}
+                </span>
+              ) : null}
+            </div>
           );
         }}
         dateClick={(info) => {
@@ -536,7 +986,7 @@ export default function CalendarView({
           calendarRef.current?.getApi().changeView('timeGridDay', date);
         }}
         eventDragStart={startDragTracking}
-        eventDragStop={stopDragTracking}
+        eventDragStop={handleEventDragStop}
         eventDrop={handleEventDrop}
         eventDidMount={(info) => {
           const props = info.event.extendedProps as CalendarEventProps;
@@ -584,14 +1034,25 @@ export default function CalendarView({
         }}
       />
 
-      <div ref={dragTooltipRef} className={styles.dragTooltip} hidden />
-
       {isBlocked && (
         <div className={styles.blockingOverlay} role="status">
           <span className={styles.spinner} aria-hidden="true" />
           מעדכן תור...
         </div>
       )}
+      </div>
+
+      <div
+        className={`${styles.dragEdge} ${canDragNext ? '' : styles.dragEdgeDisabled}`}
+        data-drag-nav={canDragNext ? 'next' : undefined}
+        aria-label={periodNavLabel(calendarViewType, 'next')}
+        aria-hidden={canDragNext ? undefined : true}
+      >
+        <DragEdgeChevron direction="next" />
+      </div>
+
+      <div ref={dragTooltipRef} className={styles.dragTooltip} />
+      <div ref={dragGhostRef} className={styles.dragGhost} />
     </div>
   );
 }

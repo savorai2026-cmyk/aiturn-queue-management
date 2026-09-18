@@ -114,6 +114,10 @@
   animation: icon-look 1s ease-in-out infinite;
 }
 
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="funnel"] {
+  animation: icon-sift 0.85s ease-in-out infinite;
+}
+
 @keyframes icon-spin {
   to {
     transform: rotate(360deg);
@@ -284,6 +288,19 @@
   }
   50% {
     transform: rotate(-6deg) translateX(-1px);
+  }
+}
+
+@keyframes icon-sift {
+  0%,
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+  35% {
+    transform: rotate(-12deg) translateY(1px);
+  }
+  70% {
+    transform: rotate(10deg) translateY(-1px);
   }
 }
 

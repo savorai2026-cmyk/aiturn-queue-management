@@ -3,6 +3,7 @@ export type DisplayScope =
   | 'appointments'
   | 'services'
   | 'business'
+  | 'businessConfig'
   | 'statuses';
 
 export interface DisplayField {
@@ -21,6 +22,7 @@ export interface UiPreferences {
   appointments?: ScopePreferences;
   services?: ScopePreferences;
   business?: ScopePreferences;
+  businessConfig?: ScopePreferences;
   statuses?: ScopePreferences;
 }
 

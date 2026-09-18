@@ -305,6 +305,9 @@ export type Database = {
           max_adv_booking_days: number | null
           slot_duration_minutes: number | null
           timezone: string | null
+          agent_prompt: string | null
+          save_recordings: boolean
+          recordings_retention_days: number
           ui_preferences: Json
           updated_at: string
           vapi_assistant_id: string | null
@@ -323,6 +326,9 @@ export type Database = {
           max_adv_booking_days?: number | null
           slot_duration_minutes?: number | null
           timezone?: string | null
+          agent_prompt?: string | null
+          save_recordings?: boolean
+          recordings_retention_days?: number
           ui_preferences?: Json
           updated_at?: string
           vapi_assistant_id?: string | null
@@ -341,6 +347,9 @@ export type Database = {
           max_adv_booking_days?: number | null
           slot_duration_minutes?: number | null
           timezone?: string | null
+          agent_prompt?: string | null
+          save_recordings?: boolean
+          recordings_retention_days?: number
           ui_preferences?: Json
           updated_at?: string
           vapi_assistant_id?: string | null

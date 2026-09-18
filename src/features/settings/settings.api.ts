@@ -1,4 +1,6 @@
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '../../supabaseClient';
+import { getErrorMessage } from '../../shared/errors';
 import type {
   AppointmentStatusInsert,
   AppointmentStatusRow,
@@ -26,6 +28,10 @@ export async function getBusinessSettings(
       timezone,
       slot_duration_minutes,
       deposit_percent,
+      agent_prompt,
+      save_recordings,
+      recordings_retention_days,
+      is_active,
       max_adv_booking_days,
       working_hours,
       vapi_assistant_id,
@@ -239,7 +245,7 @@ export async function deleteStatus(
 
 export async function updateBusinessSettings(
   businessCode: string,
-  settings: EditableBusinessSettings,
+  settings: Partial<EditableBusinessSettings>,
 ): Promise<void> {
   const { error } = await supabase
     .from('businesses')
@@ -263,4 +269,39 @@ export async function updateOperatingHours(
   if (error) {
     throw new Error(error.message);
   }
+}
+
+export async function rewriteAgentPrompt(
+  businessCode: string,
+  draft: string,
+): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('rewrite-agent-prompt', {
+    body: {
+      business_code: businessCode,
+      draft,
+    },
+  });
+
+  if (error) {
+    let message = getErrorMessage(error);
+
+    if (error instanceof FunctionsHttpError) {
+      try {
+        const body = (await error.context.json()) as { error?: string };
+        message = body.error || message;
+      } catch {
+        // Keep the original Functions error message.
+      }
+    }
+
+    throw new Error(message);
+  }
+
+  const payload = (data ?? {}) as { text?: unknown; error?: string };
+  const text = typeof payload.text === 'string' ? payload.text.trim() : '';
+  if (!text) {
+    throw new Error(payload.error || 'Empty rewrite');
+  }
+
+  return text;
 }

@@ -35,16 +35,34 @@ export type BusinessSettings = Pick<
   | 'timezone'
   | 'slot_duration_minutes'
   | 'deposit_percent'
+  | 'agent_prompt'
+  | 'save_recordings'
+  | 'recordings_retention_days'
+  | 'is_active'
   | 'max_adv_booking_days'
   | 'working_hours'
   | 'vapi_assistant_id'
   | 'wa_instance_id'
 >;
 
-export type EditableBusinessSettings = Omit<
+export type EditableBusinessProfile = Pick<
   BusinessSettings,
-  'business_code' | 'working_hours' | 'max_adv_booking_days'
+  'business_name' | 'contact_phone' | 'email' | 'agent_phone_number'
 >;
+
+export type EditableBusinessConfig = Pick<
+  BusinessSettings,
+  | 'timezone'
+  | 'slot_duration_minutes'
+  | 'deposit_percent'
+  | 'agent_prompt'
+  | 'save_recordings'
+  | 'recordings_retention_days'
+  | 'is_active'
+>;
+
+export type EditableBusinessSettings = EditableBusinessProfile &
+  EditableBusinessConfig;
 
 export interface OperatingHoursUpdate {
   working_hours: BusinessSettings['working_hours'];

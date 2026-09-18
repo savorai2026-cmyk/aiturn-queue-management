@@ -1,4 +1,4 @@
-import { BUSINESS_FIELDS, SERVICE_FIELDS, STATUS_FIELDS } from '../../shared/displayFields/catalogs';
+import { BUSINESS_FIELDS, BUSINESS_CONFIG_FIELDS, SERVICE_FIELDS, STATUS_FIELDS } from '../../shared/displayFields/catalogs';
 import type { DetailRow } from '../../shared/displayFields/types';
 import {
   columnExactNumber,
@@ -211,6 +211,16 @@ export function normalizeDepositPercent(value: unknown): number | null {
   return Math.round(raw * 100) / 100;
 }
 
+export function normalizeRetentionDays(value: unknown): number | null {
+  if (value === '' || value == null) return 90;
+
+  const raw = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(raw)) return null;
+  const days = Math.round(raw);
+  if (days < 1 || days > 3650) return null;
+  return days;
+}
+
 export function formatBusinessField(
   business: BusinessSettings,
   key: string,
@@ -220,16 +230,38 @@ export function formatBusinessField(
     return `${percent.toLocaleString('he-IL', { maximumFractionDigits: 2 })}%`;
   }
 
+  if (key === 'save_recordings') {
+    return business.save_recordings ? 'שומרים הקלטות' : 'לא שומרים הקלטות';
+  }
+
+  if (key === 'is_active') {
+    return business.is_active === false ? 'לא פעיל' : 'פעיל';
+  }
+
+  if (key === 'recordings_retention_days') {
+    const days = normalizeRetentionDays(business.recordings_retention_days) ?? 90;
+    return `${days} ימים`;
+  }
+
   const value = business[key as keyof BusinessSettings];
   if (value == null || value === '') return '';
   return String(value);
 }
 
-export function toBusinessDetailRows(business: BusinessSettings): DetailRow[] {
-  return BUSINESS_FIELDS.map((field) => ({
+export function toBusinessDetailRows(
+  business: BusinessSettings,
+  fields = BUSINESS_FIELDS,
+): DetailRow[] {
+  return fields.map((field) => ({
     key: field.key,
     label: field.label,
     value: formatBusinessField(business, field.key),
     dir: field.dir,
   }));
+}
+
+export function toBusinessConfigDetailRows(
+  business: BusinessSettings,
+): DetailRow[] {
+  return toBusinessDetailRows(business, BUSINESS_CONFIG_FIELDS);
 }

@@ -165,8 +165,8 @@ export default function TimezoneSelect({
                 className={styles.search}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="חיפוש אזור זמן"
-                aria-label="חיפוש אזור זמן"
+                placeholder="חיפוש עיר"
+                aria-label="חיפוש עיר"
               />
             </div>
             <div id={listId} role="listbox" aria-labelledby={id} className={styles.list}>
@@ -181,7 +181,9 @@ export default function TimezoneSelect({
               </button>
               {visibleGroups.map((group) => (
                 <div key={group.id} className={styles.group}>
-                  <div className={styles.groupLabel}>{group.label}</div>
+                  {group.label ? (
+                    <div className={styles.groupLabel}>{group.label}</div>
+                  ) : null}
                   {group.options.map((option) => (
                     <button
                       key={option.value}

@@ -114,10 +114,6 @@
   box-shadow: none;
 }
 
-.passwordToggle:hover:not(:disabled) {
-  transform: translateY(calc(-50% - 2px));
-}
-
 .passwordToggle:active:not(:disabled) {
   transform: translateY(calc(-50% + 1px));
 }
@@ -175,6 +171,75 @@
 
 .modeSwitch button:hover:not(:disabled),
 .modeSwitch button:active:not(:disabled) {
+  box-shadow: none;
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.chosenEmail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: #f7fbfc;
+}
+
+.chosenEmailAddress {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-navy-900);
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.textButton,
+.forgotButton,
+.secondaryTextButton {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-navy-800);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.textButton {
+  flex-shrink: 0;
+  font-size: 13px;
+}
+
+.forgotButton,
+.secondaryTextButton {
+  justify-self: start;
+  font-size: 14px;
+}
+
+.secondaryTextButton {
+  width: 100%;
+  text-align: center;
+}
+
+.textButton:hover:not(:disabled),
+.forgotButton:hover:not(:disabled),
+.secondaryTextButton:hover:not(:disabled),
+.textButton:active:not(:disabled),
+.forgotButton:active:not(:disabled),
+.secondaryTextButton:active:not(:disabled) {
   box-shadow: none;
 }
 

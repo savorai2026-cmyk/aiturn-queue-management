@@ -3,12 +3,18 @@ import {
   filterTimezoneGroups,
   formatTimezoneLabel,
   getTimezoneGroups,
-  listIanaTimezones,
 } from './timezones';
 
 describe('timezones', () => {
-  it('includes Israel in the IANA catalog', () => {
-    expect(listIanaTimezones()).toContain('Asia/Jerusalem');
+  it('offers 24 hour zones with Jerusalem first', () => {
+    const groups = getTimezoneGroups(null, new Date('2026-01-15T12:00:00Z'));
+    const values = groups.flatMap((group) =>
+      group.options.map((option) => option.value),
+    );
+
+    expect(values).toHaveLength(24);
+    expect(values[0]).toBe('Asia/Jerusalem');
+    expect(new Set(values).size).toBe(24);
   });
 
   it('labels Jerusalem in Hebrew with an offset', () => {
@@ -17,35 +23,44 @@ describe('timezones', () => {
       new Date('2026-01-15T12:00:00Z'),
     );
 
-    expect(label).toContain('ישראל — ירושלים');
+    expect(label).toContain('ירושלים');
     expect(label).toMatch(/GMT[+-]\d/);
   });
 
-  it('pins Jerusalem at the top of the select list', () => {
+  it('keeps a major city for west, east, and Europe', () => {
     const groups = getTimezoneGroups(null, new Date('2026-01-15T12:00:00Z'));
-    const recommended = groups[0];
+    const values = groups.flatMap((group) =>
+      group.options.map((option) => option.value),
+    );
 
-    expect(recommended?.id).toBe('recommended');
-    expect(recommended?.options[0]?.value).toBe('Asia/Jerusalem');
+    expect(values).toContain('America/New_York');
+    expect(values).toContain('Europe/London');
+    expect(values).toContain('Asia/Tokyo');
+    expect(values).toContain('Pacific/Auckland');
+    expect(values).not.toContain('Asia/Hebron');
   });
 
   it('keeps an unknown saved timezone selectable', () => {
-    const groups = getTimezoneGroups('Custom/Zone', new Date('2026-01-15T12:00:00Z'));
-    const values = groups.flatMap((group) => group.options.map((option) => option.value));
+    const groups = getTimezoneGroups(
+      'Custom/Zone',
+      new Date('2026-01-15T12:00:00Z'),
+    );
+    const values = groups.flatMap((group) =>
+      group.options.map((option) => option.value),
+    );
 
     expect(values).toContain('Custom/Zone');
-    expect(groups[0]?.options[0]).toEqual({
-      value: 'Custom/Zone',
-      label: 'Custom/Zone (ערך קיים)',
-    });
+    expect(groups[0]?.options[0]?.value).toBe('Custom/Zone');
+    expect(groups[0]?.options[0]?.label).toContain('ערך קיים');
   });
 
-  it('filters groups by Hebrew region name without dropping matching zones', () => {
+  it('filters by Hebrew city name', () => {
     const groups = getTimezoneGroups(null, new Date('2026-01-15T12:00:00Z'));
-    const australia = filterTimezoneGroups(groups, 'אוסטרליה');
+    const sydney = filterTimezoneGroups(groups, 'סידני');
 
-    expect(australia).toHaveLength(1);
-    expect(australia[0]?.id).toBe('Australia');
-    expect(australia[0]?.options.length).toBeGreaterThan(0);
+    expect(sydney).toHaveLength(1);
+    expect(sydney[0]?.options.map((option) => option.value)).toEqual([
+      'Australia/Sydney',
+    ]);
   });
 });

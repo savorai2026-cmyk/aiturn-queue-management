@@ -150,8 +150,26 @@ export default function SavePaymentMethodModal({
     mode === 'gate' ? 'שמירת אמצעי תשלום' : 'עדכון אמצעי תשלום';
   const last4 = formatCardLast4(paymentMethod?.last4 ?? null);
 
+  const dismiss = () => {
+    if (flow === 'starting' || flow === 'waiting') {
+      return;
+    }
+    if (mode === 'gate' && onPostpone) {
+      onPostpone();
+      return;
+    }
+    onClose?.();
+  };
+
   return (
-    <div className={`${modal.overlay} ${styles.overlay}`}>
+    <div
+      className={`${modal.overlay} ${styles.overlay}`}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          dismiss();
+        }
+      }}
+    >
       <section
         className={`${modal.content} ${styles.content}`}
         role="dialog"

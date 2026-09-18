@@ -3,6 +3,7 @@ import {
   formatAppointmentField,
   toAppointmentDetailRows,
   toAppointmentEditValues,
+  areAppointmentEditsEqual,
 } from '../appointments.mappers';
 import { formatTimeHm } from '../time';
 import {
@@ -64,6 +65,14 @@ export const SidePanel = ({
     );
   }, [formData]);
 
+  const baseline = useMemo(
+    () => (appointment ? toAppointmentEditValues(appointment) : null),
+    [appointment],
+  );
+  const hasChanges = Boolean(
+    formData && baseline && !areAppointmentEditsEqual(baseline, formData),
+  );
+
   if (!appointment || !formData) {
     return (
       <div className={`${styles.container} ${styles.emptyState}`}>
@@ -73,6 +82,10 @@ export const SidePanel = ({
   }
 
   const handleSave = async () => {
+    if (!hasChanges || isBusy) {
+      return;
+    }
+
     setErrorMessage('');
 
     if (formData.end_time <= formData.start_time) {
@@ -121,8 +134,8 @@ export const SidePanel = ({
             className={styles.iconButton}
             onClick={() => void handleSave()}
             aria-label="שמירת שינויים"
-            title="שמירה"
-            disabled={isBusy}
+            title={hasChanges ? 'שמירה' : 'אין שינויים לשמירה'}
+            disabled={isBusy || !hasChanges}
           >
             <SaveIcon />
           </button>

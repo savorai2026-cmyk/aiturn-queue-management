@@ -82,6 +82,10 @@
   min-width: 0;
 }
 
+.fullWidth {
+  grid-column: 1 / -1;
+}
+
 .formGroup label {
   font-size: 13px;
   font-weight: 500;
@@ -114,46 +118,162 @@
   border-color: var(--color-teal-600);
 }
 
-.depositSection {
-  display: grid;
-  gap: 10px;
-  max-width: 800px;
-  margin-top: 22px;
+.textarea {
+  min-height: 140px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: #ffffff;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
 }
 
-.depositHeading {
+.textarea:focus {
+  border-color: var(--color-teal-600);
+}
+
+.settingsStack {
+  display: grid;
+  gap: 14px;
+  max-width: 840px;
+}
+
+.settingsGroup {
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: #fbfdfd;
+}
+
+.settingsGroupHeader {
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--color-line);
+  background: #ffffff;
+}
+
+.settingsGroupHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settingsGroupHeader h3 {
   margin: 0;
   color: var(--color-navy-900);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-.depositSentence {
+.settingsGroupHeader p {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.settingsRows {
+  display: grid;
+}
+
+.settingsRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(168px, 280px);
+  gap: 12px 24px;
+  align-items: center;
+  padding: 14px 16px;
+  border-top: 1px solid rgba(7, 63, 103, 0.08);
+}
+
+.settingsRow:first-child {
+  border-top: 0;
+}
+
+.settingsRowStacked {
+  grid-template-columns: 1fr;
+  align-items: stretch;
+}
+
+.settingsCopy {
+  min-width: 0;
+}
+
+.settingsHint {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.settingsControl {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
-  color: var(--color-text);
-  font-size: 15px;
-  font-weight: 500;
+  min-width: 0;
 }
 
-.depositInput {
-  width: 88px;
+.settingsControlFill,
+.settingsRowStacked .settingsControl {
+  justify-content: stretch;
+}
+
+.settingsControlFill > *,
+.settingsRowStacked .settingsControl > * {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.compactInput {
+  width: 96px;
+  flex: 0 0 96px;
   padding: 8px 12px;
   border: 1px solid var(--color-line);
   border-radius: 7px;
+  background: #ffffff;
+  color: var(--color-text);
   font: inherit;
   font-size: 14px;
-  color: var(--color-text);
-  background: #ffffff;
   text-align: center;
+  outline: none;
 }
 
-.depositInput:focus {
-  outline: none;
+.compactInput:focus {
   border-color: var(--color-teal-600);
   box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
+}
+
+.compactInput:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.controlSuffix {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-teal-600);
 }
 
 .success,
@@ -195,6 +315,29 @@
 }
 
 .btnPrimary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.aiButton {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: #ffffff;
+  color: var(--color-navy-800);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.aiButton:hover:not(:disabled) {
+  background: #f4f8f9;
+}
+
+.aiButton:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
@@ -287,6 +430,14 @@
 @media (max-width: 700px) {
   .formGrid {
     grid-template-columns: 1fr;
+  }
+
+  .settingsRow {
+    grid-template-columns: 1fr;
+  }
+
+  .settingsControl {
+    justify-content: flex-start;
   }
 
   .contentCard {

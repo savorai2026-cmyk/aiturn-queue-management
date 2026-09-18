@@ -1,5 +1,14 @@
+.calendarShell {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+
 .calendarContainer {
+  flex: 1;
   height: auto;
+  min-width: 0;
   min-height: 0;
   position: relative;
 }
@@ -17,6 +26,7 @@
 .dragTooltip {
   position: fixed;
   z-index: 40;
+  display: none;
   padding: 4px 8px;
   border-radius: 6px;
   background: var(--color-navy-900);
@@ -25,6 +35,69 @@
   font-weight: 700;
   pointer-events: none;
   box-shadow: var(--shadow-floating);
+}
+
+.dragGhost {
+  position: fixed;
+  z-index: 41;
+  display: none;
+  max-width: 220px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--color-navy-800);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  pointer-events: none;
+  box-shadow: var(--shadow-floating);
+}
+
+.dragEdge {
+  flex: 0 0 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 3.35em;
+  border-radius: 10px;
+  background: transparent;
+  color: #9bb0bd;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.16s ease,
+    background-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.isDragging .dragEdge,
+:global(body.featurn-is-event-dragging) .dragEdge {
+  opacity: 1;
+  pointer-events: auto;
+  background: rgba(155, 176, 189, 0.18);
+}
+
+.isDragging .dragEdgeDisabled,
+:global(body.featurn-is-event-dragging) .dragEdgeDisabled,
+.dragEdgeDisabled {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  background: transparent !important;
+}
+
+.dragEdgeIcon {
+  width: 20px;
+  height: 72px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dragNavHot {
+  background: rgba(155, 176, 189, 0.4) !important;
+  color: #607482;
 }
 
 .blockingOverlay {
@@ -69,6 +142,10 @@
   margin-bottom: 1.2em;
 }
 
+:global(.fc-theme-standard a) {
+  text-decoration: none !important;
+}
+
 :global(.fc-theme-standard td),
 :global(.fc-theme-standard th) {
   border-color: var(--color-line);
@@ -104,8 +181,19 @@
 :global(.fc .fc-col-header-cell-cushion) {
   padding: 8px 5px;
   color: inherit;
-  text-decoration: none;
   cursor: pointer;
+}
+
+:global(.fc .fc-col-header-cell-cushion),
+:global(.fc a.fc-col-header-cell-cushion),
+:global(.fc a.fc-col-header-cell-cushion:link),
+:global(.fc a.fc-col-header-cell-cushion:visited),
+:global(.fc a.fc-col-header-cell-cushion:hover),
+:global(.fc a.fc-col-header-cell-cushion:focus),
+:global(.fc a.fc-col-header-cell-cushion:active),
+:global(.fc .fc-col-header-cell-cushion *) {
+  text-decoration: none !important;
+  border-bottom: 0 !important;
 }
 
 :global(.fc .fc-col-header-cell.fc-day-today) {
@@ -255,7 +343,6 @@
 
 :global(.fc .fc-button-primary:not(:disabled):hover) {
   background-color: var(--color-navy-900);
-  transform: translateY(-2px);
   box-shadow: var(--shadow-button-hover) !important;
 }
 
@@ -267,9 +354,16 @@
 }
 
 :global(.fc .fc-button-primary:disabled) {
-  background-color: #7f9aac;
+  background-color: #9bb0bd;
+  color: rgba(255, 255, 255, 0.78);
   transform: none;
   box-shadow: none;
+  opacity: 1;
+}
+
+:global(.fc .fc-goTodayBtn-button:disabled) {
+  background-color: #9bb0bd !important;
+  color: rgba(255, 255, 255, 0.78) !important;
 }
 
 :global(.fc .fc-button-primary:not(:disabled).fc-button-active),
@@ -329,12 +423,6 @@
   white-space: nowrap;
 }
 
-:global(.fc .fc-today-button:disabled) {
-  background-color: #d8f3ef !important;
-  color: var(--color-navy-900) !important;
-  opacity: 1;
-}
-
 :global(.fc .fc-daygrid-day.fc-day-today) {
   background-color: rgba(217, 119, 6, 0.12) !important;
 }
@@ -392,10 +480,13 @@
   gap: 3px;
   min-width: 0;
   white-space: normal;
+  text-decoration: none;
 }
 
 .specialNote,
-.monthNote {
+.holidayNote,
+.monthNote,
+.monthHoliday {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -403,6 +494,7 @@
   font-weight: 700;
   line-height: 1.3;
   white-space: nowrap;
+  text-decoration: none !important;
 }
 
 .specialNote {
@@ -412,10 +504,71 @@
   color: #ecfdf8;
 }
 
+.holidayNote {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #fde68a;
+  color: #92400e;
+}
+
+.monthCell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+}
+
+.monthCellTop {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+  direction: ltr;
+}
+
+.monthDayNum {
+  flex: 0 0 auto;
+  min-width: 1.5em;
+  color: var(--color-navy-900);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: left;
+  text-decoration: none;
+}
+
 :global(.fc .fc-col-header-cell.fc-day-today) .specialNote,
 :global(.fc .fc-col-header-cell.is-selected-day) .specialNote {
   background: rgba(7, 63, 103, 0.1);
   color: var(--color-navy-900);
+}
+
+:global(.fc .fc-col-header-cell.fc-day-today) .holidayNote,
+:global(.fc .fc-col-header-cell.is-selected-day) .holidayNote {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.monthHoliday {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 0;
+  background: transparent;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none !important;
+  white-space: nowrap;
+  direction: rtl;
 }
 
 .monthNote {
@@ -428,13 +581,37 @@
   white-space: normal;
 }
 
+:global(.fc .fc-daygrid-day-top) {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+}
+
+:global(.fc .fc-dayGridMonth-view .fc-daygrid-day-number),
+:global(.fc .fc-daygrid-month-view .fc-daygrid-day-number) {
+  float: none !important;
+  display: block;
+  width: 100%;
+  padding: 4px 6px 0;
+  text-align: left;
+}
+
 :global(.fc .fc-timegrid-slot-label-cushion),
-:global(.fc .fc-daygrid-day-number) {
-  color: var(--color-text-muted);
-  text-decoration: none;
+:global(.fc .fc-daygrid-day-number),
+:global(.fc a.fc-daygrid-day-number),
+:global(.fc .fc-daygrid-day-number:hover),
+:global(.fc .fc-daygrid-day-number:focus),
+:global(.fc .fc-daygrid-day-number:active) {
+  color: var(--color-navy-800);
+  text-decoration: none !important;
 }
 
 @media (max-width: 767px) {
+  .dragEdge {
+    flex-basis: 28px;
+    margin-top: 7.4em;
+  }
+
   :global(.fc .fc-toolbar) {
     align-items: stretch;
     flex-direction: column;

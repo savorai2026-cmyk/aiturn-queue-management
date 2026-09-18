@@ -11,6 +11,7 @@ interface ColumnTableHeadProps {
   onSort: (key: string) => void;
   onFilter: (key: string, value: string) => void;
   selectOptions?: Record<string, Array<{ value: string; label: string }>>;
+  showFilters?: boolean;
 }
 
 export default function ColumnTableHead({
@@ -20,6 +21,7 @@ export default function ColumnTableHead({
   onSort,
   onFilter,
   selectOptions,
+  showFilters = false,
 }: ColumnTableHeadProps) {
   return (
     <thead>
@@ -53,45 +55,47 @@ export default function ColumnTableHead({
           );
         })}
       </tr>
-      <tr className={styles.filterRow}>
-        <th>
-          <span className={styles.srOnly}>סינון</span>
-        </th>
-        {columns.map((column) => {
-          const options = selectOptions?.[column.key];
+      {showFilters ? (
+        <tr className={styles.filterRow}>
+          <th>
+            <span className={styles.srOnly}>סינון</span>
+          </th>
+          {columns.map((column) => {
+            const options = selectOptions?.[column.key];
 
-          return (
-            <th key={`${column.key}-filter`}>
-              {options ? (
-                <select
-                  className={styles.filterSelect}
-                  value={filters[column.key] ?? ''}
-                  aria-label={`סינון לפי ${column.label}`}
-                  onChange={(event) => onFilter(column.key, event.target.value)}
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <option value="">הכל</option>
-                  {options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type="search"
-                  className={styles.filterInput}
-                  value={filters[column.key] ?? ''}
-                  placeholder="סינון"
-                  aria-label={`סינון לפי ${column.label}`}
-                  onChange={(event) => onFilter(column.key, event.target.value)}
-                  onClick={(event) => event.stopPropagation()}
-                />
-              )}
-            </th>
-          );
-        })}
-      </tr>
+            return (
+              <th key={`${column.key}-filter`}>
+                {options ? (
+                  <select
+                    className={styles.filterSelect}
+                    value={filters[column.key] ?? ''}
+                    aria-label={`סינון לפי ${column.label}`}
+                    onChange={(event) => onFilter(column.key, event.target.value)}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <option value="">הכל</option>
+                    {options.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="search"
+                    className={styles.filterInput}
+                    value={filters[column.key] ?? ''}
+                    placeholder="סינון"
+                    aria-label={`סינון לפי ${column.label}`}
+                    onChange={(event) => onFilter(column.key, event.target.value)}
+                    onClick={(event) => event.stopPropagation()}
+                  />
+                )}
+              </th>
+            );
+          })}
+        </tr>
+      ) : null}
     </thead>
   );
 }

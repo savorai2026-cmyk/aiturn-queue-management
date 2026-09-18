@@ -41,6 +41,18 @@ interface BillingStartBody {
   error?: string;
 }
 
+function isMissingRelationError(error: { code?: string; message?: string } | null) {
+  if (!error) {
+    return false;
+  }
+
+  return (
+    error.code === 'PGRST205' ||
+    error.code === '42P01' ||
+    /could not find the table/i.test(error.message ?? '')
+  );
+}
+
 function toPaymentMethodSummary(row: PaymentMethodRow): PaymentMethodSummary {
   return {
     id: row.id,
@@ -78,6 +90,9 @@ export async function getActivePaymentMethod(
     .limit(1);
 
   if (error) {
+    if (isMissingRelationError(error)) {
+      return null;
+    }
     throw new Error(error.message);
   }
 

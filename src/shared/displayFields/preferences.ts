@@ -34,6 +34,9 @@ export function parseUiPreferences(value: Json | null | undefined): UiPreference
       : {}),
     ...(asScope(value.services) ? { services: asScope(value.services) } : {}),
     ...(asScope(value.business) ? { business: asScope(value.business) } : {}),
+    ...(asScope(value.businessConfig)
+      ? { businessConfig: asScope(value.businessConfig) }
+      : {}),
     ...(asScope(value.statuses) ? { statuses: asScope(value.statuses) } : {}),
   };
 }
@@ -96,6 +99,7 @@ export function hasStoredUiPreferences(preferences: UiPreferences): boolean {
       preferences.appointments ||
       preferences.services ||
       preferences.business ||
+      preferences.businessConfig ||
       preferences.statuses,
   );
 }

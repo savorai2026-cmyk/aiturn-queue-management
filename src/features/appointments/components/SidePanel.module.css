@@ -1,7 +1,10 @@
 .container {
   border: 1px solid var(--color-line);
   background-color: var(--color-surface);
-  height: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: calc(100dvh - 96px);
+  flex: 1;
   display: flex;
   flex-direction: column;
   border-radius: var(--radius-card);
@@ -22,12 +25,22 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   font-weight: 600;
   font-size: 16px;
+  flex-shrink: 0;
+}
+
+.header > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .headerActions {
   display: flex;
+  flex: 0 0 auto;
   gap: 6px;
 }
 
@@ -48,10 +61,17 @@
 }
 
 .iconButton:disabled {
-  opacity: 0.55;
+  background: #9bb0bd;
+  border-color: #9bb0bd;
+  color: rgba(255, 255, 255, 0.78);
+  opacity: 1;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+.iconButton:disabled:hover {
+  background: #9bb0bd;
 }
 
 .content {

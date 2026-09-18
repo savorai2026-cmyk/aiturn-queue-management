@@ -303,6 +303,33 @@ export function toAppointmentEditValues(
   };
 }
 
+export function areAppointmentEditsEqual(
+  left: AppointmentEditValues,
+  right: AppointmentEditValues,
+): boolean {
+  return (
+    serializeAppointmentEdits(left) === serializeAppointmentEdits(right)
+  );
+}
+
+function serializeAppointmentEdits(values: AppointmentEditValues): string {
+  return JSON.stringify({
+    appointment_date: values.appointment_date,
+    start_time: formatTimeHm(values.start_time),
+    end_time: formatTimeHm(values.end_time),
+    status: values.status,
+    price: toSafePrice(values.price),
+    client_notes: values.client_notes,
+    business_notes: values.business_notes,
+    servicePrices: [...values.servicePrices]
+      .map((item) => ({
+        serviceId: item.serviceId,
+        price: toSafePrice(item.price),
+      }))
+      .sort((left, right) => left.serviceId - right.serviceId),
+  });
+}
+
 export function toAppointmentUpdate(
   values: AppointmentEditValues,
 ): AppointmentUpdate {

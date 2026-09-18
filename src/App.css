@@ -75,7 +75,6 @@ button:focus-visible {
 }
 
 button:not(:disabled):hover {
-  transform: translateY(-2px);
   box-shadow: var(--shadow-button-hover);
 }
 
@@ -228,8 +227,10 @@ textarea:focus-visible {
 }
 
 .calendar-area {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
+  isolation: isolate;
+  z-index: 0;
   display: flex;
   flex-direction: column;
   background-color: var(--color-surface);
@@ -253,6 +254,9 @@ textarea:focus-visible {
 
 .layout-container.is-page-flow .side-panel-wrapper {
   align-self: flex-start;
+  position: sticky;
+  top: 16px;
+  max-height: calc(100dvh - 96px);
 }
 
 .calendar-stage {
@@ -335,8 +339,13 @@ textarea:focus-visible {
 .side-panel-wrapper {
   width: 320px;
   flex: 0 0 320px;
+  max-width: 320px;
+  min-width: 280px;
+  min-height: 0;
+  max-height: calc(100dvh - 96px);
   display: flex;
   flex-direction: column;
+  z-index: 3;
 }
 
 .coming-soon {
@@ -372,7 +381,11 @@ textarea:focus-visible {
   .side-panel-wrapper {
     width: 100%;
     flex-basis: auto;
+    max-width: none;
+    min-width: 0;
     min-height: 280px;
+    max-height: none;
+    position: static;
   }
 }
 

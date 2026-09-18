@@ -1,21 +1,24 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
-import { deleteService, deleteStatus, updateBusinessSettings } from '../settings.api';
-import { getErrorMessage } from '../../../shared/errors';
+import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from 'react';
+import { deleteService, deleteStatus, rewriteAgentPrompt, updateBusinessSettings } from '../settings.api';
+import { getAgentPromptRewriteErrorMessage, getErrorMessage } from '../../../shared/errors';
 import {
   formatServiceCell,
   formatStatusCell,
   filterAndSortServices,
   filterAndSortStatuses,
   normalizeDepositPercent,
+  normalizeRetentionDays,
   parseDepositPercent,
   toBusinessDetailRows,
+  toBusinessConfigDetailRows,
   toServiceDetailRows,
   toStatusDetailRows,
 } from '../settings.mappers';
 import type {
   AppointmentStatusRow,
   BusinessSettings,
-  EditableBusinessSettings,
+  EditableBusinessConfig,
+  EditableBusinessProfile,
   Service,
 } from '../settings.types';
 import { useSettings } from '../useSettings';
@@ -29,6 +32,7 @@ import {
 import DisplayToolbar from '../../../shared/displayFields/DisplayToolbar';
 import RecordDetailsModal from '../../../shared/displayFields/RecordDetailsModal';
 import {
+  BUSINESS_CONFIG_FIELDS,
   BUSINESS_FIELDS,
   SERVICE_FIELDS,
   STATUS_FIELDS,
@@ -53,14 +57,22 @@ import { getTimezoneGroups } from '../timezones';
 import AddServiceModal from './AddServiceModal';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
 import OperatingHoursForm from './OperatingHoursForm';
+import RewriteAgentPromptModal from './RewriteAgentPromptModal';
 import StatusModal from './StatusModal';
 import TimezoneSelect from './TimezoneSelect';
 import styles from './Settings.module.css';
 
-type SettingsTab = 'business' | 'hours' | 'services' | 'statuses' | 'payment';
+type SettingsTab =
+  | 'business'
+  | 'config'
+  | 'hours'
+  | 'services'
+  | 'statuses'
+  | 'payment';
 
 const SETTINGS_TABS: SettingsTab[] = [
   'business',
+  'config',
   'hours',
   'services',
   'statuses',
@@ -137,6 +149,13 @@ export default function Settings({
         </button>
         <span className={styles.tabDivider} aria-hidden="true" />
         <button
+          className={`${styles.tabBtn} ${activeTab === 'config' ? styles.activeTab : ''}`}
+          onClick={() => setActiveTab('config')}
+        >
+          הגדרות העסק
+        </button>
+        <span className={styles.tabDivider} aria-hidden="true" />
+        <button
           className={`${styles.tabBtn} ${activeTab === 'hours' ? styles.activeTab : ''}`}
           onClick={() => setActiveTab('hours')}
         >
@@ -167,11 +186,19 @@ export default function Settings({
 
       <div className={styles.contentCard}>
         {activeTab === 'business' ? (
-          <BusinessSettingsForm
+          <BusinessProfileForm
             key={business.business_code}
             business={business}
             visibleFields={visibleFieldsFor('business')}
             onToggleField={(key) => toggleField('business', key)}
+            onSaved={onBusinessUpdated}
+          />
+        ) : activeTab === 'config' ? (
+          <BusinessConfigForm
+            key={`${business.business_code}-config`}
+            business={business}
+            visibleFields={visibleFieldsFor('businessConfig')}
+            onToggleField={(key) => toggleField('businessConfig', key)}
             onSaved={onBusinessUpdated}
           />
         ) : activeTab === 'hours' ? (
@@ -214,23 +241,33 @@ export default function Settings({
   );
 }
 
-function toEditableSettings(
+function toEditableProfile(
   business: BusinessSettings,
-): EditableBusinessSettings {
+): EditableBusinessProfile {
   return {
     business_name: business.business_name,
     contact_phone: business.contact_phone,
     email: business.email,
     agent_phone_number: business.agent_phone_number,
-    timezone: business.timezone,
-    slot_duration_minutes: business.slot_duration_minutes,
-    deposit_percent: parseDepositPercent(business.deposit_percent),
-    vapi_assistant_id: business.vapi_assistant_id,
-    wa_instance_id: business.wa_instance_id,
   };
 }
 
-function BusinessSettingsForm({
+function toEditableConfig(
+  business: BusinessSettings,
+): EditableBusinessConfig {
+  return {
+    timezone: business.timezone,
+    slot_duration_minutes: business.slot_duration_minutes,
+    deposit_percent: parseDepositPercent(business.deposit_percent),
+    agent_prompt: business.agent_prompt,
+    save_recordings: business.save_recordings !== false,
+    recordings_retention_days:
+      normalizeRetentionDays(business.recordings_retention_days) ?? 90,
+    is_active: business.is_active !== false,
+  };
+}
+
+function BusinessProfileForm({
   business,
   visibleFields,
   onToggleField,
@@ -241,9 +278,7 @@ function BusinessSettingsForm({
   onToggleField: (key: string) => void;
   onSaved: () => Promise<void>;
 }) {
-  const [formData, setFormData] = useState(() =>
-    toEditableSettings(business),
-  );
+  const [formData, setFormData] = useState(() => toEditableProfile(business));
   const [isSaving, setIsSaving] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [message, setMessage] = useState<{
@@ -252,23 +287,15 @@ function BusinessSettingsForm({
   } | null>(null);
 
   const isVisible = (key: string) => visibleFields.includes(key);
-  const timezoneGroups = useMemo(
-    () => getTimezoneGroups(formData.timezone),
-    [formData.timezone],
-  );
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const field = event.target.name as keyof EditableBusinessSettings;
-    const { value, type } = event.target;
-
+    const field = event.target.name as keyof EditableBusinessProfile;
     setFormData((previous) => ({
       ...previous,
       [field]:
-        type === 'number'
-          ? value === ''
-            ? null
-            : Number(value)
-          : value || null,
+        field === 'business_name'
+          ? event.target.value
+          : event.target.value || null,
     }));
   };
 
@@ -277,32 +304,19 @@ function BusinessSettingsForm({
     setMessage(null);
 
     try {
-      const depositPercent = normalizeDepositPercent(formData.deposit_percent);
-      if (depositPercent == null) {
-        setMessage({
-          text: 'אחוז המקדמה חייב להיות מספר בין 0 ל-100.',
-          type: 'error',
-        });
-        return;
-      }
-
       await updateBusinessSettings(business.business_code, {
         ...formData,
-        deposit_percent: depositPercent,
+        business_name: formData.business_name.trim(),
       });
-      setFormData((previous) => ({
-        ...previous,
-        deposit_percent: depositPercent,
-      }));
       await onSaved();
       setMessage({
         text: 'הנתונים נשמרו בהצלחה.',
         type: 'success',
       });
     } catch (error) {
-      console.error('שגיאה בשמירת הגדרות:', error);
+      console.error('שגיאה בשמירת פרטי עסק:', error);
       setMessage({
-        text: 'לא ניתן לשמור את ההגדרות.',
+        text: 'לא ניתן לשמור את פרטי העסק.',
         type: 'error',
       });
     } finally {
@@ -372,73 +386,437 @@ function BusinessSettingsForm({
             />
           </div>
         )}
-        {isVisible('timezone') && (
-          <div className={styles.formGroup}>
-            <div className={styles.labelRow}>
-              <label htmlFor="business-timezone">אזור זמן</label>
-              <HelpTip text="אזור הזמן של העסק. לפי זה מחושבות שעות היומן." />
-            </div>
-            <TimezoneSelect
-              id="business-timezone"
-              value={formData.timezone || ''}
-              groups={timezoneGroups}
-              onChange={(timezone) =>
-                setFormData((previous) => ({
-                  ...previous,
-                  timezone: timezone || null,
-                }))
-              }
-            />
-          </div>
-        )}
-        {isVisible('slot_duration_minutes') && (
-          <div className={styles.formGroup}>
-            <div className={styles.labelRow}>
-              <label htmlFor="business-slot-duration">משך משבצת (דקות)</label>
-              <HelpTip text="גודל משבצת הזמן ביומן. לדוגמה 15 או 30 דקות. זה לא משך הטיפול עצמו." />
-            </div>
-            <input
-              id="business-slot-duration"
-              type="number"
-              name="slot_duration_minutes"
-              value={formData.slot_duration_minutes ?? ''}
-              onChange={handleChange}
-              className={styles.input}
-              min="1"
-            />
-          </div>
-        )}
       </div>
 
-      <section className={styles.depositSection}>
-        <div className={styles.labelRow}>
-          <h3 className={styles.depositHeading}>אחוז מקדמה</h3>
-          <HelpTip text="חל רק על לקוחות שדרישת התשלום שלהם היא מקדמה. הסכום הוא אחוז ממחיר התור. 0 משמעו בלי גבייה. תשלום מלא בכרטיס הלקוח תמיד גובה 100%." />
+      {message && (
+        <p className={styles[message.type]} role="status">
+          {message.text}
+        </p>
+      )}
+
+      <button
+        type="button"
+        className={styles.btnPrimary}
+        onClick={() => void handleSave()}
+        disabled={isSaving}
+      >
+        {isSaving ? 'שומר...' : (
+          <>
+            <SaveIcon />
+            שמור פרטי עסק
+          </>
+        )}
+      </button>
+
+      {isDetailsOpen && (
+        <RecordDetailsModal
+          title={`פרטי העסק · ${business.business_name}`}
+          rows={toBusinessDetailRows({ ...business, ...formData })}
+          onClose={() => setIsDetailsOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function SettingsStack({ children }: { children: ReactNode }) {
+  return <div className={styles.settingsStack}>{children}</div>;
+}
+
+function SettingsGroup({
+  title,
+  description,
+  action,
+  children,
+}: {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className={styles.settingsGroup}>
+      <header className={styles.settingsGroupHeader}>
+        <div className={styles.settingsGroupHeading}>
+          <h3>{title}</h3>
+          {action}
         </div>
-        <label className={styles.depositSentence} htmlFor="business-deposit-percent">
-          <span>מקדמה לקביעת תור היא</span>
-          <input
-            id="business-deposit-percent"
-            type="number"
-            name="deposit_percent"
-            min="0"
-            max="100"
-            step="0.01"
-            dir="ltr"
-            value={Number.isFinite(formData.deposit_percent) ? formData.deposit_percent : ''}
-            onChange={(event) => {
-              const { value } = event.target;
-              setFormData((previous) => ({
-                ...previous,
-                deposit_percent: value === '' ? 0 : Number(value),
-              }));
-            }}
-            className={styles.depositInput}
-            aria-label="אחוז מקדמה ממחיר התור"
-          />
-          <span>% ממחיר התור</span>
-        </label>
-      </section>
+        {description ? <p>{description}</p> : null}
+      </header>
+      <div className={styles.settingsRows}>{children}</div>
+    </section>
+  );
+}
+
+function SettingsRow({
+  label,
+  htmlFor,
+  help,
+  hint,
+  stacked = false,
+  fill = false,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  help?: string;
+  hint?: string;
+  stacked?: boolean;
+  fill?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={`${styles.settingsRow} ${stacked ? styles.settingsRowStacked : ''}`}
+    >
+      <div className={styles.settingsCopy}>
+        <div className={styles.labelRow}>
+          <label htmlFor={htmlFor}>{label}</label>
+          {help ? <HelpTip text={help} /> : null}
+        </div>
+        {hint ? <p className={styles.settingsHint}>{hint}</p> : null}
+      </div>
+      <div
+        className={`${styles.settingsControl} ${fill ? styles.settingsControlFill : ''}`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function BusinessConfigForm({
+  business,
+  visibleFields,
+  onToggleField,
+  onSaved,
+}: {
+  business: BusinessSettings;
+  visibleFields: string[];
+  onToggleField: (key: string) => void;
+  onSaved: () => Promise<void>;
+}) {
+  const [formData, setFormData] = useState(() => toEditableConfig(business));
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [rewriteOpen, setRewriteOpen] = useState(false);
+  const [rewriteText, setRewriteText] = useState('');
+  const [isRewriting, setIsRewriting] = useState(false);
+  const [rewriteError, setRewriteError] = useState('');
+  const [message, setMessage] = useState<{
+    text: string;
+    type: 'success' | 'error';
+  } | null>(null);
+
+  const isVisible = (key: string) => visibleFields.includes(key);
+  const timezoneGroups = useMemo(
+    () => getTimezoneGroups(formData.timezone),
+    [formData.timezone],
+  );
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setMessage(null);
+
+    try {
+      const depositPercent = normalizeDepositPercent(formData.deposit_percent);
+      if (depositPercent == null) {
+        setMessage({
+          text: 'אחוז המקדמה חייב להיות מספר בין 0 ל-100.',
+          type: 'error',
+        });
+        return;
+      }
+
+      const retentionDays = normalizeRetentionDays(
+        formData.recordings_retention_days,
+      );
+      if (retentionDays == null) {
+        setMessage({
+          text: 'ימי שמירת ההקלטות חייבים להיות מספר שלם בין 1 ל-3650.',
+          type: 'error',
+        });
+        return;
+      }
+
+      await updateBusinessSettings(business.business_code, {
+        timezone: formData.timezone,
+        slot_duration_minutes: formData.slot_duration_minutes,
+        deposit_percent: depositPercent,
+        agent_prompt: formData.agent_prompt?.trim() || null,
+        save_recordings: formData.save_recordings,
+        recordings_retention_days: retentionDays,
+        is_active: formData.is_active,
+      });
+      setFormData((previous) => ({
+        ...previous,
+        deposit_percent: depositPercent,
+        agent_prompt: formData.agent_prompt?.trim() || null,
+        recordings_retention_days: retentionDays,
+      }));
+      await onSaved();
+      setMessage({
+        text: 'ההגדרות נשמרו בהצלחה.',
+        type: 'success',
+      });
+    } catch (error) {
+      console.error('שגיאה בשמירת הגדרות עסק:', error);
+      setMessage({
+        text: 'לא ניתן לשמור את ההגדרות.',
+        type: 'error',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRewrite = async () => {
+    const draft = formData.agent_prompt?.trim() || '';
+    if (!draft || isRewriting) {
+      return;
+    }
+
+    setRewriteOpen(true);
+    setRewriteText('');
+    setRewriteError('');
+    setIsRewriting(true);
+
+    try {
+      const text = await rewriteAgentPrompt(business.business_code, draft);
+      setRewriteText(text);
+    } catch (error) {
+      setRewriteError(getAgentPromptRewriteErrorMessage(error));
+    } finally {
+      setIsRewriting(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className={styles.sectionToolbar}>
+        <DisplayToolbar
+          fields={BUSINESS_CONFIG_FIELDS}
+          visibleKeys={visibleFields}
+          onToggle={onToggleField}
+          onViewDetails={() => setIsDetailsOpen(true)}
+          canViewDetails
+        />
+      </div>
+
+      <SettingsStack>
+        {(isVisible('timezone') || isVisible('slot_duration_minutes')) && (
+          <SettingsGroup
+            title="יומן"
+            description="איך היומן מחשב שעות ומשבצות זמן."
+          >
+            {isVisible('timezone') && (
+              <SettingsRow
+                label="אזור זמן"
+                htmlFor="business-timezone"
+                help="אזור הזמן של העסק. לפי זה מחושבות שעות היומן."
+                stacked
+              >
+                <TimezoneSelect
+                  id="business-timezone"
+                  value={formData.timezone || ''}
+                  groups={timezoneGroups}
+                  onChange={(timezone) =>
+                    setFormData((previous) => ({
+                      ...previous,
+                      timezone: timezone || null,
+                    }))
+                  }
+                />
+              </SettingsRow>
+            )}
+            {isVisible('slot_duration_minutes') && (
+              <SettingsRow
+                label="משך משבצת"
+                htmlFor="business-slot-duration"
+                help="גודל משבצת הזמן ביומן. לדוגמה 15 או 30 דקות. זה לא משך הטיפול עצמו."
+              >
+                <input
+                  id="business-slot-duration"
+                  type="number"
+                  name="slot_duration_minutes"
+                  value={formData.slot_duration_minutes ?? ''}
+                  onChange={(event) => {
+                    const { value } = event.target;
+                    setFormData((previous) => ({
+                      ...previous,
+                      slot_duration_minutes: value === '' ? null : Number(value),
+                    }));
+                  }}
+                  className={styles.compactInput}
+                  min="1"
+                  aria-label="משך משבצת בדקות"
+                />
+                <span className={styles.controlSuffix}>דקות</span>
+              </SettingsRow>
+            )}
+          </SettingsGroup>
+        )}
+
+        {isVisible('agent_prompt') && (
+          <SettingsGroup
+            title="סוכן"
+            description="כאן מגדירים מה העסק עושה ומה הוא לא עושה. זה לא פרומפט לשיחת הזמנת תור."
+            action={
+              <button
+                type="button"
+                className={styles.aiButton}
+                onClick={() => void handleRewrite()}
+                disabled={isRewriting || !(formData.agent_prompt || '').trim()}
+              >
+                {isRewriting ? 'מנסח...' : 'ניסוח בעזרת AI'}
+              </button>
+            }
+          >
+            <SettingsRow
+              label="תיאור מקצועי"
+              htmlFor="business-agent-prompt"
+              help="מה העסק עושה ובמה הוא לא מתעסק, מבחינה מקצועית. למשל רופא שיניים כללי ולא אורתודונט."
+              stacked
+            >
+              <textarea
+                id="business-agent-prompt"
+                name="agent_prompt"
+                value={formData.agent_prompt || ''}
+                onChange={(event) =>
+                  setFormData((previous) => ({
+                    ...previous,
+                    agent_prompt: event.target.value,
+                  }))
+                }
+                className={styles.textarea}
+                rows={6}
+                placeholder="לדוגמה: מרפאת שיניים כללית. מטפלים בסתימות, עקירות וטיפולי שורש. לא עוסקים ביישור שיניים (אורתודונטיה) ולא בכירורגיית פה ולסת."
+              />
+            </SettingsRow>
+          </SettingsGroup>
+        )}
+
+        {isVisible('deposit_percent') && (
+          <SettingsGroup
+            title="תשלום"
+            description="חל רק על לקוחות שדרישת התשלום שלהם היא מקדמה. תשלום מלא בכרטיס הלקוח תמיד גובה 100%."
+          >
+            <SettingsRow
+              label="אחוז מקדמה"
+              htmlFor="business-deposit-percent"
+              help="הסכום הוא אחוז ממחיר התור. 0 משמעו בלי גבייה."
+            >
+              <input
+                id="business-deposit-percent"
+                type="number"
+                name="deposit_percent"
+                min="0"
+                max="100"
+                step="0.01"
+                dir="ltr"
+                value={Number.isFinite(formData.deposit_percent) ? formData.deposit_percent : ''}
+                onChange={(event) => {
+                  const { value } = event.target;
+                  setFormData((previous) => ({
+                    ...previous,
+                    deposit_percent: value === '' ? 0 : Number(value),
+                  }));
+                }}
+                className={styles.compactInput}
+                aria-label="אחוז מקדמה ממחיר התור"
+              />
+              <span className={styles.controlSuffix}>%</span>
+            </SettingsRow>
+          </SettingsGroup>
+        )}
+
+        {(isVisible('save_recordings') || isVisible('recordings_retention_days')) && (
+          <SettingsGroup
+            title="הקלטות"
+            description="הקלטות שיחות וואטסאפ ו-Vapi. אפשר לכבות שמירה או להגביל כמה זמן הן נשמרות."
+          >
+            {isVisible('save_recordings') && (
+              <SettingsRow
+                label="שמירת הקלטות"
+                htmlFor="business-save-recordings"
+                help="כשפעיל, הקלטות נשמרות באחסון."
+              >
+                <label className={styles.toggle}>
+                  <input
+                    id="business-save-recordings"
+                    type="checkbox"
+                    checked={formData.save_recordings}
+                    onChange={(event) =>
+                      setFormData((previous) => ({
+                        ...previous,
+                        save_recordings: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>{formData.save_recordings ? 'פעיל' : 'כבוי'}</span>
+                </label>
+              </SettingsRow>
+            )}
+            {isVisible('recordings_retention_days') && (
+              <SettingsRow
+                label="ימי שמירה"
+                htmlFor="business-recordings-retention"
+                help="אחרי כמה ימים למחוק הקלטות מהאחסון."
+              >
+                <input
+                  id="business-recordings-retention"
+                  type="number"
+                  name="recordings_retention_days"
+                  min="1"
+                  max="3650"
+                  step="1"
+                  dir="ltr"
+                  disabled={!formData.save_recordings}
+                  value={formData.recordings_retention_days}
+                  onChange={(event) => {
+                    const { value } = event.target;
+                    setFormData((previous) => ({
+                      ...previous,
+                      recordings_retention_days: value === '' ? 90 : Number(value),
+                    }));
+                  }}
+                  className={styles.compactInput}
+                  aria-label="ימי שמירת הקלטות"
+                />
+                <span className={styles.controlSuffix}>ימים</span>
+              </SettingsRow>
+            )}
+          </SettingsGroup>
+        )}
+
+        {isVisible('is_active') && (
+          <SettingsGroup
+            title="סטטוס"
+            description="האם העסק פעיל במערכת."
+          >
+            <SettingsRow
+              label="העסק פעיל"
+              htmlFor="business-is-active"
+              help="כשכבוי, העסק מסומן כלא פעיל במערכת."
+            >
+              <label className={styles.toggle}>
+                <input
+                  id="business-is-active"
+                  type="checkbox"
+                  checked={formData.is_active !== false}
+                  onChange={(event) =>
+                    setFormData((previous) => ({
+                      ...previous,
+                      is_active: event.target.checked,
+                    }))
+                  }
+                />
+                <span>{formData.is_active === false ? 'לא פעיל' : 'פעיל'}</span>
+              </label>
+            </SettingsRow>
+          </SettingsGroup>
+        )}
+      </SettingsStack>
 
       {message && (
         <p className={styles[message.type]} role="status">
@@ -462,9 +840,30 @@ function BusinessSettingsForm({
 
       {isDetailsOpen && (
         <RecordDetailsModal
-          title={`פרטי העסק · ${business.business_name}`}
-          rows={toBusinessDetailRows({ ...business, ...formData })}
+          title={`הגדרות העסק · ${business.business_name}`}
+          rows={toBusinessConfigDetailRows({ ...business, ...formData })}
           onClose={() => setIsDetailsOpen(false)}
+        />
+      )}
+
+      {rewriteOpen && (
+        <RewriteAgentPromptModal
+          value={rewriteText}
+          isGenerating={isRewriting}
+          errorMessage={rewriteError}
+          onChange={setRewriteText}
+          onReplace={() => {
+            setFormData((previous) => ({
+              ...previous,
+              agent_prompt: rewriteText.trim(),
+            }));
+            setRewriteOpen(false);
+          }}
+          onClose={() => {
+            if (!isRewriting) {
+              setRewriteOpen(false);
+            }
+          }}
         />
       )}
     </div>
@@ -492,6 +891,7 @@ function ServicesTable({
   const [pendingDelete, setPendingDelete] = useState<Service | null>(null);
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<ColumnSort | null>(null);
+  const [filtersVisible, setFiltersVisible] = useState(false);
   const activeColumns = SERVICE_FIELDS.filter((field) =>
     visibleFields.includes(field.key),
   );
@@ -511,8 +911,8 @@ function ServicesTable({
     () => filterAndSortServices(services, visibleFilters, visibleSort),
     [services, visibleFilters, visibleSort],
   );
-  const hasTableControls =
-    Object.keys(visibleFilters).length > 0 || visibleSort !== null;
+  const hasActiveFilters = Object.keys(visibleFilters).length > 0;
+  const hasTableControls = hasActiveFilters || visibleSort !== null;
 
   const handleDelete = async (service: Service) => {
     if (deletingServiceId !== null) return;
@@ -542,6 +942,9 @@ function ServicesTable({
           onToggle={onToggleField}
           onViewDetails={() => setIsDetailsOpen(true)}
           canViewDetails={selectedService !== null}
+          filtersVisible={filtersVisible}
+          filtersActive={hasActiveFilters}
+          onToggleFilters={() => setFiltersVisible((open) => !open)}
         />
         <div className={styles.toolbarActions}>
           {hasTableControls ? (
@@ -590,6 +993,7 @@ function ServicesTable({
           columns={activeColumns}
           filters={columnFilters}
           sort={visibleSort}
+          showFilters={filtersVisible}
           onSort={(key) => setSort((current) => nextColumnSort(current, key))}
           onFilter={(key, value) =>
             setColumnFilters((current) => ({ ...current, [key]: value }))
@@ -732,6 +1136,7 @@ function StatusesTable({
     useState<AppointmentStatusRow | null>(null);
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<ColumnSort | null>(null);
+  const [filtersVisible, setFiltersVisible] = useState(false);
   const activeColumns = STATUS_FIELDS.filter((field) =>
     visibleFields.includes(field.key),
   );
@@ -752,8 +1157,8 @@ function StatusesTable({
     () => filterAndSortStatuses(statuses, visibleFilters, visibleSort),
     [statuses, visibleFilters, visibleSort],
   );
-  const hasTableControls =
-    Object.keys(visibleFilters).length > 0 || visibleSort !== null;
+  const hasActiveFilters = Object.keys(visibleFilters).length > 0;
+  const hasTableControls = hasActiveFilters || visibleSort !== null;
 
   const handleDelete = async (status: AppointmentStatusRow) => {
     if (deletingStatusCode !== null) return;
@@ -790,6 +1195,9 @@ function StatusesTable({
           onToggle={onToggleField}
           onViewDetails={() => setIsDetailsOpen(true)}
           canViewDetails={selectedStatus !== null}
+          filtersVisible={filtersVisible}
+          filtersActive={hasActiveFilters}
+          onToggleFilters={() => setFiltersVisible((open) => !open)}
         />
         <div className={styles.toolbarActions}>
           {hasTableControls ? (
@@ -838,6 +1246,7 @@ function StatusesTable({
           columns={activeColumns}
           filters={columnFilters}
           sort={visibleSort}
+          showFilters={filtersVisible}
           onSort={(key) => setSort((current) => nextColumnSort(current, key))}
           onFilter={(key, value) =>
             setColumnFilters((current) => ({ ...current, [key]: value }))

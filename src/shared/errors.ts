@@ -95,3 +95,62 @@ export function getSchedulerUnavailableMessage(action: 'create' | 'slots'): stri
     ? 'לא ניתן לחפש זמנים פנויים כי שירות הזימון (Webhook) לא זמין כרגע.'
     : 'לא ניתן ליצור את התור כי שירות הזימון (Webhook) לא זמין כרגע.';
 }
+
+export function getPasswordResetErrorMessage(error: unknown): string {
+  if (
+    errorIncludes(error, 'redirect') ||
+    errorIncludes(error, 'not allowed') ||
+    errorIncludes(error, 'whitelist') ||
+    errorIncludes(error, 'allow list')
+  ) {
+    return 'כתובת האתר לא מאושרת לשליחת קישור איפוס. צריך לאשר אותה בהגדרות האימות.';
+  }
+
+  if (
+    errorIncludes(error, 'rate') ||
+    errorIncludes(error, 'seconds') ||
+    errorIncludes(error, 'for security purposes')
+  ) {
+    return 'נשלח קישור לא מזמן. בדקו את תיבת הדוא״ל, כולל ספאם, או נסו שוב בעוד דקה.';
+  }
+
+  return 'לא ניתן לשלוח קישור לאיפוס הסיסמה. נסו שוב בעוד רגע.';
+}
+
+export function getAuthCallbackErrorMessage(error: string): string {
+  const text = error.toLowerCase();
+
+  if (text.includes('expired') || text.includes('otp')) {
+    return 'קישור האימות פג. אפשר לבקש קישור חדש או להתחבר אם החשבון כבר אומת.';
+  }
+
+  if (text.includes('verifier') || text.includes('pkce') || text.includes('code')) {
+    return 'הדוא״ל אומת. היכנסו למערכת עם הסיסמה.';
+  }
+
+  return 'לא ניתן להשלים את האימות אוטומטית. אם החשבון אומת, היכנסו עם הסיסמה.';
+}
+
+export function getAgentPromptRewriteErrorMessage(error: unknown): string {
+  if (errorIncludes(error, 'not configured') || errorIncludes(error, 'openai is not configured')) {
+    return 'ניסוח בעזרת AI עדיין לא הוגדר בשרת.';
+  }
+
+  if (errorIncludes(error, 'too many') || errorIncludes(error, '429')) {
+    return 'נשלחו יותר מדי בקשות ניסוח. נסו שוב בעוד כמה דקות.';
+  }
+
+  if (errorIncludes(error, 'not allowed') || errorIncludes(error, 'not authenticated')) {
+    return 'אין הרשאה לנסח את התיאור בעסק הזה.';
+  }
+
+  if (errorIncludes(error, 'too long')) {
+    return 'הטיוטה ארוכה מדי. קצרו אותה ונסו שוב.';
+  }
+
+  if (errorIncludes(error, 'missing draft')) {
+    return 'כתבו קודם תיאור קצר במילים שלכם.';
+  }
+
+  return 'לא ניתן לנסח את התיאור כרגע. נסו שוב בעוד רגע.';
+}

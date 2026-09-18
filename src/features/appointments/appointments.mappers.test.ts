@@ -5,6 +5,7 @@ import {
   getAppointmentColor,
   toAppointmentDetails,
   toAppointmentEditValues,
+  areAppointmentEditsEqual,
   toAppointmentUpdate,
   toCalendarEvents,
   withCatalogServiceTitles,
@@ -309,6 +310,25 @@ describe('appointment edit mapping', () => {
       client_notes: null,
       business_notes: 'הערה פנימית',
     });
+  });
+
+  it('treats appointment edits as unchanged until a field actually differs', () => {
+    const details = toAppointmentDetails(createAppointment());
+    const original = toAppointmentEditValues(details);
+
+    expect(areAppointmentEditsEqual(original, { ...original })).toBe(true);
+    expect(
+      areAppointmentEditsEqual(original, {
+        ...original,
+        start_time: '09:00:00',
+      }),
+    ).toBe(true);
+    expect(
+      areAppointmentEditsEqual(original, {
+        ...original,
+        business_notes: 'הערה חדשה',
+      }),
+    ).toBe(false);
   });
 });
 

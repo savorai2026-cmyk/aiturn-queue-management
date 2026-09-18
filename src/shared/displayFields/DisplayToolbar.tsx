@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import FieldChooser from './FieldChooser';
 import HelpTip from '../components/HelpTip';
-import { GearIcon, GlassesIcon } from '../components/icons';
+import { GearIcon, FunnelIcon, GlassesIcon } from '../components/icons';
 import type { DisplayField } from './types';
 import styles from './DisplayToolbar.module.css';
 
@@ -13,6 +13,9 @@ interface DisplayToolbarProps {
   canViewDetails: boolean;
   variant?: 'default' | 'onDark';
   helpPosition?: 'start' | 'end';
+  filtersVisible?: boolean;
+  filtersActive?: boolean;
+  onToggleFilters?: () => void;
 }
 
 export default function DisplayToolbar({
@@ -23,6 +26,9 @@ export default function DisplayToolbar({
   canViewDetails,
   variant = 'default',
   helpPosition = 'end',
+  filtersVisible = false,
+  filtersActive = false,
+  onToggleFilters,
 }: DisplayToolbarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const gearRef = useRef<HTMLButtonElement>(null);
@@ -30,7 +36,11 @@ export default function DisplayToolbar({
   const help = (
     <HelpTip
       variant={variant}
-      text="גלגל השיניים בוחר אילו שדות יופיעו בטבלה או בפרטי התור. המשקפיים מציגים את כל פרטי הרשומה שנבחרה."
+      text={
+        onToggleFilters
+          ? 'גלגל השיניים בוחר אילו שדות יופיעו בטבלה. המשפך מציג או מסתיר את שורת הסינון. המשקפיים מציגים את כל פרטי הרשומה שנבחרה.'
+          : 'גלגל השיניים בוחר אילו שדות יופיעו בטבלה או בפרטי התור. המשקפיים מציגים את כל פרטי הרשומה שנבחרה.'
+      }
     />
   );
 
@@ -48,6 +58,18 @@ export default function DisplayToolbar({
       >
         <GearIcon />
       </button>
+      {onToggleFilters ? (
+        <button
+          type="button"
+          className={`${buttonClass} ${filtersVisible || filtersActive ? styles.filterOn : ''}`}
+          onClick={onToggleFilters}
+          aria-label={filtersVisible ? 'הסתר סינון עמודות' : 'הצג סינון עמודות'}
+          title={filtersVisible ? 'הסתר סינון' : 'הצג סינון'}
+          aria-pressed={filtersVisible}
+        >
+          <FunnelIcon />
+        </button>
+      ) : null}
       <button
         type="button"
         className={buttonClass}

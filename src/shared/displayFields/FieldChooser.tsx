@@ -77,7 +77,7 @@ export default function FieldChooser({
 
   return createPortal(
     <>
-      <div className={styles.overlay} onClick={onClose} />
+      <div className={styles.overlay} onMouseDown={onClose} />
       <div
         ref={menuRef}
         className={styles.menu}

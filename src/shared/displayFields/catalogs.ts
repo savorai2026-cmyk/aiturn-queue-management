@@ -64,9 +64,16 @@ export const BUSINESS_FIELDS: DisplayField[] = [
   { key: 'contact_phone', label: 'טלפון ליצירת קשר', defaultVisible: true, dir: 'ltr' },
   { key: 'email', label: 'אימייל', defaultVisible: false, dir: 'ltr' },
   { key: 'agent_phone_number', label: 'טלפון סוכן', defaultVisible: false, dir: 'ltr' },
-  { key: 'timezone', label: 'אזור זמן', defaultVisible: false, dir: 'ltr' },
-  { key: 'slot_duration_minutes', label: 'משך משבצת (דקות)', defaultVisible: false },
+];
+
+export const BUSINESS_CONFIG_FIELDS: DisplayField[] = [
+  { key: 'timezone', label: 'אזור זמן', defaultVisible: true, dir: 'ltr' },
+  { key: 'slot_duration_minutes', label: 'משך משבצת (דקות)', defaultVisible: true },
   { key: 'deposit_percent', label: 'אחוז מקדמה', defaultVisible: true },
+  { key: 'agent_prompt', label: 'תיאור מקצועי לסוכן', defaultVisible: true },
+  { key: 'save_recordings', label: 'שמירת הקלטות', defaultVisible: true },
+  { key: 'recordings_retention_days', label: 'ימי שמירת הקלטות', defaultVisible: true },
+  { key: 'is_active', label: 'העסק פעיל', defaultVisible: true },
 ];
 
 const CATALOGS: Record<DisplayScope, DisplayField[]> = {
@@ -74,6 +81,7 @@ const CATALOGS: Record<DisplayScope, DisplayField[]> = {
   appointments: APPOINTMENT_FIELDS,
   services: SERVICE_FIELDS,
   business: BUSINESS_FIELDS,
+  businessConfig: BUSINESS_CONFIG_FIELDS,
   statuses: STATUS_FIELDS,
 };
 

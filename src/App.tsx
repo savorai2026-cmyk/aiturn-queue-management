@@ -8,6 +8,7 @@ import AppointmentsPage from './features/appointments/AppointmentsPage';
 import { useAuth } from './features/auth/AuthContextState';
 import { AuthProvider } from './features/auth/AuthProvider';
 import Login from './features/auth/Login';
+import { isAuthCallbackPending } from './features/auth/authRedirect';
 import BusinessOnboarding from './features/business/BusinessOnboarding';
 import { BusinessProvider } from './features/business/BusinessContext';
 import { useBusiness } from './features/business/BusinessContextState';
@@ -116,17 +117,21 @@ function AuthenticatedApp({ userEmail, onLogout }: AuthenticatedAppProps) {
 }
 
 function AppContent() {
-  const { session, isLoading, error, signOut } = useAuth();
+  const { session, isLoading, isPasswordRecovery, signOut } = useAuth();
 
   if (isLoading) {
-    return <LoadingScreen message="טוען מערכת..." />;
+    return (
+      <LoadingScreen
+        message={
+          isAuthCallbackPending()
+            ? 'מאמתים את החשבון...'
+            : 'טוען מערכת...'
+        }
+      />
+    );
   }
 
-  if (error && !session) {
-    return <LoadingScreen message={error} />;
-  }
-
-  if (!session) {
+  if (!session || isPasswordRecovery) {
     return <Login />;
   }
 

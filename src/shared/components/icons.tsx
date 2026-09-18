@@ -142,6 +142,14 @@ export function GearIcon() {
   );
 }
 
+export function FunnelIcon() {
+  return (
+    <Svg icon="funnel">
+      <path d="M3 5h18l-7 8v5l-4 2v-7L3 5z" />
+    </Svg>
+  );
+}
+
 export function CopyIcon() {
   return (
     <Svg icon="copy">

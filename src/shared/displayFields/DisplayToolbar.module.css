@@ -11,11 +11,30 @@
   display: grid;
   place-items: center;
   padding: 0;
+  overflow: hidden;
+  isolation: isolate;
   border: 1px solid var(--color-line);
   border-radius: 7px;
   background: var(--color-surface);
   color: var(--color-navy-800);
   cursor: pointer;
+  transform: none;
+  box-shadow: none;
+}
+
+:global(button).iconButton:hover:not(:disabled),
+:global(button).iconButton:active:not(:disabled),
+:global(button).iconButton:focus,
+:global(button).iconButton:focus-visible,
+:global(button).iconButton[aria-pressed='true']:not(:disabled),
+:global(button).iconButton[aria-expanded='true']:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+
+.iconButton:hover:not(:disabled),
+.iconButton:focus-visible:not(:disabled) {
+  background: #f4f8f9;
 }
 
 .iconButton:disabled {
@@ -31,4 +50,26 @@
 
 .onDark:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.16);
+}
+
+.filterOn {
+  border-color: var(--color-teal-600);
+  background: #ecfdf8;
+  color: var(--color-teal-700, #0f766e);
+}
+
+.filterOn:hover:not(:disabled),
+.filterOn:focus-visible:not(:disabled) {
+  background: #ecfdf8;
+}
+
+.onDark.filterOn {
+  border-color: rgba(45, 212, 191, 0.85);
+  background: rgba(20, 184, 166, 0.22);
+  color: #ffffff;
+}
+
+.onDark.filterOn:hover:not(:disabled),
+.onDark.filterOn:focus-visible:not(:disabled) {
+  background: rgba(20, 184, 166, 0.22);
 }

@@ -116,6 +116,7 @@ export function useUiPreferences(businessCode: string) {
       appointments: getDisplayCatalog('appointments'),
       services: getDisplayCatalog('services'),
       business: getDisplayCatalog('business'),
+      businessConfig: getDisplayCatalog('businessConfig'),
       statuses: getDisplayCatalog('statuses'),
       defaults: getDefaultVisibleKeys,
     }),

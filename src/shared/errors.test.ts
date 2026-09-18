@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getAgentPromptRewriteErrorMessage,
   getAppointmentCreateErrorMessage,
+  getPasswordResetErrorMessage,
   isOccupiedAppointmentSlotError,
 } from './errors';
 
@@ -29,5 +31,35 @@ describe('appointment create errors', () => {
         new Error('One or more services are invalid or inactive'),
       ),
     ).toBe('אחד או יותר מהשירותים שנבחרו אינם זמינים.');
+  });
+});
+
+describe('password reset errors', () => {
+  it('explains a blocked redirect URL', () => {
+    expect(
+      getPasswordResetErrorMessage(new Error('Redirect URL not allowed')),
+    ).toMatch(/כתובת האתר לא מאושרת/);
+  });
+
+  it('explains a rate limit', () => {
+    expect(
+      getPasswordResetErrorMessage(
+        new Error('For security purposes, you can only request this after 60 seconds'),
+      ),
+    ).toMatch(/נשלח קישור לא מזמן/);
+  });
+});
+
+describe('agent prompt rewrite errors', () => {
+  it('maps missing configuration and rate limits', () => {
+    expect(
+      getAgentPromptRewriteErrorMessage(new Error('OpenAI is not configured')),
+    ).toMatch(/עדיין לא הוגדר/);
+    expect(
+      getAgentPromptRewriteErrorMessage(new Error('Too many rewrite requests')),
+    ).toMatch(/יותר מדי בקשות/);
+    expect(
+      getAgentPromptRewriteErrorMessage(new Error('Missing draft')),
+    ).toMatch(/כתבו קודם תיאור/);
   });
 });

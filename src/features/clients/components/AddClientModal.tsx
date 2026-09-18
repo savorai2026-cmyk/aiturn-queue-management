@@ -98,7 +98,14 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
   };
 
   return (
-    <div className={`${modal.overlay} ${styles.overlay}`}>
+    <div
+      className={`${modal.overlay} ${styles.overlay}`}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !isSaving) {
+          onClose();
+        }
+      }}
+    >
       <div className={`${modal.content} ${styles.content}`}>
         <h2 className={styles.title}>
           {clientToEdit ? 'עריכת פרטי לקוח' : 'הוספת לקוח חדש'}
