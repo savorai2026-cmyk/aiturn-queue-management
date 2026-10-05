@@ -3,6 +3,8 @@ import {
   formatClientCell,
   filterAndSortClients,
   normalizeClientValues,
+  parseLanguageCode,
+  parsePreferredChannel,
 } from './clients.mappers';
 import type { Client } from './clients.types';
 
@@ -49,6 +51,12 @@ describe('formatClientCell', () => {
     expect(
       formatClientCell({ ...CLIENT, payment_requirement: 'deposit' }, 'payment_requirement'),
     ).toBe('מקדמה');
+    expect(formatClientCell(CLIENT, 'language')).toBe('עברית');
+    expect(formatClientCell({ ...CLIENT, language: 'HE' }, 'language')).toBe('עברית');
+    expect(formatClientCell({ ...CLIENT, language: 'en-US' }, 'language')).toBe('אנגלית');
+    expect(formatClientCell({ ...CLIENT, language: 'xyz' }, 'language')).toBe('');
+    expect(formatClientCell({ ...CLIENT, preferred_channel: 'whatsapp' }, 'preferred_channel')).toBe('WhatsApp');
+    expect(formatClientCell({ ...CLIENT, preferred_channel: 'call' }, 'preferred_channel')).toBe('שיחה קולית');
   });
 
   it('normalizes scalar and empty values', () => {
@@ -110,6 +118,73 @@ describe('normalizeClientValues', () => {
       acquisition_source: null,
       preferred_channel: null,
     });
+  });
+
+  it('stores language as a technical code even when the form received a variant', () => {
+    expect(parseLanguageCode('HE')).toBe('he');
+    expect(parseLanguageCode('he-IL')).toBe('he');
+    expect(parseLanguageCode('xyz')).toBe('');
+    expect(
+      normalizeClientValues({
+        full_name: 'ישראל ישראלי',
+        mobile_phone: '0500000000',
+        email: '',
+        city: '',
+        gender: 'M',
+        national_id: '',
+        booking_policy: 'instant',
+        payment_requirement: 'none',
+        allows_sms: true,
+        street: '',
+        building_number: '',
+        apartment_number: '',
+        entrance: '',
+        floor: '',
+        zip_code: '',
+        po_box: '',
+        language: 'HE',
+        birth_date_gregorian: '',
+        birth_date_hebrew: '',
+        landline_phone: '',
+        whatsapp_number: '',
+        acquisition_source: '',
+        preferred_channel: '',
+      }).language,
+    ).toBe('he');
+  });
+
+  it('stores only allowed preferred channels', () => {
+    expect(parsePreferredChannel('WhatsApp')).toBe('whatsapp');
+    expect(parsePreferredChannel('וואטסאפ')).toBe('whatsapp');
+    expect(parsePreferredChannel('קול')).toBe('call');
+    expect(parsePreferredChannel('sms')).toBe('');
+    expect(
+      normalizeClientValues({
+        full_name: 'ישראל ישראלי',
+        mobile_phone: '0500000000',
+        email: '',
+        city: '',
+        gender: 'M',
+        national_id: '',
+        booking_policy: 'instant',
+        payment_requirement: 'none',
+        allows_sms: true,
+        street: '',
+        building_number: '',
+        apartment_number: '',
+        entrance: '',
+        floor: '',
+        zip_code: '',
+        po_box: '',
+        language: '',
+        birth_date_gregorian: '',
+        birth_date_hebrew: '',
+        landline_phone: '',
+        whatsapp_number: '',
+        acquisition_source: '',
+        preferred_channel: 'וואטסאפ',
+      }).preferred_channel,
+    ).toBe('whatsapp');
   });
 });
 

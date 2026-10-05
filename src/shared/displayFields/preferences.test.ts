@@ -42,10 +42,14 @@ describe('ui preference merge', () => {
       parseUiPreferences({
         clients: { visibleFields: ['full_name', 3, 'city'] },
         statuses: { visibleFields: ['status_text'] },
+        logs: { visibleFields: ['startedAt', 8, 'channel'] },
+        usage: { visibleFields: ['action', 4, 'amountCredits'] },
       }),
     ).toEqual({
       clients: { visibleFields: ['full_name', 'city'] },
       statuses: { visibleFields: ['status_text'] },
+      logs: { visibleFields: ['startedAt', 'channel'] },
+      usage: { visibleFields: ['action', 'amountCredits'] },
     });
 
     expect(hasStoredUiPreferences({})).toBe(false);

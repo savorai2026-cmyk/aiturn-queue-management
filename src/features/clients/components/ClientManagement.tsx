@@ -7,7 +7,9 @@ import {
 import { deleteClient } from '../clients.api';
 import {
   BOOKING_POLICY_OPTIONS,
+  LANGUAGE_OPTIONS,
   PAYMENT_REQUIREMENT_OPTIONS,
+  PREFERRED_CHANNEL_OPTIONS,
   type Client,
   type ClientColumnKey,
 } from '../clients.types';
@@ -48,6 +50,8 @@ const CLIENT_SELECT_OPTIONS = {
     { value: 'M', label: 'זכר' },
     { value: 'F', label: 'נקבה' },
   ],
+  language: LANGUAGE_OPTIONS,
+  preferred_channel: PREFERRED_CHANNEL_OPTIONS,
   allows_sms: [
     { value: 'yes', label: 'כן' },
     { value: 'no', label: 'לא' },

@@ -4,7 +4,9 @@ export type DisplayScope =
   | 'services'
   | 'business'
   | 'businessConfig'
-  | 'statuses';
+  | 'statuses'
+  | 'logs'
+  | 'usage';
 
 export interface DisplayField {
   key: string;
@@ -24,6 +26,8 @@ export interface UiPreferences {
   business?: ScopePreferences;
   businessConfig?: ScopePreferences;
   statuses?: ScopePreferences;
+  logs?: ScopePreferences;
+  usage?: ScopePreferences;
 }
 
 export interface DetailRow {
@@ -31,4 +35,5 @@ export interface DetailRow {
   label: string;
   value: string;
   dir?: 'ltr';
+  audioUrl?: string;
 }

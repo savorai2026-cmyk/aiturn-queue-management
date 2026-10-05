@@ -8,12 +8,6 @@ export type AppointmentStatusRow = Tables<'statuses'>;
 export type AppointmentStatusInsert = TablesInsert<'statuses'>;
 export type AppointmentStatusUpdate = TablesUpdate<'statuses'>;
 
-export interface StatusFormValues {
-  status_code: string;
-  status_text: string;
-  color: string;
-}
-
 export interface ServiceFormValues {
   title: string;
   service_code: string;

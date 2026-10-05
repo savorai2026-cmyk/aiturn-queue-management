@@ -12,6 +12,7 @@ interface ColumnTableHeadProps {
   onFilter: (key: string, value: string) => void;
   selectOptions?: Record<string, Array<{ value: string; label: string }>>;
   showFilters?: boolean;
+  showActions?: boolean;
 }
 
 export default function ColumnTableHead({
@@ -22,11 +23,12 @@ export default function ColumnTableHead({
   onFilter,
   selectOptions,
   showFilters = false,
+  showActions = true,
 }: ColumnTableHeadProps) {
   return (
     <thead>
       <tr>
-        <th>פעולות</th>
+        {showActions ? <th>פעולות</th> : null}
         {columns.map((column) => {
           const ariaSort =
             sort?.key === column.key
@@ -57,9 +59,11 @@ export default function ColumnTableHead({
       </tr>
       {showFilters ? (
         <tr className={styles.filterRow}>
-          <th>
-            <span className={styles.srOnly}>סינון</span>
-          </th>
+          {showActions ? (
+            <th>
+              <span className={styles.srOnly}>סינון</span>
+            </th>
+          ) : null}
           {columns.map((column) => {
             const options = selectOptions?.[column.key];
 

@@ -118,6 +118,15 @@
   animation: icon-sift 0.85s ease-in-out infinite;
 }
 
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="cost"] [data-part="lines"] {
+  animation: icon-draw 1.1s ease-in-out infinite;
+  stroke-dasharray: 18;
+}
+
+:is(button, [role="button"]):is(:hover, :focus-visible):not(:disabled) [data-icon="logs"] [data-part="lines"] {
+  animation: icon-bob 0.8s ease-in-out infinite;
+}
+
 @keyframes icon-spin {
   to {
     transform: rotate(360deg);

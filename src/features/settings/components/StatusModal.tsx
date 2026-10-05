@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useRef,
   useState,
   type ChangeEvent,
   type FormEvent,
@@ -10,83 +9,25 @@ import {
   DEFAULT_STATUS_COLOR,
 } from '../../appointments/appointmentStatuses';
 import { getErrorMessage } from '../../../shared/errors';
-import { createStatus, updateStatus } from '../settings.api';
-import type {
-  AppointmentStatusInsert,
-  AppointmentStatusRow,
-  AppointmentStatusUpdate,
-  StatusFormValues,
-} from '../settings.types';
+import { updateStatus } from '../settings.api';
+import type { AppointmentStatusRow } from '../settings.types';
 import { SaveIcon } from '../../../shared/components/icons';
 import modal from '../../../shared/components/modalShell.module.css';
 import styles from './AddServiceModal.module.css';
 
 interface StatusModalProps {
   businessCode: string;
-  status?: AppointmentStatusRow | null;
+  status: AppointmentStatusRow;
   onClose: () => void;
   onSuccess: () => void | Promise<void>;
 }
 
-const DEFAULT_COLOR = DEFAULT_STATUS_COLOR;
-
-const INITIAL_VALUES: StatusFormValues = {
-  status_code: '',
-  status_text: '',
-  color: DEFAULT_COLOR,
-};
-
-function toFormValues(status?: AppointmentStatusRow | null): StatusFormValues {
-  if (!status) return INITIAL_VALUES;
-
-  return {
-    status_code: status.status_code,
-    status_text: status.status_text,
-    color: status.color || DEFAULT_COLOR,
-  };
-}
-
-function validateStatus(values: StatusFormValues): string | null {
-  if (!values.status_code.trim()) {
-    return 'יש להזין קוד סטטוס.';
-  }
-
-  if (!values.status_text.trim()) {
-    return 'יש להזין שם סטטוס.';
-  }
-
-  if (!/^#[0-9a-f]{6}$/i.test(values.color)) {
-    return 'צבע הסטטוס אינו בפורמט תקין.';
-  }
-
-  return null;
-}
-
-function toStatusInsert(
-  businessCode: string,
-  values: StatusFormValues,
-): AppointmentStatusInsert {
-  return {
-    business_code: businessCode,
-    status_code: values.status_code.trim(),
-    status_text: values.status_text.trim(),
-    color: values.color,
-  };
-}
-
-function toStatusUpdate(values: StatusFormValues): AppointmentStatusUpdate {
-  return {
-    status_text: values.status_text.trim(),
-    color: values.color,
-  };
+function isHexColor(value: string) {
+  return /^#[0-9a-f]{6}$/i.test(value);
 }
 
 function getStatusErrorMessage(error: unknown): string {
   const message = getErrorMessage(error).toLowerCase();
-
-  if (message.includes('duplicate') || message.includes('unique')) {
-    return 'קוד הסטטוס כבר קיים בעסק.';
-  }
 
   if (
     message.includes('row-level security') ||
@@ -99,7 +40,7 @@ function getStatusErrorMessage(error: unknown): string {
     return 'צבע הסטטוס אינו בפורמט תקין.';
   }
 
-  return 'לא ניתן לשמור את הסטטוס. בדוק את הפרטים ונסה שוב.';
+  return 'לא ניתן לשמור את צבע הסטטוס. נסו שוב.';
 }
 
 export default function StatusModal({
@@ -108,17 +49,11 @@ export default function StatusModal({
   onClose,
   onSuccess,
 }: StatusModalProps) {
-  const isEdit = Boolean(status);
-  const [formData, setFormData] = useState<StatusFormValues>(() =>
-    toFormValues(status),
-  );
+  const [color, setColor] = useState(status.color || DEFAULT_STATUS_COLOR);
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const firstInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    firstInputRef.current?.focus();
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !isSaving) {
         onClose();
@@ -129,17 +64,15 @@ export default function StatusModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isSaving, onClose]);
 
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = event.target;
-    setFormData((previous) => ({ ...previous, [name]: value }));
+  const handleColorChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setColor(event.target.value);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const validationError = validateStatus(formData);
 
-    if (validationError) {
-      setErrorMessage(validationError);
+    if (!isHexColor(color)) {
+      setErrorMessage('צבע הסטטוס אינו בפורמט תקין.');
       return;
     }
 
@@ -147,18 +80,10 @@ export default function StatusModal({
     setErrorMessage('');
 
     try {
-      if (isEdit && status) {
-        await updateStatus(
-          businessCode,
-          status.status_code,
-          toStatusUpdate(formData),
-        );
-      } else {
-        await createStatus(toStatusInsert(businessCode, formData));
-      }
+      await updateStatus(businessCode, status.status_code, { color });
       await onSuccess();
     } catch (error) {
-      console.error('שגיאה בשמירת סטטוס:', getErrorMessage(error));
+      console.error('שגיאה בשמירת צבע סטטוס:', getErrorMessage(error));
       setErrorMessage(getStatusErrorMessage(error));
     } finally {
       setIsSaving(false);
@@ -181,7 +106,7 @@ export default function StatusModal({
         aria-labelledby="status-modal-title"
       >
         <h2 id="status-modal-title" className={styles.title}>
-          {isEdit ? 'עריכת סטטוס' : 'הוספת סטטוס חדש'}
+          עריכת צבע · {status.status_text}
         </h2>
 
         {errorMessage && (
@@ -192,44 +117,12 @@ export default function StatusModal({
 
         <form className={modal.form} onSubmit={handleSubmit}>
           <div className={modal.scroll}>
-          <div className={styles.formGrid}>
-            <div className={styles.formGroup}>
-              <label htmlFor="status-code">קוד סטטוס *</label>
-              <input
-                ref={isEdit ? undefined : firstInputRef}
-                id="status-code"
-                name="status_code"
-                value={formData.status_code}
-                onChange={handleChange}
-                className={styles.input}
-                dir="ltr"
-                maxLength={50}
-                required
-                readOnly={isEdit}
-                disabled={isEdit}
-              />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label htmlFor="status-text">שם הסטטוס *</label>
-              <input
-                ref={isEdit ? firstInputRef : undefined}
-                id="status-text"
-                name="status_text"
-                value={formData.status_text}
-                onChange={handleChange}
-                className={styles.input}
-                maxLength={80}
-                required
-              />
-            </div>
-
             <div className={`${styles.formGroup} ${styles.fullWidth}`}>
               <label htmlFor="status-color">צבע</label>
               <div className={styles.swatchRow} role="listbox" aria-label="צבעי עיצוב">
                 {BRAND_STATUS_COLORS.map((swatch) => {
                   const isSelected =
-                    formData.color.toLowerCase() === swatch.hex.toLowerCase();
+                    color.toLowerCase() === swatch.hex.toLowerCase();
 
                   return (
                     <button
@@ -240,12 +133,7 @@ export default function StatusModal({
                       title={swatch.label}
                       className={`${styles.swatch} ${isSelected ? styles.swatchSelected : ''}`}
                       style={{ backgroundColor: swatch.hex }}
-                      onClick={() =>
-                        setFormData((previous) => ({
-                          ...previous,
-                          color: swatch.hex,
-                        }))
-                      }
+                      onClick={() => setColor(swatch.hex)}
                     />
                   );
                 })}
@@ -255,21 +143,20 @@ export default function StatusModal({
                   id="status-color"
                   type="color"
                   name="color"
-                  value={formData.color}
-                  onChange={handleChange}
+                  value={isHexColor(color) ? color : DEFAULT_STATUS_COLOR}
+                  onChange={handleColorChange}
                 />
                 <input
                   aria-label="קוד צבע"
                   name="color"
-                  value={formData.color}
-                  onChange={handleChange}
+                  value={color}
+                  onChange={handleColorChange}
                   className={styles.input}
                   dir="ltr"
                   maxLength={7}
                 />
               </div>
             </div>
-          </div>
           </div>
 
           <div className={styles.actions}>
@@ -286,13 +173,11 @@ export default function StatusModal({
               className={styles.btnSave}
               disabled={isSaving}
             >
-              {isSaving ? 'שומר...' : isEdit ? (
+              {isSaving ? 'שומר...' : (
                 <>
                   <SaveIcon />
-                  שמור שינויים
+                  שמור צבע
                 </>
-              ) : (
-                'הוסף סטטוס'
               )}
             </button>
           </div>

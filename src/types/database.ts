@@ -151,6 +151,38 @@ export type Database = {
           },
         ]
       }
+      billing_accounts: {
+        Row: {
+          balance_credits: number
+          business_code: string
+          created_at: string
+          currency: string
+          updated_at: string
+        }
+        Insert: {
+          balance_credits?: number
+          business_code: string
+          created_at?: string
+          currency?: string
+          updated_at?: string
+        }
+        Update: {
+          balance_credits?: number
+          business_code?: string
+          created_at?: string
+          currency?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_accounts_business_code_fkey"
+            columns: ["business_code"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["business_code"]
+          },
+        ]
+      }
       billing_sessions: {
         Row: {
           business_code: string
@@ -451,6 +483,131 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_logs: {
+        Row: {
+          business_code: string
+          channel: string
+          client_id: string | null
+          client_phone: string | null
+          created_at: string
+          currency: string
+          duration_seconds: number | null
+          ended_at: string | null
+          estimated_cost: number | null
+          external_id: string
+          id: string
+          model: string | null
+          outcome: string | null
+          purged_detail_at: string | null
+          purged_recording_at: string | null
+          recording_bytes: number | null
+          recording_expires_at: string | null
+          recording_url: string | null
+          started_at: string | null
+          summary: string | null
+          tool_calls: Json | null
+          transcript: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_code: string
+          channel: string
+          client_id?: string | null
+          client_phone?: string | null
+          created_at?: string
+          currency?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          estimated_cost?: number | null
+          external_id: string
+          id?: string
+          model?: string | null
+          outcome?: string | null
+          purged_detail_at?: string | null
+          purged_recording_at?: string | null
+          recording_bytes?: number | null
+          recording_expires_at?: string | null
+          recording_url?: string | null
+          started_at?: string | null
+          summary?: string | null
+          tool_calls?: Json | null
+          transcript?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_code?: string
+          channel?: string
+          client_id?: string | null
+          client_phone?: string | null
+          created_at?: string
+          currency?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          estimated_cost?: number | null
+          external_id?: string
+          id?: string
+          model?: string | null
+          outcome?: string | null
+          purged_detail_at?: string | null
+          purged_recording_at?: string | null
+          recording_bytes?: number | null
+          recording_expires_at?: string | null
+          recording_url?: string | null
+          started_at?: string | null
+          summary?: string | null
+          tool_calls?: Json | null
+          transcript?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      recordings: {
+        Row: {
+          appointment_id: number | null
+          business_code: string
+          channel: string
+          client_id: string | null
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          mime: string | null
+          source: string
+          storage_path: string
+        }
+        Insert: {
+          appointment_id?: number | null
+          business_code: string
+          channel: string
+          client_id?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          mime?: string | null
+          source: string
+          storage_path: string
+        }
+        Update: {
+          appointment_id?: number | null
+          business_code?: string
+          channel?: string
+          client_id?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          mime?: string | null
+          source?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recordings_business_code_fkey"
+            columns: ["business_code"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["business_code"]
+          },
+        ]
+      }
       services: {
         Row: {
           buffer_time_minutes: number | null
@@ -538,6 +695,68 @@ export type Database = {
             referencedColumns: ["business_code"]
           },
         ]
+      }
+      usage_events: {
+        Row: {
+          action: string
+          amount_credits: number
+          business_code: string
+          created_at: string
+          id: string
+          meta: Json | null
+          quantity: number
+          unit: string
+        }
+        Insert: {
+          action: string
+          amount_credits?: number
+          business_code: string
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          quantity: number
+          unit: string
+        }
+        Update: {
+          action?: string
+          amount_credits?: number
+          business_code?: string
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          quantity?: number
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_events_business_code_fkey"
+            columns: ["business_code"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["business_code"]
+          },
+        ]
+      }
+      usage_prices: {
+        Row: {
+          action: string
+          amount_credits: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          amount_credits: number
+          unit: string
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          amount_credits?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
     }
     Views: {

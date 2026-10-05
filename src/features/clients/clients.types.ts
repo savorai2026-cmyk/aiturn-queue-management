@@ -26,6 +26,20 @@ export const PAYMENT_REQUIREMENT_OPTIONS: {
   { value: 'full', label: 'תשלום מלא' },
 ];
 
+export const PREFERRED_CHANNEL_OPTIONS: { value: string; label: string }[] = [
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'call', label: 'שיחה קולית' },
+];
+
+export const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'he', label: 'עברית' },
+  { value: 'en', label: 'אנגלית' },
+  { value: 'ar', label: 'ערבית' },
+  { value: 'ru', label: 'רוסית' },
+  { value: 'am', label: 'אמהרית' },
+  { value: 'fr', label: 'צרפתית' },
+];
+
 export interface ClientFormValues {
   full_name: string;
   mobile_phone: string;

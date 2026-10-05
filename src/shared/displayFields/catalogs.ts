@@ -76,6 +76,28 @@ export const BUSINESS_CONFIG_FIELDS: DisplayField[] = [
   { key: 'is_active', label: 'העסק פעיל', defaultVisible: true },
 ];
 
+export const LOG_FIELDS: DisplayField[] = [
+  { key: 'startedAt', label: 'התחלה', defaultVisible: true },
+  { key: 'endedAt', label: 'סיום', defaultVisible: false },
+  { key: 'channel', label: 'ערוץ', defaultVisible: true },
+  { key: 'clientPhone', label: 'טלפון', defaultVisible: true, dir: 'ltr' },
+  { key: 'durationSeconds', label: 'משך', defaultVisible: true },
+  { key: 'estimatedCost', label: 'עלות משוערת', defaultVisible: true },
+  { key: 'summary', label: 'סיכום', defaultVisible: false },
+  { key: 'recording', label: 'הקלטה', defaultVisible: true },
+];
+
+export const USAGE_FIELDS: DisplayField[] = [
+  { key: 'createdAt', label: 'תאריך', defaultVisible: true },
+  { key: 'action', label: 'פעולה', defaultVisible: true },
+  { key: 'quantity', label: 'כמות', defaultVisible: true },
+  { key: 'unit', label: 'יחידה', defaultVisible: true },
+  { key: 'amountCredits', label: 'קרדיטים', defaultVisible: true },
+  { key: 'id', label: 'מזהה', defaultVisible: true, dir: 'ltr' },
+  { key: 'businessCode', label: 'קוד עסק', defaultVisible: true, dir: 'ltr' },
+  { key: 'meta', label: 'מטא', defaultVisible: true, dir: 'ltr' },
+];
+
 const CATALOGS: Record<DisplayScope, DisplayField[]> = {
   clients: CLIENT_FIELDS,
   appointments: APPOINTMENT_FIELDS,
@@ -83,6 +105,8 @@ const CATALOGS: Record<DisplayScope, DisplayField[]> = {
   business: BUSINESS_FIELDS,
   businessConfig: BUSINESS_CONFIG_FIELDS,
   statuses: STATUS_FIELDS,
+  logs: LOG_FIELDS,
+  usage: USAGE_FIELDS,
 };
 
 export function getDisplayCatalog(scope: DisplayScope): DisplayField[] {

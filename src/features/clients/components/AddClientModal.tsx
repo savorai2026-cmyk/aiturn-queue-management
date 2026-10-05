@@ -5,13 +5,17 @@ import {
 } from '../clients.api';
 import {
   BOOKING_POLICY_OPTIONS,
+  LANGUAGE_OPTIONS,
   PAYMENT_REQUIREMENT_OPTIONS,
+  PREFERRED_CHANNEL_OPTIONS,
   type Client,
   type ClientFormValues,
 } from '../clients.types';
 import {
   parseBookingPolicy,
+  parseLanguageCode,
   parsePaymentRequirement,
+  parsePreferredChannel,
 } from '../clients.mappers';
 import {
   errorIncludes,
@@ -47,13 +51,13 @@ function getInitialFormData(client: Client | null): ClientFormValues {
     floor: client?.floor || '',
     zip_code: client?.zip_code || '',
     po_box: client?.po_box || '',
-    language: client?.language || '',
+    language: parseLanguageCode(client?.language),
     birth_date_gregorian: client?.birth_date_gregorian || '',
     birth_date_hebrew: client?.birth_date_hebrew || '',
     landline_phone: client?.landline_phone || '',
     whatsapp_number: client?.whatsapp_number || '',
     acquisition_source: client?.acquisition_source || '',
-    preferred_channel: client?.preferred_channel || '',
+    preferred_channel: parsePreferredChannel(client?.preferred_channel),
   };
 }
 
@@ -90,6 +94,8 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
           ? 'מספר הטלפון כבר קיים בעסק.'
           : errorIncludes(error, 'unique_id_per_business')
             ? 'תעודת הזהות כבר קיימת אצל לקוח אחר בעסק.'
+            : errorIncludes(error, 'clients_preferred_channel_chk')
+            ? 'ערוץ מועדף חייב להיות WhatsApp או שיחה קולית.'
             : 'לא ניתן לשמור את הלקוח. בדוק את הפרטים ונסה שוב.',
       );
     } finally {
@@ -204,14 +210,21 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
             </div>
 
             <div className={styles.formGroup}>
-              <label>שפה</label>
-              <input
-                type="text"
+              <label htmlFor="client-language">שפה</label>
+              <select
+                id="client-language"
                 name="language"
                 value={formData.language}
                 onChange={handleChange}
-                className={styles.input}
-              />
+                className={styles.select}
+              >
+                <option value="">לא צוין</option>
+                {LANGUAGE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className={styles.formGroup}>
@@ -344,14 +357,21 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
             </div>
 
             <div className={styles.formGroup}>
-              <label>ערוץ מועדף</label>
-              <input
-                type="text"
+              <label htmlFor="preferred_channel">ערוץ מועדף</label>
+              <select
+                id="preferred_channel"
                 name="preferred_channel"
                 value={formData.preferred_channel}
                 onChange={handleChange}
-                className={styles.input}
-              />
+                className={styles.select}
+              >
+                <option value="">לא צוין</option>
+                {PREFERRED_CHANNEL_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <section className={styles.policySection}>

@@ -276,6 +276,7 @@ textarea:focus-visible {
 
 .feature-area {
   min-width: 0;
+  min-height: 0;
   flex: 1;
   overflow-y: auto;
 }

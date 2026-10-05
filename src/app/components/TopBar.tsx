@@ -3,8 +3,10 @@ import type { AppTab } from '../navigation';
 import type { BusinessMembership } from '../../features/business/BusinessContextState';
 import {
   CalendarIcon,
+  CostIcon,
   GearIcon,
   LogoutIcon,
+  LogsIcon,
   UsersIcon,
 } from '../../shared/components/icons';
 import styles from './TopBar.module.css';
@@ -28,6 +30,8 @@ const NAV_ITEMS: Array<{
   { tab: 'settings', label: 'הגדרות', icon: GearIcon },
   { tab: 'calendar', label: 'יומן חי', icon: CalendarIcon },
   { tab: 'clients', label: 'ניהול לקוחות', icon: UsersIcon },
+  { tab: 'logs', label: 'לוגים', icon: LogsIcon },
+  { tab: 'usage', label: 'עלות', icon: CostIcon },
 ];
 
 export default function TopBar({

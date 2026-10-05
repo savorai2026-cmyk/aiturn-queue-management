@@ -1,6 +1,6 @@
 import type { AppTab } from './navigation';
 
-const APP_TABS: AppTab[] = ['calendar', 'clients', 'settings'];
+const APP_TABS: AppTab[] = ['calendar', 'clients', 'settings', 'logs', 'usage'];
 const CALENDAR_VIEWS = ['dayGridMonth', 'timeGridWeek', 'timeGridDay'] as const;
 
 export type CalendarViewName = (typeof CALENDAR_VIEWS)[number];

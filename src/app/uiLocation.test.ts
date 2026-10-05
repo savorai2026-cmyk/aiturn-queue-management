@@ -34,6 +34,10 @@ describe('uiLocation', () => {
     expect(readAppTab()).toBe('calendar');
     writeAppTab('settings');
     expect(readAppTab()).toBe('settings');
+    writeAppTab('usage');
+    expect(readAppTab()).toBe('usage');
+    writeAppTab('logs');
+    expect(readAppTab()).toBe('logs');
   });
 
   it('ignores an unknown app tab', () => {

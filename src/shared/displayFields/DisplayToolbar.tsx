@@ -9,8 +9,8 @@ interface DisplayToolbarProps {
   fields: DisplayField[];
   visibleKeys: string[];
   onToggle: (key: string) => void;
-  onViewDetails: () => void;
-  canViewDetails: boolean;
+  onViewDetails?: () => void;
+  canViewDetails?: boolean;
   variant?: 'default' | 'onDark';
   helpPosition?: 'start' | 'end';
   filtersVisible?: boolean;
@@ -38,7 +38,9 @@ export default function DisplayToolbar({
       variant={variant}
       text={
         onToggleFilters
-          ? 'גלגל השיניים בוחר אילו שדות יופיעו בטבלה. המשפך מציג או מסתיר את שורת הסינון. המשקפיים מציגים את כל פרטי הרשומה שנבחרה.'
+          ? onViewDetails
+            ? 'גלגל השיניים בוחר אילו שדות יופיעו בטבלה. המשפך מציג או מסתיר את שורת הסינון. המשקפיים מציגים את כל פרטי הרשומה שנבחרה.'
+            : 'גלגל השיניים בוחר אילו שדות יופיעו בטבלה. המשפך מציג או מסתיר את שורת הסינון.'
           : 'גלגל השיניים בוחר אילו שדות יופיעו בטבלה או בפרטי התור. המשקפיים מציגים את כל פרטי הרשומה שנבחרה.'
       }
     />
@@ -70,16 +72,18 @@ export default function DisplayToolbar({
           <FunnelIcon />
         </button>
       ) : null}
-      <button
-        type="button"
-        className={buttonClass}
-        onClick={onViewDetails}
-        disabled={!canViewDetails}
-        aria-label="הצגת כל פרטי הרשומה"
-        title={canViewDetails ? 'כל הפרטים' : 'בחר רשומה כדי לראות את כל הפרטים'}
-      >
-        <GlassesIcon />
-      </button>
+      {onViewDetails ? (
+        <button
+          type="button"
+          className={buttonClass}
+          onClick={onViewDetails}
+          disabled={!canViewDetails}
+          aria-label="הצגת כל פרטי הרשומה"
+          title={canViewDetails ? 'כל הפרטים' : 'בחר רשומה כדי לראות את כל הפרטים'}
+        >
+          <GlassesIcon />
+        </button>
+      ) : null}
       {helpPosition === 'end' && help}
       {isOpen && (
         <FieldChooser

@@ -48,7 +48,16 @@ export default function RecordDetailsModal({
             <div key={row.key} className={styles.row}>
               <span className={styles.label}>{row.label}</span>
               <span className={styles.value}>
-                {row.dir === 'ltr' ? (
+                {row.audioUrl ? (
+                  <audio
+                    className={styles.audio}
+                    controls
+                    preload="metadata"
+                    src={row.audioUrl}
+                  >
+                    הדפדפן אינו תומך בהשמעת הקלטה.
+                  </audio>
+                ) : row.dir === 'ltr' ? (
                   <span className={styles.ltrValue} dir="ltr">
                     {row.value || '—'}
                   </span>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from 'react';
-import { deleteService, deleteStatus, rewriteAgentPrompt, updateBusinessSettings } from '../settings.api';
+import { deleteService, rewriteAgentPrompt, updateBusinessSettings } from '../settings.api';
 import { getAgentPromptRewriteErrorMessage, getErrorMessage } from '../../../shared/errors';
 import {
   formatServiceCell,
@@ -1123,17 +1123,11 @@ function StatusesTable({
   onToggleField: (key: string) => void;
   onStatusesChanged: () => void;
 }) {
-  const [modalMode, setModalMode] = useState<'add' | 'edit' | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedStatusCode, setSelectedStatusCode] = useState<string | null>(
     null,
   );
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [actionError, setActionError] = useState('');
-  const [deletingStatusCode, setDeletingStatusCode] = useState<string | null>(
-    null,
-  );
-  const [pendingDelete, setPendingDelete] =
-    useState<AppointmentStatusRow | null>(null);
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<ColumnSort | null>(null);
   const [filtersVisible, setFiltersVisible] = useState(false);
@@ -1160,30 +1154,9 @@ function StatusesTable({
   const hasActiveFilters = Object.keys(visibleFilters).length > 0;
   const hasTableControls = hasActiveFilters || visibleSort !== null;
 
-  const handleDelete = async (status: AppointmentStatusRow) => {
-    if (deletingStatusCode !== null) return;
-
-    setActionError('');
-    setDeletingStatusCode(status.status_code);
-    try {
-      await deleteStatus(businessCode, status.status_code);
-      setPendingDelete(null);
-      setSelectedStatusCode(null);
-      onStatusesChanged();
-    } catch (error) {
-      const message = getErrorMessage(error);
-      console.error('שגיאה במחיקת סטטוס:', message);
-      setActionError(
-        message.toLowerCase().includes('foreign key') ||
-          message.toLowerCase().includes('violat') ||
-          message.includes('fk_appointments_status') ||
-          message.includes('בשימוש')
-          ? 'לא ניתן למחוק סטטוס שכבר בשימוש בתורים.'
-          : message || 'לא ניתן למחוק את הסטטוס.',
-      );
-    } finally {
-      setDeletingStatusCode(null);
-    }
+  const openColorEditor = (statusCode: string) => {
+    setSelectedStatusCode(statusCode);
+    setIsEditOpen(true);
   };
 
   return (
@@ -1199,8 +1172,8 @@ function StatusesTable({
           filtersActive={hasActiveFilters}
           onToggleFilters={() => setFiltersVisible((open) => !open)}
         />
-        <div className={styles.toolbarActions}>
-          {hasTableControls ? (
+        {hasTableControls ? (
+          <div className={styles.toolbarActions}>
             <button
               type="button"
               className={columnTableStyles.clearButton}
@@ -1211,35 +1184,9 @@ function StatusesTable({
             >
               נקה סינון ומיון
             </button>
-          ) : null}
-          <button
-            type="button"
-            className={`${styles.btnPrimary} ${styles.addServiceButton}`}
-            onClick={() => setModalMode('add')}
-          >
-            הוסף סטטוס
-          </button>
-        </div>
+          </div>
+        ) : null}
       </div>
-
-      {pendingDelete && (
-        <ConfirmDeleteModal
-          title="מחיקת סטטוס"
-          message={
-            <>
-              למחוק את הסטטוס <strong>{pendingDelete.status_text}</strong>?
-            </>
-          }
-          isBusy={deletingStatusCode !== null}
-          errorMessage={actionError}
-          onConfirm={() => void handleDelete(pendingDelete)}
-          onCancel={() => {
-            if (deletingStatusCode !== null) return;
-            setPendingDelete(null);
-            setActionError('');
-          }}
-        />
-      )}
 
       <table className={`data-table ${styles.table}`}>
         <ColumnTableHead
@@ -1274,35 +1221,18 @@ function StatusesTable({
                     : undefined
                 }
                 onClick={() => setSelectedStatusCode(status.status_code)}
-                onDoubleClick={() => {
-                  setSelectedStatusCode(status.status_code);
-                  setModalMode('edit');
-                }}
+                onDoubleClick={() => openColorEditor(status.status_code)}
               >
                 <td>
                   <div className={styles.rowActions}>
                     <IconButton
-                      label="ערוך סטטוס"
+                      label="ערוך צבע סטטוס"
                       onClick={(event) => {
                         event.stopPropagation();
-                        setSelectedStatusCode(status.status_code);
-                        setModalMode('edit');
+                        openColorEditor(status.status_code);
                       }}
                     >
                       <PencilIcon />
-                    </IconButton>
-                    <IconButton
-                      label="מחק סטטוס"
-                      variant="danger"
-                      disabled={deletingStatusCode !== null}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setSelectedStatusCode(status.status_code);
-                        setActionError('');
-                        setPendingDelete(status);
-                      }}
-                    >
-                      <TrashIcon />
                     </IconButton>
                   </div>
                 </td>
@@ -1330,14 +1260,14 @@ function StatusesTable({
         </tbody>
       </table>
 
-      {modalMode && (modalMode === 'add' || selectedStatus) && (
+      {isEditOpen && selectedStatus && (
         <StatusModal
           businessCode={businessCode}
-          status={modalMode === 'edit' ? selectedStatus : null}
-          onClose={() => setModalMode(null)}
+          status={selectedStatus}
+          onClose={() => setIsEditOpen(false)}
           onSuccess={() => {
             onStatusesChanged();
-            setModalMode(null);
+            setIsEditOpen(false);
           }}
         />
       )}

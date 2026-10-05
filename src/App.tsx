@@ -3,7 +3,9 @@ import type { AppTab } from './app/navigation';
 import { readAppTab, writeAppTab } from './app/uiLocation';
 import TopBar from './app/components/TopBar';
 import ClientManagement from './features/clients/components/ClientManagement';
+import LogsPage from './features/conversations/components/LogsPage';
 import Settings from './features/settings/components/Settings';
+import UsagePage from './features/usage/components/UsagePage';
 import AppointmentsPage from './features/appointments/AppointmentsPage';
 import { useAuth } from './features/auth/AuthContextState';
 import { AuthProvider } from './features/auth/AuthProvider';
@@ -108,6 +110,24 @@ function AuthenticatedApp({ userEmail, onLogout }: AuthenticatedAppProps) {
             <Settings
               businessCode={activeBusiness.businessCode}
               onBusinessUpdated={refreshBusinesses}
+            />
+          </main>
+        )}
+
+        {activeTab === 'logs' && (
+          <main className="feature-area">
+            <LogsPage
+              key={activeBusiness.businessCode}
+              businessCode={activeBusiness.businessCode}
+            />
+          </main>
+        )}
+
+        {activeTab === 'usage' && (
+          <main className="feature-area">
+            <UsagePage
+              key={activeBusiness.businessCode}
+              businessCode={activeBusiness.businessCode}
             />
           </main>
         )}

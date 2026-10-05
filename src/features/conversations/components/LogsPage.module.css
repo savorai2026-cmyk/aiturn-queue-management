@@ -1,0 +1,83 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.tableControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.title {
+  color: var(--color-navy-900);
+  font-size: 21px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.note {
+  margin: 0 0 16px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.tableResponsive {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.table th:first-child,
+.table td:first-child {
+  width: auto;
+  padding-inline: 12px;
+}
+
+.emptyState {
+  padding: 28px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.recordingCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 168px;
+}
+
+.tableAudio {
+  display: block;
+  width: 196px;
+  max-width: 100%;
+  height: 32px;
+}
+
+.recordingError {
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (max-width: 650px) {
+  .header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .tableControls {
+    flex-wrap: wrap;
+  }
+}

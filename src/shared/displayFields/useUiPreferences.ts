@@ -118,6 +118,8 @@ export function useUiPreferences(businessCode: string) {
       business: getDisplayCatalog('business'),
       businessConfig: getDisplayCatalog('businessConfig'),
       statuses: getDisplayCatalog('statuses'),
+      logs: getDisplayCatalog('logs'),
+      usage: getDisplayCatalog('usage'),
       defaults: getDefaultVisibleKeys,
     }),
     [],

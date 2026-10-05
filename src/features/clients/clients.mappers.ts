@@ -1,6 +1,8 @@
 import {
   BOOKING_POLICY_OPTIONS,
+  LANGUAGE_OPTIONS,
   PAYMENT_REQUIREMENT_OPTIONS,
+  PREFERRED_CHANNEL_OPTIONS,
   type BookingPolicy,
   type Client,
   type ClientColumnKey,
@@ -18,6 +20,17 @@ import {
   type ColumnFilters,
   type ColumnSort,
 } from '../../shared/displayFields/columnTable';
+
+export function parseLanguageCode(
+  value: string | null | undefined,
+): string {
+  const raw = (value ?? '').trim().toLowerCase().replaceAll('_', '-');
+  if (!raw) return '';
+
+  const base = raw.split('-')[0];
+  const code = base === 'iw' ? 'he' : base;
+  return LANGUAGE_OPTIONS.some((option) => option.value === code) ? code : '';
+}
 
 function emptyToNull(value: string) {
   const normalized = value.trim();
@@ -43,6 +56,32 @@ export function parsePaymentRequirement(
   return value === 'deposit' || value === 'full' ? value : 'none';
 }
 
+const PREFERRED_CHANNEL_ALIASES: Record<string, string> = {
+  whatsapp: 'whatsapp',
+  wa: 'whatsapp',
+  וואטסאפ: 'whatsapp',
+  ווטסאפ: 'whatsapp',
+  call: 'call',
+  phone: 'call',
+  voice: 'call',
+  vapi: 'call',
+  קול: 'call',
+  שיחה: 'call',
+  טלפון: 'call',
+};
+
+export function parsePreferredChannel(
+  value: string | null | undefined,
+): string {
+  const raw = (value ?? '').trim().toLowerCase();
+  if (!raw) return '';
+
+  const mapped = PREFERRED_CHANNEL_ALIASES[raw] ?? raw;
+  return PREFERRED_CHANNEL_OPTIONS.some((option) => option.value === mapped)
+    ? mapped
+    : '';
+}
+
 function digitsOnly(value: string) {
   return value.replace(/\D/g, '');
 }
@@ -66,8 +105,17 @@ function matchesClientColumnFilters(client: Client, filters: ColumnFilters) {
     const query = raw.trim();
     if (!query) return true;
 
-    if (key === 'booking_policy' || key === 'payment_requirement' || key === 'gender') {
+    if (
+      key === 'booking_policy' ||
+      key === 'payment_requirement' ||
+      key === 'gender' ||
+      key === 'preferred_channel'
+    ) {
       return client[key] === query;
+    }
+
+    if (key === 'language') {
+      return parseLanguageCode(client.language) === query;
     }
 
     if (key === 'allows_sms') {
@@ -174,13 +222,13 @@ export function normalizeClientValues(
     floor: emptyToNull(values.floor),
     zip_code: emptyToNull(values.zip_code),
     po_box: emptyToNull(values.po_box),
-    language: emptyToNull(values.language),
+    language: emptyToNull(parseLanguageCode(values.language)),
     birth_date_gregorian: emptyToNull(values.birth_date_gregorian),
     birth_date_hebrew: emptyToNull(values.birth_date_hebrew),
     landline_phone: emptyToNull(values.landline_phone),
     whatsapp_number: emptyToNull(values.whatsapp_number),
     acquisition_source: emptyToNull(values.acquisition_source),
-    preferred_channel: emptyToNull(values.preferred_channel),
+    preferred_channel: emptyToNull(parsePreferredChannel(values.preferred_channel)),
   };
 }
 
@@ -200,6 +248,16 @@ export function formatClientCell(
 
   if (column === 'payment_requirement') {
     return labelFor(PAYMENT_REQUIREMENT_OPTIONS, client.payment_requirement);
+  }
+
+  if (column === 'language') {
+    const code = parseLanguageCode(client.language);
+    return code ? labelFor(LANGUAGE_OPTIONS, code) : '';
+  }
+
+  if (column === 'preferred_channel') {
+    const channel = parsePreferredChannel(client.preferred_channel);
+    return channel ? labelFor(PREFERRED_CHANNEL_OPTIONS, channel) : '';
   }
 
   if (column === 'allows_sms') {

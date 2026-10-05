@@ -1,1 +1,1 @@
-export type AppTab = 'calendar' | 'clients' | 'settings';
+export type AppTab = 'calendar' | 'clients' | 'settings' | 'logs' | 'usage';

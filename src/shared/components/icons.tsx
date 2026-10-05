@@ -295,3 +295,28 @@ export function HelpIcon() {
     </Svg>
   );
 }
+
+export function CostIcon() {
+  return (
+    <Svg icon="cost">
+      <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z" />
+      <g data-part="lines">
+        <path d="M8 8h8" />
+        <path d="M8 12h8" />
+        <path d="M8 16h5" />
+      </g>
+    </Svg>
+  );
+}
+
+export function LogsIcon() {
+  return (
+    <Svg icon="logs">
+      <path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z" />
+      <g data-part="lines">
+        <path d="M8 8h8" />
+        <path d="M8 12h5" />
+      </g>
+    </Svg>
+  );
+}
