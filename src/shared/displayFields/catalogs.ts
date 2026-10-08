@@ -73,6 +73,7 @@ export const BUSINESS_CONFIG_FIELDS: DisplayField[] = [
   { key: 'agent_prompt', label: 'תיאור מקצועי לסוכן', defaultVisible: true },
   { key: 'save_recordings', label: 'שמירת הקלטות', defaultVisible: true },
   { key: 'recordings_retention_days', label: 'ימי שמירת הקלטות', defaultVisible: true },
+  { key: 'storage_quota_gb', label: 'מכסת אחסון', defaultVisible: true },
   { key: 'is_active', label: 'העסק פעיל', defaultVisible: true },
 ];
 

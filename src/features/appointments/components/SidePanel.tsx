@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   formatAppointmentField,
   toAppointmentDetailRows,
@@ -53,6 +53,11 @@ export const SidePanel = ({
     () => (appointment ? toAppointmentEditValues(appointment) : null),
   );
   const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    if (isEditing) return;
+    setFormData(appointment ? toAppointmentEditValues(appointment) : null);
+  }, [appointment, isEditing]);
 
   const totalPrice = useMemo(() => {
     if (!formData) return 0;

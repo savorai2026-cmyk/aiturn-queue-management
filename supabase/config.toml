@@ -13,3 +13,6 @@ verify_jwt = true
 
 [functions.rewrite-agent-prompt]
 verify_jwt = true
+
+[functions.purge-retention]
+verify_jwt = false

@@ -147,6 +147,7 @@
   border: 1px solid var(--color-line);
   border-radius: 10px;
   background: #fbfdfd;
+  scroll-margin-top: 12px;
 }
 
 .settingsGroupHeader {

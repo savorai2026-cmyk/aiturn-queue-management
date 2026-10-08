@@ -1,0 +1,118 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 760px;
+}
+
+.total {
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: #f4fbfa;
+  padding: 16px;
+}
+
+.totalLabel {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.totalValue {
+  margin: 4px 0 0;
+  color: var(--color-navy-900);
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.totalDetail,
+.live,
+.pendingNote,
+.error {
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.totalDetail,
+.live {
+  color: var(--color-navy-800);
+}
+
+.pendingNote,
+.error {
+  color: #9a3412;
+}
+
+.meterHead {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  color: var(--color-navy-900);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.track {
+  height: 10px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e6eef0;
+}
+
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-teal-600);
+}
+
+.fill[data-level='full'] {
+  background: #ea580c;
+}
+
+.row {
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: var(--color-surface);
+  padding: 14px 16px;
+}
+
+.copy h2 {
+  margin: 0;
+  color: var(--color-navy-900);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.copy p {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.price,
+.pending {
+  margin: 10px 0 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.price {
+  color: var(--color-navy-900);
+}
+
+.pending {
+  color: #9a3412;
+}
+
+.linkButton {
+  margin-top: 10px;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--color-teal-600);
+  font-weight: 700;
+  cursor: pointer;
+}

@@ -100,6 +100,30 @@ export async function getActivePaymentMethod(
   return row ? toPaymentMethodSummary(row) : null;
 }
 
+export async function getBusinessAccess(
+  businessCode: string,
+): Promise<{
+  createdAt: string | null;
+  billingHold: string | null;
+  isActive: boolean;
+}> {
+  const { data, error } = await supabase
+    .from('businesses')
+    .select('created_at, billing_hold, is_active')
+    .eq('business_code', businessCode)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return {
+    createdAt: data?.created_at ?? null,
+    billingHold: data?.billing_hold ?? null,
+    isActive: data?.is_active !== false,
+  };
+}
+
 export async function getLatestBillingSession(
   businessCode: string,
 ): Promise<BillingSessionSummary | null> {

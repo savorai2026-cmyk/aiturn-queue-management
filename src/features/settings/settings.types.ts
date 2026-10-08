@@ -32,6 +32,7 @@ export type BusinessSettings = Pick<
   | 'agent_prompt'
   | 'save_recordings'
   | 'recordings_retention_days'
+  | 'storage_quota_gb'
   | 'is_active'
   | 'max_adv_booking_days'
   | 'working_hours'
@@ -52,6 +53,7 @@ export type EditableBusinessConfig = Pick<
   | 'agent_prompt'
   | 'save_recordings'
   | 'recordings_retention_days'
+  | 'storage_quota_gb'
   | 'is_active'
 >;
 

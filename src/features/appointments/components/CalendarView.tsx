@@ -428,6 +428,14 @@ export default function CalendarView({
     ],
   );
 
+  useEffect(() => {
+    const api = calendarRef.current?.getApi();
+    if (!api) return;
+
+    api.removeAllEventSources();
+    api.addEventSource(calendarEvents);
+  }, [calendarEvents]);
+
   const slotMinutes =
     slotDurationMinutes && slotDurationMinutes > 0 ? slotDurationMinutes : 30;
 

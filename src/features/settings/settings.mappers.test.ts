@@ -44,11 +44,12 @@ describe('deposit percent', () => {
     expect(normalizeDepositPercent('x')).toBeNull();
   });
 
-  it('accepts recording retention between 1 and 3650 days', () => {
+  it('accepts recording retention between 1 and 2555 days', () => {
     expect(normalizeRetentionDays('')).toBe(90);
     expect(normalizeRetentionDays(30)).toBe(30);
+    expect(normalizeRetentionDays(2555)).toBe(2555);
     expect(normalizeRetentionDays(0)).toBeNull();
-    expect(normalizeRetentionDays(3651)).toBeNull();
+    expect(normalizeRetentionDays(2556)).toBeNull();
   });
 
   it('formats the business percent for details', () => {

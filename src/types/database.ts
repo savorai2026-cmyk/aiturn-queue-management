@@ -334,12 +334,14 @@ export type Database = {
           deposit_percent: number
           email: string | null
           is_active: boolean | null
+          billing_hold: string
           max_adv_booking_days: number | null
           slot_duration_minutes: number | null
           timezone: string | null
           agent_prompt: string | null
           save_recordings: boolean
           recordings_retention_days: number
+          storage_quota_gb: number
           ui_preferences: Json
           updated_at: string
           vapi_assistant_id: string | null
@@ -355,12 +357,14 @@ export type Database = {
           deposit_percent?: number
           email?: string | null
           is_active?: boolean | null
+          billing_hold?: string
           max_adv_booking_days?: number | null
           slot_duration_minutes?: number | null
           timezone?: string | null
           agent_prompt?: string | null
           save_recordings?: boolean
           recordings_retention_days?: number
+          storage_quota_gb?: number
           ui_preferences?: Json
           updated_at?: string
           vapi_assistant_id?: string | null
@@ -376,12 +380,14 @@ export type Database = {
           deposit_percent?: number
           email?: string | null
           is_active?: boolean | null
+          billing_hold?: string
           max_adv_booking_days?: number | null
           slot_duration_minutes?: number | null
           timezone?: string | null
           agent_prompt?: string | null
           save_recordings?: boolean
           recordings_retention_days?: number
+          storage_quota_gb?: number
           ui_preferences?: Json
           updated_at?: string
           vapi_assistant_id?: string | null
@@ -806,6 +812,30 @@ export type Database = {
       delete_catalog_status: {
         Args: { p_business_code: string; p_status_code: string }
         Returns: undefined
+      }
+      business_storage_used_bytes: {
+        Args: { p_business_code: string }
+        Returns: number
+      }
+      business_plan_usage: {
+        Args: { p_business_code: string }
+        Returns: Json
+      }
+      business_agents_allowed: {
+        Args: { p_business_code: string }
+        Returns: boolean
+      }
+      expired_recording_paths: {
+        Args: { p_limit?: number }
+        Returns: { storage_path: string }[]
+      }
+      forget_purged_recordings: {
+        Args: { p_paths: string[] }
+        Returns: number
+      }
+      purge_expired_tenant_data: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
     }
     Enums: {

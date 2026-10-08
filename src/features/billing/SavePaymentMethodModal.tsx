@@ -13,6 +13,7 @@ import {
   isTerminalBillingSession,
 } from './billing.mappers';
 import type { PaymentMethodSummary } from './billing.types';
+import PlanRates from '../usage/components/PlanRates';
 import modal from '../../shared/components/modalShell.module.css';
 import styles from './SavePaymentMethodModal.module.css';
 
@@ -195,6 +196,8 @@ export default function SavePaymentMethodModal({
                 ? 'לפני המשך העבודה במערכת יש לשמור כרטיס אשראי לעסק. פרטי הכרטיס מוזנים בדף מאובטח של חברת הסליקה, ולא נשמרים אצלנו.'
                 : 'אפשר להחליף את הכרטיס השמור. הכרטיס הקודם יבוטל אחרי שהכרטיס החדש יישמר בהצלחה.'}
             </p>
+
+            {mode === 'gate' ? <PlanRates /> : null}
 
             <ul className={styles.points}>
               <li>דף ההזנה שייך לקרדיטגארד ואינו עובר דרך המערכת.</li>

@@ -31,6 +31,7 @@ export async function getBusinessSettings(
       agent_prompt,
       save_recordings,
       recordings_retention_days,
+      storage_quota_gb,
       is_active,
       max_adv_booking_days,
       working_hours,
@@ -241,6 +242,61 @@ export async function deleteStatus(
   if (!data?.length) {
     throw new Error('לא ניתן למחוק את הסטטוס.');
   }
+}
+
+export async function getBusinessStorageUsedBytes(
+  businessCode: string,
+): Promise<number> {
+  const { data, error } = await supabase.rpc('business_storage_used_bytes', {
+    p_business_code: businessCode,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const parsed = typeof data === 'number' ? data : Number(data);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export async function getBusinessStorageQuotaGb(
+  businessCode: string,
+): Promise<number> {
+  const { data, error } = await supabase
+    .from('businesses')
+    .select('storage_quota_gb')
+    .eq('business_code', businessCode)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data.storage_quota_gb;
+}
+
+export async function getBusinessPlanUsage(
+  businessCode: string,
+): Promise<{ memberCount: number; voiceSeconds: number }> {
+  const { data, error } = await supabase.rpc('business_plan_usage', {
+    p_business_code: businessCode,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const payload = (data ?? {}) as {
+    member_count?: unknown;
+    voice_seconds?: unknown;
+  };
+  const memberCount = Number(payload.member_count);
+  const voiceSeconds = Number(payload.voice_seconds);
+
+  return {
+    memberCount: Number.isFinite(memberCount) ? memberCount : 0,
+    voiceSeconds: Number.isFinite(voiceSeconds) ? voiceSeconds : 0,
+  };
 }
 
 export async function updateBusinessSettings(

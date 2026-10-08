@@ -15,6 +15,7 @@ import BusinessOnboarding from './features/business/BusinessOnboarding';
 import { BusinessProvider } from './features/business/BusinessContext';
 import { useBusiness } from './features/business/BusinessContextState';
 import PaymentMethodGate from './features/billing/PaymentMethodGate';
+import CardAccess from './features/billing/CardAccess';
 import './shared/components/icons.css';
 import './App.css';
 
@@ -87,7 +88,11 @@ function AuthenticatedApp({ userEmail, onLogout }: AuthenticatedAppProps) {
         businessCode={activeBusiness.businessCode}
         role={activeBusiness.role}
       />
-      
+
+      <CardAccess
+        businessCode={activeBusiness.businessCode}
+        role={activeBusiness.role}
+      >
       <div className="main-content">
         {activeTab === 'calendar' && (
           <AppointmentsPage
@@ -128,10 +133,26 @@ function AuthenticatedApp({ userEmail, onLogout }: AuthenticatedAppProps) {
             <UsagePage
               key={activeBusiness.businessCode}
               businessCode={activeBusiness.businessCode}
+              onOpenStorageSettings={() => {
+                try {
+                  sessionStorage.setItem(
+                    `settingsTab:${activeBusiness.businessCode}`,
+                    'config',
+                  );
+                  sessionStorage.setItem(
+                    `settingsScroll:${activeBusiness.businessCode}`,
+                    'cloud-storage',
+                  );
+                } catch {
+                  /* ignore */
+                }
+                setActiveTab('settings');
+              }}
             />
           </main>
         )}
       </div>
+      </CardAccess>
     </div>
   );
 }

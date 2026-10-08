@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from 'react';
 import { deleteService, rewriteAgentPrompt, updateBusinessSettings } from '../settings.api';
+import StorageUsageMeter from './StorageUsageMeter';
 import { getAgentPromptRewriteErrorMessage, getErrorMessage } from '../../../shared/errors';
 import {
   formatServiceCell,
@@ -7,6 +8,7 @@ import {
   filterAndSortServices,
   filterAndSortStatuses,
   normalizeDepositPercent,
+  MAX_RECORDING_RETENTION_DAYS,
   normalizeRetentionDays,
   parseDepositPercent,
   toBusinessDetailRows,
@@ -14,6 +16,11 @@ import {
   toServiceDetailRows,
   toStatusDetailRows,
 } from '../settings.mappers';
+import {
+  EXTRA_STORAGE_GB_ILS,
+  INCLUDED_STORAGE_GB,
+  normalizeStorageQuotaGb,
+} from '../storageQuota';
 import type {
   AppointmentStatusRow,
   BusinessSettings,
@@ -120,6 +127,26 @@ export default function Settings({
       /* ignore */
     }
   }, [activeTab, businessCode]);
+
+  useEffect(() => {
+    if (!business || activeTab !== 'config') return;
+    const key = `settingsScroll:${businessCode}`;
+    let target: string | null = null;
+    try {
+      target = sessionStorage.getItem(key);
+      if (target) sessionStorage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
+    if (target !== 'cloud-storage') return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById('cloud-storage')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeTab, business, businessCode]);
 
   if (isLoading && !business) {
     return <LoadingState message="טוען הגדרות..." />;
@@ -263,6 +290,8 @@ function toEditableConfig(
     save_recordings: business.save_recordings !== false,
     recordings_retention_days:
       normalizeRetentionDays(business.recordings_retention_days) ?? 90,
+    storage_quota_gb:
+      normalizeStorageQuotaGb(business.storage_quota_gb) ?? INCLUDED_STORAGE_GB,
     is_active: business.is_active !== false,
   };
 }
@@ -424,18 +453,20 @@ function SettingsStack({ children }: { children: ReactNode }) {
 }
 
 function SettingsGroup({
+  id,
   title,
   description,
   action,
   children,
 }: {
+  id?: string;
   title: string;
   description?: string;
   action?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <section className={styles.settingsGroup}>
+    <section id={id} className={styles.settingsGroup}>
       <header className={styles.settingsGroupHeader}>
         <div className={styles.settingsGroupHeading}>
           <h3>{title}</h3>
@@ -533,7 +564,16 @@ function BusinessConfigForm({
       );
       if (retentionDays == null) {
         setMessage({
-          text: 'ימי שמירת ההקלטות חייבים להיות מספר שלם בין 1 ל-3650.',
+          text: `ימי שמירת ההקלטות חייבים להיות מספר שלם בין 1 ל-${MAX_RECORDING_RETENTION_DAYS}.`,
+          type: 'error',
+        });
+        return;
+      }
+
+      const quotaGb = normalizeStorageQuotaGb(formData.storage_quota_gb);
+      if (quotaGb == null) {
+        setMessage({
+          text: 'מכסת האחסון חייבת להיות מספר שלם בין 5 ל-1000 ג׳יגה.',
           type: 'error',
         });
         return;
@@ -546,6 +586,7 @@ function BusinessConfigForm({
         agent_prompt: formData.agent_prompt?.trim() || null,
         save_recordings: formData.save_recordings,
         recordings_retention_days: retentionDays,
+        storage_quota_gb: quotaGb,
         is_active: formData.is_active,
       });
       setFormData((previous) => ({
@@ -553,6 +594,7 @@ function BusinessConfigForm({
         deposit_percent: depositPercent,
         agent_prompt: formData.agent_prompt?.trim() || null,
         recordings_retention_days: retentionDays,
+        storage_quota_gb: quotaGb,
       }));
       await onSaved();
       setMessage({
@@ -730,10 +772,52 @@ function BusinessConfigForm({
           </SettingsGroup>
         )}
 
+        <SettingsGroup
+          id="cloud-storage"
+          title="אחסון בענן"
+          description={`מכסת הקבצים של העסק. ${INCLUDED_STORAGE_GB} ג׳יגה כלולים במנוי, וכל ג׳יגה נוספת עולה ${EXTRA_STORAGE_GB_ILS} ₪ לחודש.`}
+        >
+          <StorageUsageMeter
+            businessCode={business.business_code}
+            quotaGb={
+              normalizeStorageQuotaGb(formData.storage_quota_gb) ??
+              INCLUDED_STORAGE_GB
+            }
+          />
+          {isVisible('storage_quota_gb') && (
+            <SettingsRow
+              label="מכסה לעסק"
+              htmlFor="business-storage-quota"
+              help="אפשר להגדיל מעבר ל-5 ג׳יגה הכלולות. התעריף מתעדכן לפי הג׳יגה הנוספות."
+            >
+              <input
+                id="business-storage-quota"
+                type="number"
+                name="storage_quota_gb"
+                min="5"
+                max="1000"
+                step="1"
+                dir="ltr"
+                value={formData.storage_quota_gb}
+                onChange={(event) => {
+                  const { value } = event.target;
+                  setFormData((previous) => ({
+                    ...previous,
+                    storage_quota_gb: value === '' ? INCLUDED_STORAGE_GB : Number(value),
+                  }));
+                }}
+                className={styles.compactInput}
+                aria-label="מכסת אחסון בג׳יגה"
+              />
+              <span className={styles.controlSuffix}>ג׳יגה</span>
+            </SettingsRow>
+          )}
+        </SettingsGroup>
+
         {(isVisible('save_recordings') || isVisible('recordings_retention_days')) && (
           <SettingsGroup
             title="הקלטות"
-            description="הקלטות שיחות וואטסאפ ו-Vapi. אפשר לכבות שמירה או להגביל כמה זמן הן נשמרות."
+            description="הקלטת השיחה נמחקת אוטומטית אחרי מספר הימים שכאן. תמליל, סיכום, תורים ורישומי שימוש נמחקים אחרי שבע שנים, ומעבר לזה לא נשמר תיעוד."
           >
             {isVisible('save_recordings') && (
               <SettingsRow
@@ -761,14 +845,14 @@ function BusinessConfigForm({
               <SettingsRow
                 label="ימי שמירה"
                 htmlFor="business-recordings-retention"
-                help="אחרי כמה ימים למחוק הקלטות מהאחסון."
+                help="כל לילה נמחקות הקלטות שעברו את מספר הימים הזה. אי אפשר לשמור יותר משבע שנים."
               >
                 <input
                   id="business-recordings-retention"
                   type="number"
                   name="recordings_retention_days"
                   min="1"
-                  max="3650"
+                  max={MAX_RECORDING_RETENTION_DAYS}
                   step="1"
                   dir="ltr"
                   disabled={!formData.save_recordings}

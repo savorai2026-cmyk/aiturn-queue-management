@@ -77,7 +77,6 @@ export function useAppointments(businessCode: string) {
           event: '*',
           schema: 'public',
           table: 'appointments',
-          filter: `business_code=eq.${businessCode}`,
         },
         scheduleRefresh,
       )
@@ -87,7 +86,6 @@ export function useAppointments(businessCode: string) {
           event: '*',
           schema: 'public',
           table: 'appointment_services',
-          filter: `business_code=eq.${businessCode}`,
         },
         scheduleRefresh,
       )

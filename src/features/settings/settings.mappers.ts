@@ -13,6 +13,7 @@ import type {
   BusinessSettings,
   Service,
 } from './settings.types';
+import { normalizeStorageQuotaGb, INCLUDED_STORAGE_GB } from './storageQuota';
 
 const ILS_FORMATTER = new Intl.NumberFormat('he-IL', {
   style: 'currency',
@@ -211,13 +212,16 @@ export function normalizeDepositPercent(value: unknown): number | null {
   return Math.round(raw * 100) / 100;
 }
 
+export const DEFAULT_RECORDING_RETENTION_DAYS = 90;
+export const MAX_RECORDING_RETENTION_DAYS = 2555;
+
 export function normalizeRetentionDays(value: unknown): number | null {
-  if (value === '' || value == null) return 90;
+  if (value === '' || value == null) return DEFAULT_RECORDING_RETENTION_DAYS;
 
   const raw = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(raw)) return null;
   const days = Math.round(raw);
-  if (days < 1 || days > 3650) return null;
+  if (days < 1 || days > MAX_RECORDING_RETENTION_DAYS) return null;
   return days;
 }
 
@@ -241,6 +245,12 @@ export function formatBusinessField(
   if (key === 'recordings_retention_days') {
     const days = normalizeRetentionDays(business.recordings_retention_days) ?? 90;
     return `${days} ימים`;
+  }
+
+  if (key === 'storage_quota_gb') {
+    const gigabytes =
+      normalizeStorageQuotaGb(business.storage_quota_gb) ?? INCLUDED_STORAGE_GB;
+    return `${gigabytes} ג׳יגה`;
   }
 
   const value = business[key as keyof BusinessSettings];
