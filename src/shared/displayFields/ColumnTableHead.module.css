@@ -49,6 +49,8 @@
 }
 
 :global(.data-table) thead tr.filterRow th {
+  top: 35px;
+  height: auto;
   background: #eef4f6;
   color: var(--color-text);
   font-weight: 500;

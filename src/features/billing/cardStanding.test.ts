@@ -38,6 +38,17 @@ describe('billing hold overrides the card rule', () => {
     expect(view?.dashboardBlocked).toBe(false);
     expect(view?.message).toContain('לא פעיל');
   });
+
+  it('locks the dashboard after the owner closes the account', () => {
+    const view = resolveBusinessAccess({
+      hold: 'exempt',
+      isActive: false,
+      closed: true,
+      standing: { stage: 'ok', daysLeft: null, daysUntilBlock: null },
+    });
+    expect(view?.dashboardBlocked).toBe(true);
+    expect(view?.accountClosed).toBe(true);
+  });
 });
 
 describe('card standing for one business', () => {

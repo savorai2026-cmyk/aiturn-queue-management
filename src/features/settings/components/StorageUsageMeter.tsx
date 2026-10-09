@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { SubscriptionPlan } from '../../usage/planPricing';
 import { getBusinessStorageUsedBytes } from '../settings.api';
 import {
   formatStorageAmount,
@@ -14,12 +15,16 @@ import styles from './StorageUsageMeter.module.css';
 interface StorageUsageBarProps {
   usedBytes: number | null;
   quotaGb: number;
+  plan?: SubscriptionPlan;
+  rates?: { includedGb: number; extraGbIls: number };
   error?: string;
 }
 
 export function StorageUsageBar({
   usedBytes,
   quotaGb,
+  plan = 'regular',
+  rates,
   error = '',
 }: StorageUsageBarProps) {
   const ratio = usedBytes == null ? 0 : storageUsedRatio(usedBytes, quotaGb);
@@ -58,7 +63,7 @@ export function StorageUsageBar({
           {alert}
         </p>
       )}
-      <p className={styles.price}>{formatStoragePrice(quotaGb)}</p>
+      <p className={styles.price}>{formatStoragePrice(quotaGb, plan, rates)}</p>
       <p className={styles.hint}>
         התראה ב־75%, ב־90%, וכשהמכסה מלאה. הנפח הוא של קבצי ההקלטות.
       </p>
@@ -74,11 +79,15 @@ export function StorageUsageBar({
 interface StorageUsageMeterProps {
   businessCode: string;
   quotaGb: number;
+  plan?: SubscriptionPlan;
+  rates?: { includedGb: number; extraGbIls: number };
 }
 
 export default function StorageUsageMeter({
   businessCode,
   quotaGb,
+  plan = 'regular',
+  rates,
 }: StorageUsageMeterProps) {
   const [usedBytes, setUsedBytes] = useState<number | null>(null);
   const [error, setError] = useState('');
@@ -102,6 +111,12 @@ export default function StorageUsageMeter({
   }, [businessCode]);
 
   return (
-    <StorageUsageBar usedBytes={usedBytes} quotaGb={quotaGb} error={error} />
+    <StorageUsageBar
+      usedBytes={usedBytes}
+      quotaGb={quotaGb}
+      plan={plan}
+      rates={rates}
+      error={error}
+    />
   );
 }

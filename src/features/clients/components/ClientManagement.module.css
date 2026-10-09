@@ -62,7 +62,7 @@
 
 .tableResponsive {
   width: 100%;
-  overflow-x: auto;
+  overflow: visible;
   border: 1px solid var(--color-line);
   border-radius: 8px;
   background: var(--color-surface);

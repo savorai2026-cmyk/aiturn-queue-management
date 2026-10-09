@@ -13,6 +13,8 @@ import {
   isTerminalBillingSession,
 } from './billing.mappers';
 import type { PaymentMethodSummary } from './billing.types';
+import { getBusinessSubscriptionPlan } from '../settings/settings.api';
+import type { SubscriptionPlan } from '../usage/planPricing';
 import PlanRates from '../usage/components/PlanRates';
 import modal from '../../shared/components/modalShell.module.css';
 import styles from './SavePaymentMethodModal.module.css';
@@ -42,6 +44,7 @@ export default function SavePaymentMethodModal({
   onClose,
   onPostpone,
 }: SavePaymentMethodModalProps) {
+  const [plan, setPlan] = useState<SubscriptionPlan>('regular');
   const [flow, setFlow] = useState<FlowState>('ready');
   const [errorMessage, setErrorMessage] = useState('');
   const [startUrl, setStartUrl] = useState<string | null>(null);
@@ -54,6 +57,20 @@ export default function SavePaymentMethodModal({
       popupRef.current?.close();
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    getBusinessSubscriptionPlan(businessCode)
+      .then((value) => {
+        if (!cancelled) setPlan(value);
+      })
+      .catch(() => {
+        if (!cancelled) setPlan('regular');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [businessCode]);
 
   useEffect(() => {
     if (flow !== 'waiting') return;
@@ -197,7 +214,7 @@ export default function SavePaymentMethodModal({
                 : 'אפשר להחליף את הכרטיס השמור. הכרטיס הקודם יבוטל אחרי שהכרטיס החדש יישמר בהצלחה.'}
             </p>
 
-            {mode === 'gate' ? <PlanRates /> : null}
+            {mode === 'gate' ? <PlanRates plan={plan} /> : null}
 
             <ul className={styles.points}>
               <li>דף ההזנה שייך לקרדיטגארד ואינו עובר דרך המערכת.</li>

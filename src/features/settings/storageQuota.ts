@@ -1,7 +1,13 @@
+import {
+  extraStorageChargeIls,
+  includedStorageGb,
+  type SubscriptionPlan,
+} from '../usage/planPricing';
+
 export const INCLUDED_STORAGE_GB = 5;
 export const EXTRA_STORAGE_GB_ILS = 5;
 export const MIN_STORAGE_QUOTA_GB = 5;
-export const MAX_STORAGE_QUOTA_GB = 1000;
+export const MAX_STORAGE_QUOTA_GB = 50;
 
 const KIB = 1024;
 const MIB = 1024 ** 2;
@@ -38,9 +44,11 @@ export function storageAlertLevel(ratio: number): StorageAlertLevel {
   return 'ok';
 }
 
-export function extraStorageMonthlyIls(quotaGb: number): number {
-  const extra = Math.max(0, quotaGb - INCLUDED_STORAGE_GB);
-  return extra * EXTRA_STORAGE_GB_ILS;
+export function extraStorageMonthlyIls(
+  quotaGb: number,
+  plan: SubscriptionPlan = 'regular',
+): number {
+  return extraStorageChargeIls(quotaGb, plan);
 }
 
 export function formatStorageAmount(bytes: number): string {
@@ -67,11 +75,17 @@ export function formatStoragePercent(ratio: number): string {
   return `${percent.toLocaleString('he-IL', { maximumFractionDigits: 1 })}%`;
 }
 
-export function formatStoragePrice(quotaGb: number): string {
-  const extraGb = Math.max(0, quotaGb - INCLUDED_STORAGE_GB);
-  const extraIls = extraStorageMonthlyIls(quotaGb);
+export function formatStoragePrice(
+  quotaGb: number,
+  plan: SubscriptionPlan = 'regular',
+  rates?: { includedGb: number; extraGbIls: number },
+): string {
+  const included = rates?.includedGb ?? includedStorageGb(plan);
+  const extraPerGb = rates?.extraGbIls;
+  const extraGb = Math.max(0, quotaGb - included);
+  const extraIls = extraPerGb == null ? extraStorageMonthlyIls(quotaGb, plan) : extraGb * extraPerGb;
   if (extraGb === 0) {
-    return `${INCLUDED_STORAGE_GB} ג׳יגה כלולים במנוי, בלי תוספת חודשית.`;
+    return `${included} ג׳יגה כלולים במנוי, בלי תוספת חודשית.`;
   }
   if (extraGb === 1) {
     return `ג׳יגה נוספת אחת, ${extraIls.toLocaleString('he-IL')} ₪ לחודש מעבר למנוי.`;

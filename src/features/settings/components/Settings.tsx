@@ -8,7 +8,6 @@ import {
   filterAndSortServices,
   filterAndSortStatuses,
   normalizeDepositPercent,
-  MAX_RECORDING_RETENTION_DAYS,
   normalizeRetentionDays,
   parseDepositPercent,
   toBusinessDetailRows,
@@ -17,8 +16,17 @@ import {
   toStatusDetailRows,
 } from '../settings.mappers';
 import {
-  EXTRA_STORAGE_GB_ILS,
+  DEFAULT_HISTORY_MONTHS,
+  DEFAULT_RECORDING_RETENTION_DAYS,
+  daysLimitText,
+  monthsLimitText,
+  normalizeHistoryMonths,
+  parseSubscriptionPlan,
+} from '../../usage/planPricing';
+import { usePlanTariffs } from '../../usage/tariffs.api';
+import {
   INCLUDED_STORAGE_GB,
+  MAX_STORAGE_QUOTA_GB,
   normalizeStorageQuotaGb,
 } from '../storageQuota';
 import type {
@@ -63,6 +71,7 @@ import HelpTip from '../../../shared/components/HelpTip';
 import { getTimezoneGroups } from '../timezones';
 import AddServiceModal from './AddServiceModal';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
+import BusinessAccountPanel from './BusinessAccountPanel';
 import OperatingHoursForm from './OperatingHoursForm';
 import RewriteAgentPromptModal from './RewriteAgentPromptModal';
 import StatusModal from './StatusModal';
@@ -138,9 +147,9 @@ export default function Settings({
     } catch {
       /* ignore */
     }
-    if (target !== 'cloud-storage') return;
+    if (target !== 'cloud-storage' && target !== 'subscription-plan') return;
     const frame = window.requestAnimationFrame(() => {
-      document.getElementById('cloud-storage')?.scrollIntoView({
+      document.getElementById(target)?.scrollIntoView({
         behavior: 'smooth',
         block: 'start',
       });
@@ -221,13 +230,23 @@ export default function Settings({
             onSaved={onBusinessUpdated}
           />
         ) : activeTab === 'config' ? (
-          <BusinessConfigForm
-            key={`${business.business_code}-config`}
-            business={business}
-            visibleFields={visibleFieldsFor('businessConfig')}
-            onToggleField={(key) => toggleField('businessConfig', key)}
-            onSaved={onBusinessUpdated}
-          />
+          <>
+            <BusinessConfigForm
+              key={`${business.business_code}-config`}
+              business={business}
+              visibleFields={visibleFieldsFor('businessConfig')}
+              onToggleField={(key) => toggleField('businessConfig', key)}
+              onSaved={onBusinessUpdated}
+            />
+            {activeBusiness?.role === 'owner' ? (
+              <BusinessAccountPanel
+                businessCode={business.business_code}
+                plan={parseSubscriptionPlan(business.subscription_plan)}
+                agentsActive={business.is_active !== false}
+                accountClosed={Boolean(business.closed_at)}
+              />
+            ) : null}
+          </>
         ) : activeTab === 'hours' ? (
           <OperatingHoursForm
             key={`${business.business_code}-hours`}
@@ -288,8 +307,27 @@ function toEditableConfig(
     deposit_percent: parseDepositPercent(business.deposit_percent),
     agent_prompt: business.agent_prompt,
     save_recordings: business.save_recordings !== false,
+    subscription_plan: parseSubscriptionPlan(business.subscription_plan),
     recordings_retention_days:
-      normalizeRetentionDays(business.recordings_retention_days) ?? 90,
+      normalizeRetentionDays(
+        business.recordings_retention_days,
+        parseSubscriptionPlan(business.subscription_plan),
+      ) ?? DEFAULT_RECORDING_RETENTION_DAYS,
+    history_retention_months:
+      normalizeHistoryMonths(
+        business.history_retention_months,
+        parseSubscriptionPlan(business.subscription_plan),
+      ) ?? DEFAULT_HISTORY_MONTHS,
+    voice_log_retention_months:
+      normalizeHistoryMonths(
+        business.voice_log_retention_months,
+        parseSubscriptionPlan(business.subscription_plan),
+      ) ?? DEFAULT_HISTORY_MONTHS,
+    whatsapp_retention_months:
+      normalizeHistoryMonths(
+        business.whatsapp_retention_months,
+        parseSubscriptionPlan(business.subscription_plan),
+      ) ?? DEFAULT_HISTORY_MONTHS,
     storage_quota_gb:
       normalizeStorageQuotaGb(business.storage_quota_gb) ?? INCLUDED_STORAGE_GB,
     is_active: business.is_active !== false,
@@ -538,6 +576,7 @@ function BusinessConfigForm({
     text: string;
     type: 'success' | 'error';
   } | null>(null);
+  const tariffs = usePlanTariffs(business.business_code);
 
   const isVisible = (key: string) => visibleFields.includes(key);
   const timezoneGroups = useMemo(
@@ -559,12 +598,40 @@ function BusinessConfigForm({
         return;
       }
 
+      const subscriptionPlan = parseSubscriptionPlan(formData.subscription_plan);
+      const terms = tariffs.resolve(subscriptionPlan);
       const retentionDays = normalizeRetentionDays(
         formData.recordings_retention_days,
+        subscriptionPlan,
+        terms.recordingMaxDays,
+      );
+      const historyMonths = normalizeHistoryMonths(
+        formData.history_retention_months,
+        subscriptionPlan,
+        terms.historyMaxMonths,
+      );
+      const whatsappMonths = normalizeHistoryMonths(
+        formData.whatsapp_retention_months,
+        subscriptionPlan,
+        terms.correspondenceMaxMonths,
       );
       if (retentionDays == null) {
         setMessage({
-          text: `ימי שמירת ההקלטות חייבים להיות מספר שלם בין 1 ל-${MAX_RECORDING_RETENTION_DAYS}.`,
+          text: `ימי שמירת ההקלטות חייבים להיות מספר שלם בין 1 ל-${terms.recordingMaxDays}.`,
+          type: 'error',
+        });
+        return;
+      }
+      if (historyMonths == null) {
+        setMessage({
+          text: `חודשי היסטוריית התורים חייבים להיות מספר שלם בין 1 ל-${terms.historyMaxMonths}.`,
+          type: 'error',
+        });
+        return;
+      }
+      if (whatsappMonths == null) {
+        setMessage({
+          text: `חודשי ההתכתבות והתמלול חייבים להיות מספר שלם בין 1 ל-${terms.correspondenceMaxMonths}.`,
           type: 'error',
         });
         return;
@@ -573,7 +640,7 @@ function BusinessConfigForm({
       const quotaGb = normalizeStorageQuotaGb(formData.storage_quota_gb);
       if (quotaGb == null) {
         setMessage({
-          text: 'מכסת האחסון חייבת להיות מספר שלם בין 5 ל-1000 ג׳יגה.',
+          text: `מכסת האחסון חייבת להיות מספר שלם בין 5 ל-${MAX_STORAGE_QUOTA_GB} ג׳יגה.`,
           type: 'error',
         });
         return;
@@ -585,7 +652,11 @@ function BusinessConfigForm({
         deposit_percent: depositPercent,
         agent_prompt: formData.agent_prompt?.trim() || null,
         save_recordings: formData.save_recordings,
+        subscription_plan: subscriptionPlan,
         recordings_retention_days: retentionDays,
+        history_retention_months: historyMonths,
+        voice_log_retention_months: whatsappMonths,
+        whatsapp_retention_months: whatsappMonths,
         storage_quota_gb: quotaGb,
         is_active: formData.is_active,
       });
@@ -593,7 +664,11 @@ function BusinessConfigForm({
         ...previous,
         deposit_percent: depositPercent,
         agent_prompt: formData.agent_prompt?.trim() || null,
+        subscription_plan: subscriptionPlan,
         recordings_retention_days: retentionDays,
+        history_retention_months: historyMonths,
+        voice_log_retention_months: whatsappMonths,
+        whatsapp_retention_months: whatsappMonths,
         storage_quota_gb: quotaGb,
       }));
       await onSaved();
@@ -632,6 +707,9 @@ function BusinessConfigForm({
       setIsRewriting(false);
     }
   };
+
+  const selectedPlan = parseSubscriptionPlan(formData.subscription_plan);
+  const terms = tariffs.resolve(selectedPlan);
 
   return (
     <div>
@@ -775,10 +853,15 @@ function BusinessConfigForm({
         <SettingsGroup
           id="cloud-storage"
           title="אחסון בענן"
-          description={`מכסת הקבצים של העסק. ${INCLUDED_STORAGE_GB} ג׳יגה כלולים במנוי, וכל ג׳יגה נוספת עולה ${EXTRA_STORAGE_GB_ILS} ₪ לחודש.`}
+          description={`מכסת הקבצים של העסק. ${terms.includedStorageGb} ג׳יגה כלולים במנוי, כל ג׳יגה נוספת עולה ${terms.extraStorageGbIls} ₪ לחודש, והמקסימום ${MAX_STORAGE_QUOTA_GB} ג׳יגה.`}
         >
           <StorageUsageMeter
             businessCode={business.business_code}
+            plan={selectedPlan}
+            rates={{
+              includedGb: terms.includedStorageGb,
+              extraGbIls: terms.extraStorageGbIls,
+            }}
             quotaGb={
               normalizeStorageQuotaGb(formData.storage_quota_gb) ??
               INCLUDED_STORAGE_GB
@@ -788,14 +871,14 @@ function BusinessConfigForm({
             <SettingsRow
               label="מכסה לעסק"
               htmlFor="business-storage-quota"
-              help="אפשר להגדיל מעבר ל-5 ג׳יגה הכלולות. התעריף מתעדכן לפי הג׳יגה הנוספות."
+              help={`אפשר להגדיל מעבר ל־${terms.includedStorageGb} ג׳יגה הכלולות. כל ג׳יגה נוספת ${terms.extraStorageGbIls} ₪ לחודש.`}
             >
               <input
                 id="business-storage-quota"
                 type="number"
                 name="storage_quota_gb"
                 min="5"
-                max="1000"
+                max={MAX_STORAGE_QUOTA_GB}
                 step="1"
                 dir="ltr"
                 value={formData.storage_quota_gb}
@@ -814,10 +897,60 @@ function BusinessConfigForm({
           )}
         </SettingsGroup>
 
+        <SettingsGroup
+          id="subscription-plan"
+          title="מנוי"
+          description={
+            selectedPlan === 'expanded'
+              ? `הקלטה, היסטוריית תורים, תמלול, סיכום והתכתבות וואטסאפ ${monthsLimitText(terms.correspondenceMaxMonths)}. משתמש נוסף ${terms.extraUserIls} ₪ לחודש.`
+              : `הקלטת קול ${daysLimitText(terms.recordingMaxDays)}. היסטוריית תורים ${monthsLimitText(terms.historyMaxMonths)}. תמלול, סיכום והתכתבות וואטסאפ ${monthsLimitText(terms.correspondenceMaxMonths)}. משתמש נוסף ${terms.extraUserIls} ₪ לחודש.`
+          }
+        >
+          <SettingsRow
+            label="סוג מנוי"
+            htmlFor="business-subscription-plan"
+            help="התעריף והמגבלות מתעדכנים לפי המנוי שנבחר."
+          >
+            <select
+              id="business-subscription-plan"
+              value={formData.subscription_plan}
+              onChange={(event) => {
+                const subscriptionPlan = parseSubscriptionPlan(event.target.value);
+                const nextTerms = tariffs.resolve(subscriptionPlan);
+                setFormData((previous) => {
+                  const correspondenceMonths = Math.min(
+                    previous.whatsapp_retention_months,
+                    nextTerms.correspondenceMaxMonths,
+                  );
+                  return {
+                    ...previous,
+                    subscription_plan: subscriptionPlan,
+                    recordings_retention_days: Math.min(
+                      previous.recordings_retention_days,
+                      nextTerms.recordingMaxDays,
+                    ),
+                    history_retention_months: Math.min(
+                      previous.history_retention_months,
+                      nextTerms.historyMaxMonths,
+                    ),
+                    voice_log_retention_months: correspondenceMonths,
+                    whatsapp_retention_months: correspondenceMonths,
+                  };
+                });
+              }}
+              className={styles.compactInput}
+              aria-label="סוג מנוי"
+            >
+              <option value="regular">רגיל</option>
+              <option value="expanded">מורחב</option>
+            </select>
+          </SettingsRow>
+        </SettingsGroup>
+
         {(isVisible('save_recordings') || isVisible('recordings_retention_days')) && (
           <SettingsGroup
             title="הקלטות"
-            description="הקלטת השיחה נמחקת אוטומטית אחרי מספר הימים שכאן. תמליל, סיכום, תורים ורישומי שימוש נמחקים אחרי שבע שנים, ומעבר לזה לא נשמר תיעוד."
+            description="הקובץ הקולי נשמר לפי ימים. היסטוריית התורים נשמרת לפי חודשים. תמלול השיחה, הסיכום והתכתבות הוואטסאפ נשמרים לפי אותו מספר חודשים."
           >
             {isVisible('save_recordings') && (
               <SettingsRow
@@ -843,16 +976,16 @@ function BusinessConfigForm({
             )}
             {isVisible('recordings_retention_days') && (
               <SettingsRow
-                label="ימי שמירה"
+                label="ימי הקלטה קולית"
                 htmlFor="business-recordings-retention"
-                help="כל לילה נמחקות הקלטות שעברו את מספר הימים הזה. אי אפשר לשמור יותר משבע שנים."
+                help={`אפשר ${daysLimitText(terms.recordingMaxDays)}.`}
               >
                 <input
                   id="business-recordings-retention"
                   type="number"
                   name="recordings_retention_days"
                   min="1"
-                  max={MAX_RECORDING_RETENTION_DAYS}
+                  max={terms.recordingMaxDays}
                   step="1"
                   dir="ltr"
                   disabled={!formData.save_recordings}
@@ -861,7 +994,8 @@ function BusinessConfigForm({
                     const { value } = event.target;
                     setFormData((previous) => ({
                       ...previous,
-                      recordings_retention_days: value === '' ? 90 : Number(value),
+                      recordings_retention_days:
+                        value === '' ? DEFAULT_RECORDING_RETENTION_DAYS : Number(value),
                     }));
                   }}
                   className={styles.compactInput}
@@ -870,18 +1004,73 @@ function BusinessConfigForm({
                 <span className={styles.controlSuffix}>ימים</span>
               </SettingsRow>
             )}
+            <SettingsRow
+              label="היסטוריית תורים"
+              htmlFor="business-history-retention"
+              help={`אפשר ${monthsLimitText(terms.historyMaxMonths)}.`}
+            >
+              <input
+                id="business-history-retention"
+                type="number"
+                name="history_retention_months"
+                min="1"
+                max={terms.historyMaxMonths}
+                step="1"
+                dir="ltr"
+                value={formData.history_retention_months}
+                onChange={(event) => {
+                  const { value } = event.target;
+                  setFormData((previous) => ({
+                    ...previous,
+                    history_retention_months:
+                      value === '' ? DEFAULT_HISTORY_MONTHS : Number(value),
+                  }));
+                }}
+                className={styles.compactInput}
+                aria-label="חודשי היסטוריית תורים"
+              />
+              <span className={styles.controlSuffix}>חודשים</span>
+            </SettingsRow>
+            <SettingsRow
+              label="התכתבות וואטסאפ ותמלול"
+              htmlFor="business-whatsapp-retention"
+              help={`השדה קובע את תמלול השיחה, הסיכום והתכתבות הוואטסאפ. אפשר ${monthsLimitText(terms.correspondenceMaxMonths)}.`}
+            >
+              <input
+                id="business-whatsapp-retention"
+                type="number"
+                name="whatsapp_retention_months"
+                min="1"
+                max={terms.correspondenceMaxMonths}
+                step="1"
+                dir="ltr"
+                value={formData.whatsapp_retention_months}
+                onChange={(event) => {
+                  const { value } = event.target;
+                  const months = value === '' ? DEFAULT_HISTORY_MONTHS : Number(value);
+                  setFormData((previous) => ({
+                    ...previous,
+                    whatsapp_retention_months: months,
+                    voice_log_retention_months: months,
+                  }));
+                }}
+                className={styles.compactInput}
+                aria-label="חודשי התכתבות וואטסאפ ותמלול"
+              />
+              <span className={styles.controlSuffix}>חודשים</span>
+            </SettingsRow>
           </SettingsGroup>
         )}
 
         {isVisible('is_active') && (
           <SettingsGroup
-            title="סטטוס"
-            description="האם העסק פעיל במערכת."
+            title="סוכנים"
+            description="כיבוי משבית את סוכן הקול ואת סוכן הוואטסאפ. היומן נשאר פתוח, ואפשר להפעיל שוב."
           >
             <SettingsRow
-              label="העסק פעיל"
+              label="הסוכנים פעילים"
               htmlFor="business-is-active"
-              help="כשכבוי, העסק מסומן כלא פעיל במערכת."
+              help="כשכבוי, הסוכנים מושבתים והיומן נשאר פתוח. סגירת החשבון נמצאת למטה, ורק בעל העסק יכול לבצע אותה."
             >
               <label className={styles.toggle}>
                 <input
@@ -895,7 +1084,7 @@ function BusinessConfigForm({
                     }))
                   }
                 />
-                <span>{formData.is_active === false ? 'לא פעיל' : 'פעיל'}</span>
+                <span>{formData.is_active === false ? 'כבויים' : 'פעילים'}</span>
               </label>
             </SettingsRow>
           </SettingsGroup>

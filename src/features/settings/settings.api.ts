@@ -13,6 +13,7 @@ import type {
   ServiceUpdate,
 } from './settings.types';
 import { parseDepositPercent } from './settings.mappers';
+import { parseSubscriptionPlan, type SubscriptionPlan } from '../usage/planPricing';
 
 export async function getBusinessSettings(
   businessCode: string,
@@ -31,8 +32,13 @@ export async function getBusinessSettings(
       agent_prompt,
       save_recordings,
       recordings_retention_days,
+      history_retention_months,
+      voice_log_retention_months,
+      whatsapp_retention_months,
+      subscription_plan,
       storage_quota_gb,
       is_active,
+      closed_at,
       max_adv_booking_days,
       working_hours,
       vapi_assistant_id,
@@ -257,6 +263,22 @@ export async function getBusinessStorageUsedBytes(
 
   const parsed = typeof data === 'number' ? data : Number(data);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export async function getBusinessSubscriptionPlan(
+  businessCode: string,
+): Promise<SubscriptionPlan> {
+  const { data, error } = await supabase
+    .from('businesses')
+    .select('subscription_plan')
+    .eq('business_code', businessCode)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return parseSubscriptionPlan(data.subscription_plan);
 }
 
 export async function getBusinessStorageQuotaGb(

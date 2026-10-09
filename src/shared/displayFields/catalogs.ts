@@ -73,8 +73,12 @@ export const BUSINESS_CONFIG_FIELDS: DisplayField[] = [
   { key: 'agent_prompt', label: 'תיאור מקצועי לסוכן', defaultVisible: true },
   { key: 'save_recordings', label: 'שמירת הקלטות', defaultVisible: true },
   { key: 'recordings_retention_days', label: 'ימי שמירת הקלטות', defaultVisible: true },
+  { key: 'history_retention_months', label: 'חודשי היסטוריית תורים', defaultVisible: true },
+  { key: 'voice_log_retention_months', label: 'חודשי לוג קולי', defaultVisible: true },
+  { key: 'whatsapp_retention_months', label: 'חודשי התכתבות וואטסאפ', defaultVisible: true },
+  { key: 'subscription_plan', label: 'מנוי', defaultVisible: true },
   { key: 'storage_quota_gb', label: 'מכסת אחסון', defaultVisible: true },
-  { key: 'is_active', label: 'העסק פעיל', defaultVisible: true },
+  { key: 'is_active', label: 'הסוכנים פעילים', defaultVisible: true },
 ];
 
 export const LOG_FIELDS: DisplayField[] = [

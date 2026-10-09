@@ -13,6 +13,15 @@ import type {
   BusinessSettings,
   Service,
 } from './settings.types';
+import {
+  DEFAULT_HISTORY_MONTHS,
+  DEFAULT_RECORDING_RETENTION_DAYS,
+  normalizeHistoryMonths,
+  parseSubscriptionPlan,
+  planLabel,
+  recordingRetentionMaxDays,
+  type SubscriptionPlan,
+} from '../usage/planPricing';
 import { normalizeStorageQuotaGb, INCLUDED_STORAGE_GB } from './storageQuota';
 
 const ILS_FORMATTER = new Intl.NumberFormat('he-IL', {
@@ -212,16 +221,17 @@ export function normalizeDepositPercent(value: unknown): number | null {
   return Math.round(raw * 100) / 100;
 }
 
-export const DEFAULT_RECORDING_RETENTION_DAYS = 90;
-export const MAX_RECORDING_RETENTION_DAYS = 2555;
-
-export function normalizeRetentionDays(value: unknown): number | null {
+export function normalizeRetentionDays(
+  value: unknown,
+  plan: SubscriptionPlan = 'regular',
+  maxDays = recordingRetentionMaxDays(plan),
+): number | null {
   if (value === '' || value == null) return DEFAULT_RECORDING_RETENTION_DAYS;
 
   const raw = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(raw)) return null;
   const days = Math.round(raw);
-  if (days < 1 || days > MAX_RECORDING_RETENTION_DAYS) return null;
+  if (days < 1 || days > maxDays) return null;
   return days;
 }
 
@@ -239,12 +249,30 @@ export function formatBusinessField(
   }
 
   if (key === 'is_active') {
-    return business.is_active === false ? 'לא פעיל' : 'פעיל';
+    return business.is_active === false ? 'הסוכנים כבויים' : 'הסוכנים פעילים';
+  }
+
+  if (key === 'subscription_plan') {
+    return planLabel(parseSubscriptionPlan(business.subscription_plan));
   }
 
   if (key === 'recordings_retention_days') {
-    const days = normalizeRetentionDays(business.recordings_retention_days) ?? 90;
+    const plan = parseSubscriptionPlan(business.subscription_plan);
+    const days =
+      normalizeRetentionDays(business.recordings_retention_days, plan) ??
+      DEFAULT_RECORDING_RETENTION_DAYS;
     return `${days} ימים`;
+  }
+
+  if (
+    key === 'history_retention_months' ||
+    key === 'voice_log_retention_months' ||
+    key === 'whatsapp_retention_months'
+  ) {
+    const plan = parseSubscriptionPlan(business.subscription_plan);
+    const months =
+      normalizeHistoryMonths(business[key], plan) ?? DEFAULT_HISTORY_MONTHS;
+    return `${months} חודשים`;
   }
 
   if (key === 'storage_quota_gb') {

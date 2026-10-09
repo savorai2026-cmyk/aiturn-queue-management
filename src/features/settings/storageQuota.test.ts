@@ -15,12 +15,15 @@ describe('storage quota', () => {
     expect(normalizeStorageQuotaGb('')).toBe(5);
     expect(normalizeStorageQuotaGb(8.4)).toBe(8);
     expect(normalizeStorageQuotaGb(4)).toBeNull();
-    expect(normalizeStorageQuotaGb(1001)).toBeNull();
+    expect(normalizeStorageQuotaGb(50)).toBe(50);
+    expect(normalizeStorageQuotaGb(51)).toBeNull();
   });
 
   it('prices only the gigabytes above the included five', () => {
     expect(extraStorageMonthlyIls(5)).toBe(0);
     expect(extraStorageMonthlyIls(8)).toBe(15);
+    expect(extraStorageMonthlyIls(8, 'expanded')).toBe(3);
+    expect(extraStorageMonthlyIls(7, 'expanded')).toBe(0);
     expect(formatStoragePrice(5)).toContain('בלי תוספת');
     expect(formatStoragePrice(8)).toContain('15');
   });

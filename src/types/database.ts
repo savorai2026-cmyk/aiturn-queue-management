@@ -334,6 +334,7 @@ export type Database = {
           deposit_percent: number
           email: string | null
           is_active: boolean | null
+          closed_at: string | null
           billing_hold: string
           max_adv_booking_days: number | null
           slot_duration_minutes: number | null
@@ -341,6 +342,10 @@ export type Database = {
           agent_prompt: string | null
           save_recordings: boolean
           recordings_retention_days: number
+          history_retention_months: number
+          voice_log_retention_months: number
+          whatsapp_retention_months: number
+          subscription_plan: string
           storage_quota_gb: number
           ui_preferences: Json
           updated_at: string
@@ -357,6 +362,7 @@ export type Database = {
           deposit_percent?: number
           email?: string | null
           is_active?: boolean | null
+          closed_at?: string | null
           billing_hold?: string
           max_adv_booking_days?: number | null
           slot_duration_minutes?: number | null
@@ -364,6 +370,10 @@ export type Database = {
           agent_prompt?: string | null
           save_recordings?: boolean
           recordings_retention_days?: number
+          history_retention_months?: number
+          voice_log_retention_months?: number
+          whatsapp_retention_months?: number
+          subscription_plan?: string
           storage_quota_gb?: number
           ui_preferences?: Json
           updated_at?: string
@@ -380,6 +390,7 @@ export type Database = {
           deposit_percent?: number
           email?: string | null
           is_active?: boolean | null
+          closed_at?: string | null
           billing_hold?: string
           max_adv_booking_days?: number | null
           slot_duration_minutes?: number | null
@@ -387,6 +398,10 @@ export type Database = {
           agent_prompt?: string | null
           save_recordings?: boolean
           recordings_retention_days?: number
+          history_retention_months?: number
+          voice_log_retention_months?: number
+          whatsapp_retention_months?: number
+          subscription_plan?: string
           storage_quota_gb?: number
           ui_preferences?: Json
           updated_at?: string
@@ -702,6 +717,102 @@ export type Database = {
           },
         ]
       }
+      plan_tariffs: {
+        Row: {
+          plan: string
+          monthly_ils: number
+          included_users: number
+          extra_user_ils: number
+          included_storage_gb: number
+          extra_storage_gb_ils: number
+          voice_agorot_per_minute: number
+          whatsapp_customer_agorot: number
+          whatsapp_business_agorot: number
+          recording_max_days: number
+          history_max_months: number
+          correspondence_max_months: number
+          updated_at: string
+        }
+        Insert: {
+          plan: string
+          monthly_ils: number
+          included_users: number
+          extra_user_ils: number
+          included_storage_gb: number
+          extra_storage_gb_ils: number
+          voice_agorot_per_minute: number
+          whatsapp_customer_agorot: number
+          whatsapp_business_agorot: number
+          recording_max_days: number
+          history_max_months: number
+          correspondence_max_months: number
+          updated_at?: string
+        }
+        Update: {
+          plan?: string
+          monthly_ils?: number
+          included_users?: number
+          extra_user_ils?: number
+          included_storage_gb?: number
+          extra_storage_gb_ils?: number
+          voice_agorot_per_minute?: number
+          whatsapp_customer_agorot?: number
+          whatsapp_business_agorot?: number
+          recording_max_days?: number
+          history_max_months?: number
+          correspondence_max_months?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      business_tariff_overrides: {
+        Row: {
+          business_code: string
+          monthly_ils: number | null
+          included_users: number | null
+          extra_user_ils: number | null
+          included_storage_gb: number | null
+          extra_storage_gb_ils: number | null
+          voice_agorot_per_minute: number | null
+          whatsapp_customer_agorot: number | null
+          whatsapp_business_agorot: number | null
+          recording_max_days: number | null
+          history_max_months: number | null
+          correspondence_max_months: number | null
+          updated_at: string
+        }
+        Insert: {
+          business_code: string
+          monthly_ils?: number | null
+          included_users?: number | null
+          extra_user_ils?: number | null
+          included_storage_gb?: number | null
+          extra_storage_gb_ils?: number | null
+          voice_agorot_per_minute?: number | null
+          whatsapp_customer_agorot?: number | null
+          whatsapp_business_agorot?: number | null
+          recording_max_days?: number | null
+          history_max_months?: number | null
+          correspondence_max_months?: number | null
+          updated_at?: string
+        }
+        Update: {
+          business_code?: string
+          monthly_ils?: number | null
+          included_users?: number | null
+          extra_user_ils?: number | null
+          included_storage_gb?: number | null
+          extra_storage_gb_ils?: number | null
+          voice_agorot_per_minute?: number | null
+          whatsapp_customer_agorot?: number | null
+          whatsapp_business_agorot?: number | null
+          recording_max_days?: number | null
+          history_max_months?: number | null
+          correspondence_max_months?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       usage_events: {
         Row: {
           action: string
@@ -824,6 +935,10 @@ export type Database = {
       business_agents_allowed: {
         Args: { p_business_code: string }
         Returns: boolean
+      }
+      close_business_account: {
+        Args: { p_business_code: string }
+        Returns: undefined
       }
       expired_recording_paths: {
         Args: { p_limit?: number }

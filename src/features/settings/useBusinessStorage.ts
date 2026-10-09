@@ -3,7 +3,9 @@ import {
   getBusinessPlanUsage,
   getBusinessStorageQuotaGb,
   getBusinessStorageUsedBytes,
+  getBusinessSubscriptionPlan,
 } from './settings.api';
+import { type SubscriptionPlan } from '../usage/planPricing';
 import { INCLUDED_STORAGE_GB, normalizeStorageQuotaGb } from './storageQuota';
 
 export function useBusinessStorage(businessCode: string) {
@@ -42,18 +44,24 @@ export function usePlanMeters(businessCode: string) {
   const [memberCount, setMemberCount] = useState<number | null>(null);
   const [voiceSeconds, setVoiceSeconds] = useState<number | null>(null);
   const [planError, setPlanError] = useState('');
+  const [subscriptionPlan, setSubscriptionPlan] = useState<SubscriptionPlan | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setMemberCount(null);
     setVoiceSeconds(null);
     setPlanError('');
+    setSubscriptionPlan(null);
 
-    getBusinessPlanUsage(businessCode)
-      .then((usage) => {
+    Promise.all([
+      getBusinessPlanUsage(businessCode),
+      getBusinessSubscriptionPlan(businessCode),
+    ])
+      .then(([usage, plan]) => {
         if (cancelled) return;
         setMemberCount(usage.memberCount);
         setVoiceSeconds(usage.voiceSeconds);
+        setSubscriptionPlan(plan);
       })
       .catch(() => {
         if (!cancelled) setPlanError('לא ניתן לחשב את השימוש החודשי.');
@@ -64,5 +72,5 @@ export function usePlanMeters(businessCode: string) {
     };
   }, [businessCode]);
 
-  return { ...storage, memberCount, voiceSeconds, planError };
+  return { ...storage, memberCount, voiceSeconds, planError, subscriptionPlan };
 }

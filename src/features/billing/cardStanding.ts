@@ -85,19 +85,33 @@ export interface BusinessAccessView {
   dashboardBlocked: boolean;
   message: string;
   showCardUpdate: boolean;
-  level: CardStage | 'agents' | 'inactive';
+  accountClosed: boolean;
+  level: CardStage | 'agents' | 'inactive' | 'closed';
 }
 
 export function resolveBusinessAccess(input: {
   hold: BillingHold;
   isActive: boolean;
+  closed?: boolean;
   standing: CardStanding;
 }): BusinessAccessView | null {
+  if (input.closed) {
+    return {
+      dashboardBlocked: true,
+      message:
+        'בעל העסק סגר את החשבון. הסוכנים כבויים, והמערכת לא פעילה למשתמשים של העסק.',
+      showCardUpdate: false,
+      accountClosed: true,
+      level: 'closed',
+    };
+  }
+
   if (input.hold === 'blocked') {
     return {
       dashboardBlocked: true,
       message: cardStandingMessage(input.standing, 'blocked'),
       showCardUpdate: false,
+      accountClosed: false,
       level: 'blocked',
     };
   }
@@ -107,6 +121,7 @@ export function resolveBusinessAccess(input: {
       dashboardBlocked: true,
       message: cardStandingMessage(input.standing, 'auto'),
       showCardUpdate: true,
+      accountClosed: false,
       level: 'blocked',
     };
   }
@@ -117,6 +132,7 @@ export function resolveBusinessAccess(input: {
       message:
         'סוכן הקול וסוכן הוואטסאפ מושבתים לבדיקה. המערכת עצמה נשארת פתוחה.',
       showCardUpdate: false,
+      accountClosed: false,
       level: 'agents',
     };
   }
@@ -127,6 +143,7 @@ export function resolveBusinessAccess(input: {
       message:
         'העסק מסומן כלא פעיל. סוכן הקול וסוכן הוואטסאפ מושבתים עד שהעסק יופעל שוב. המערכת נשארת פתוחה.',
       showCardUpdate: false,
+      accountClosed: false,
       level: 'inactive',
     };
   }
@@ -136,6 +153,7 @@ export function resolveBusinessAccess(input: {
       dashboardBlocked: false,
       message: cardStandingMessage(input.standing, 'auto'),
       showCardUpdate: true,
+      accountClosed: false,
       level: input.standing.stage,
     };
   }

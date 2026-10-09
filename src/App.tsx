@@ -50,6 +50,17 @@ function AuthenticatedApp({ userEmail, onLogout }: AuthenticatedAppProps) {
     writeAppTab(activeTab);
   }, [activeTab]);
 
+  const openBusinessSettings = (target: 'cloud-storage' | 'subscription-plan') => {
+    if (!activeBusiness) return;
+    try {
+      sessionStorage.setItem(`settingsTab:${activeBusiness.businessCode}`, 'config');
+      sessionStorage.setItem(`settingsScroll:${activeBusiness.businessCode}`, target);
+    } catch {
+      /* ignore */
+    }
+    setActiveTab('settings');
+  };
+
   if (isLoading) {
     return <LoadingScreen message="טוען את פרטי העסק..." />;
   }
@@ -134,19 +145,10 @@ function AuthenticatedApp({ userEmail, onLogout }: AuthenticatedAppProps) {
               key={activeBusiness.businessCode}
               businessCode={activeBusiness.businessCode}
               onOpenStorageSettings={() => {
-                try {
-                  sessionStorage.setItem(
-                    `settingsTab:${activeBusiness.businessCode}`,
-                    'config',
-                  );
-                  sessionStorage.setItem(
-                    `settingsScroll:${activeBusiness.businessCode}`,
-                    'cloud-storage',
-                  );
-                } catch {
-                  /* ignore */
-                }
-                setActiveTab('settings');
+                openBusinessSettings('cloud-storage');
+              }}
+              onOpenPlanSettings={() => {
+                openBusinessSettings('subscription-plan');
               }}
             />
           </main>

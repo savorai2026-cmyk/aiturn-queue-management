@@ -1,17 +1,21 @@
 import { usePlanMeters } from '../../settings/useBusinessStorage';
 import PriceList from './PriceList';
+import { tariffHasOverride, usePlanTariffs } from '../tariffs.api';
 import styles from './UsagePage.module.css';
 
 interface UsagePageProps {
   businessCode: string;
   onOpenStorageSettings: () => void;
+  onOpenPlanSettings: () => void;
 }
 
 export default function UsagePage({
   businessCode,
   onOpenStorageSettings,
+  onOpenPlanSettings,
 }: UsagePageProps) {
   const meters = usePlanMeters(businessCode);
+  const tariffs = usePlanTariffs(businessCode);
 
   return (
     <div className={styles.container}>
@@ -29,7 +33,13 @@ export default function UsagePage({
           memberCount={meters.memberCount}
           voiceSeconds={meters.voiceSeconds}
           planError={meters.planError}
+          subscriptionPlan={meters.subscriptionPlan}
+          regularTariff={tariffs.regular}
+          expandedTariff={tariffs.expanded}
+          resolvedTariff={tariffs.resolve(meters.subscriptionPlan ?? 'regular')}
+          hasOverride={tariffHasOverride(tariffs.override)}
           onOpenStorageSettings={onOpenStorageSettings}
+          onOpenPlanSettings={onOpenPlanSettings}
         />
       </div>
     </div>

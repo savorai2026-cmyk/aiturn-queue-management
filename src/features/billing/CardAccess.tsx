@@ -26,6 +26,7 @@ export default function CardAccess({
   const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [billingHold, setBillingHold] = useState(parseBillingHold(null));
   const [isActive, setIsActive] = useState(true);
+  const [closed, setClosed] = useState(false);
   const [createdLoaded, setCreatedLoaded] = useState(false);
   const [updating, setUpdating] = useState(false);
 
@@ -38,12 +39,14 @@ export default function CardAccess({
         setCreatedAt(value.createdAt);
         setBillingHold(parseBillingHold(value.billingHold));
         setIsActive(value.isActive);
+        setClosed(value.closed);
       })
       .catch(() => {
         if (!cancelled) {
           setCreatedAt(null);
           setBillingHold('exempt');
           setIsActive(true);
+          setClosed(false);
         }
       })
       .finally(() => {
@@ -57,6 +60,7 @@ export default function CardAccess({
   const access = resolveBusinessAccess({
     hold: billingHold,
     isActive,
+    closed,
     standing: cardStanding({
       hasActiveCard: isActivePaymentMethod(paymentMethod),
       cardExp: paymentMethod?.cardExp ?? null,
@@ -82,9 +86,9 @@ export default function CardAccess({
     <>
       {access.dashboardBlocked ? (
         <main className={`feature-area ${styles.block}`}>
-          <h1>המערכת חסומה לעסק הזה</h1>
+          <h1>{access.accountClosed ? 'החשבון נסגר' : 'המערכת חסומה לעסק הזה'}</h1>
           <p>{access.message}</p>
-          {access.showCardUpdate ? (
+          {access.accountClosed ? null : access.showCardUpdate ? (
             updateButton
           ) : (
             <p className={styles.hint}>

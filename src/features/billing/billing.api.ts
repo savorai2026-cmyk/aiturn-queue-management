@@ -106,10 +106,11 @@ export async function getBusinessAccess(
   createdAt: string | null;
   billingHold: string | null;
   isActive: boolean;
+  closed: boolean;
 }> {
   const { data, error } = await supabase
     .from('businesses')
-    .select('created_at, billing_hold, is_active')
+    .select('created_at, billing_hold, is_active, closed_at')
     .eq('business_code', businessCode)
     .maybeSingle();
 
@@ -121,6 +122,7 @@ export async function getBusinessAccess(
     createdAt: data?.created_at ?? null,
     billingHold: data?.billing_hold ?? null,
     isActive: data?.is_active !== false,
+    closed: Boolean(data?.closed_at),
   };
 }
 
