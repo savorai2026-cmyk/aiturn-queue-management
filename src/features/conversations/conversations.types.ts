@@ -33,10 +33,8 @@ export interface LogRecordingPlayback {
 
 export type ConversationLogColumnKey =
   | 'startedAt'
-  | 'endedAt'
   | 'channel'
   | 'clientPhone'
   | 'durationSeconds'
-  | 'estimatedCost'
   | 'summary'
   | 'recording';

@@ -36,4 +36,6 @@ export interface DetailRow {
   value: string;
   dir?: 'ltr';
   audioUrl?: string;
+  downloadPath?: string | null;
+  downloadName?: string;
 }

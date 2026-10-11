@@ -38,7 +38,7 @@ export default function ColumnTableHead({
               : 'none';
 
           return (
-            <th key={column.key} aria-sort={ariaSort}>
+            <th key={column.key} data-column={column.key} aria-sort={ariaSort}>
               <button
                 type="button"
                 className={styles.sortButton}
@@ -68,7 +68,7 @@ export default function ColumnTableHead({
             const options = selectOptions?.[column.key];
 
             return (
-              <th key={`${column.key}-filter`}>
+              <th key={`${column.key}-filter`} data-column={column.key}>
                 {options ? (
                   <select
                     className={styles.filterSelect}

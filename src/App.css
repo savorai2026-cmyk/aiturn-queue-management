@@ -293,14 +293,14 @@ textarea:focus-visible {
 .data-table td {
   padding: 7px 12px;
   border: 0 solid rgba(7, 63, 103, 0.1);
-  border-block-end-width: 1px;
-  border-inline-start-width: 1px;
+  border-bottom-width: 1px;
+  border-left-width: 1px;
   vertical-align: middle;
   line-height: 1.35;
 }
 
-.data-table tr > :last-child {
-  border-inline-end-width: 1px;
+.data-table tr > :first-child {
+  border-right-width: 1px;
 }
 
 .data-table th:first-child,
@@ -321,16 +321,18 @@ textarea:focus-visible {
   position: sticky;
   top: 0;
   z-index: 4;
+  height: 36px;
+  background-color: var(--color-navy-800);
+  background-clip: border-box;
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 1px 0 var(--color-navy-800),
+    0 -1px 0 var(--color-navy-800);
   white-space: nowrap;
 }
 
 .data-table thead tr:first-child th {
-  height: 35px;
-  border-block-start-width: 1px;
-}
-
-.data-table thead tr:last-child th {
-  box-shadow: 0 8px 16px rgba(7, 63, 103, 0.16);
+  border-top-width: 1px;
 }
 
 .data-table tbody tr:nth-child(odd) td {

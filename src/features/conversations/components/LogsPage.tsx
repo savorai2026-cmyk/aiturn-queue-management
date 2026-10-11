@@ -180,7 +180,11 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
                 }}
               >
                 {activeColumns.map((column) => (
-                  <td key={column.key} dir={column.dir || 'rtl'}>
+                  <td
+                    key={column.key}
+                    dir={column.dir || 'rtl'}
+                    data-column={column.key}
+                  >
                     {column.key === 'recording' ? (
                       <RecordingCell log={log} />
                     ) : (

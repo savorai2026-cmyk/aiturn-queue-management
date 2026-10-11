@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import RecordingPlayer from '../../features/conversations/components/RecordingPlayer';
 import type { DetailRow } from './types';
 import modal from '../components/modalShell.module.css';
 import styles from './RecordDetailsModal.module.css';
@@ -49,14 +50,13 @@ export default function RecordDetailsModal({
               <span className={styles.label}>{row.label}</span>
               <span className={styles.value}>
                 {row.audioUrl ? (
-                  <audio
-                    className={styles.audio}
-                    controls
-                    preload="metadata"
+                  <RecordingPlayer
                     src={row.audioUrl}
-                  >
-                    הדפדפן אינו תומך בהשמעת הקלטה.
-                  </audio>
+                    storagePath={row.downloadPath}
+                    fileName={row.downloadName || 'recording.ogg'}
+                  />
+                ) : row.downloadPath ? (
+                  row.value || '—'
                 ) : row.dir === 'ltr' ? (
                   <span className={styles.ltrValue} dir="ltr">
                     {row.value || '—'}

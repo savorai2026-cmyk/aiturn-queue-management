@@ -3,7 +3,7 @@ import {
   filterAndSortLogs,
   findRecordingForLog,
   formatDurationSeconds,
-  formatEstimatedCost,
+  formatIsraeliPhone,
   formatLogChannel,
   logRecordingLabel,
   storageFileStem,
@@ -35,11 +35,13 @@ const LOG: ConversationLog = {
 };
 
 describe('conversation log mappers', () => {
-  it('formats channel, duration and cost', () => {
+  it('formats channel, duration and local phone numbers', () => {
     expect(formatLogChannel('vapi')).toBe('קול');
     expect(formatDurationSeconds(125)).toBe('2 דק׳ 5 שנ׳');
     expect(formatDurationSeconds(45)).toBe('45 שנ׳');
-    expect(formatEstimatedCost(1.5, 'USD')).toBe('1.5 USD');
+    expect(formatIsraeliPhone('+972501234567')).toBe('0501234567');
+    expect(formatIsraeliPhone('972-50-123-4567')).toBe('0501234567');
+    expect(formatIsraeliPhone('0501234567')).toBe('0501234567');
   });
 
   it('matches a storage file to the log external id', () => {
@@ -68,6 +70,8 @@ describe('conversation log mappers', () => {
     expect(keys).not.toContain('toolCalls');
     expect(keys).not.toContain('outcome');
     expect(keys).not.toContain('model');
+    expect(keys).not.toContain('endedAt');
+    expect(keys).not.toContain('cost');
   });
 
   it('exposes a playable recording in the recording row', () => {
@@ -75,6 +79,7 @@ describe('conversation log mappers', () => {
       audioUrl: 'https://example.com/rec.ogg',
     }).find((item) => item.key === 'recording');
     expect(row?.audioUrl).toBe('https://example.com/rec.ogg');
+    expect(row?.downloadName).toContain(LOG.externalId);
     expect(row?.value).toBe('');
     expect(
       toConversationDetailRows({
@@ -114,6 +119,14 @@ describe('conversation log mappers', () => {
         (log) => log.id,
       ),
     ).toEqual(['log-1']);
+
+    expect(
+      filterAndSortLogs(
+        [{ ...LOG, id: 'log-3', clientPhone: '+972501234567' }],
+        { clientPhone: '050123' },
+        null,
+      ).map((log) => log.id),
+    ).toEqual(['log-3']);
 
     expect(
       filterAndSortLogs(

@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import { getRecordingSignedUrl } from '../conversations.api';
-import { hasPlayableRecording, logPlaybackUrl } from '../conversations.mappers';
+import {
+  hasPlayableRecording,
+  logPlaybackUrl,
+  recordingDownloadName,
+} from '../conversations.mappers';
 import type { ConversationLog } from '../conversations.types';
+import RecordingPlayer from './RecordingPlayer';
 import styles from './LogsPage.module.css';
 
 interface RecordingCellProps {
@@ -55,14 +60,15 @@ export default function RecordingCell({ log }: RecordingCellProps) {
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
     >
-      <audio
-        className={styles.tableAudio}
-        controls
-        preload="none"
-        src={audioUrl ?? undefined}
-      >
-        הדפדפן אינו תומך בהשמעת הקלטה.
-      </audio>
+      {audioUrl ? (
+        <RecordingPlayer
+          src={audioUrl}
+          storagePath={log.storagePath}
+          fileName={recordingDownloadName(log)}
+        />
+      ) : (
+        <span>טוען הקלטה...</span>
+      )}
       {error ? <span className={styles.recordingError}>{error}</span> : null}
     </div>
   );

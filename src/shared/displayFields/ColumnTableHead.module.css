@@ -49,12 +49,15 @@
 }
 
 :global(.data-table) thead tr.filterRow th {
-  top: 35px;
+  top: 36px;
   height: auto;
   background: #eef4f6;
   color: var(--color-text);
   font-weight: 500;
   border-color: rgba(7, 63, 103, 0.1);
+  box-shadow:
+    0 1px 0 #eef4f6,
+    0 -1px 0 #eef4f6;
 }
 
 .filterInput,

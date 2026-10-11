@@ -60,19 +60,16 @@ export function formatLogDateTime(value: string | null) {
   });
 }
 
-export function formatEstimatedCost(
-  value: number | null,
-  currency: string,
-) {
-  if (value == null || !Number.isFinite(value)) {
-    return '—';
-  }
+export function formatIsraeliPhone(value: string | null | undefined) {
+  const raw = value?.trim() ?? '';
+  if (!raw) return '';
 
-  const amount = value.toLocaleString('he-IL', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 4,
-  });
-  return currency ? `${amount} ${currency}` : amount;
+  let digits = raw.replace(/\D/g, '');
+  if (!digits) return raw;
+  if (digits.startsWith('972')) {
+    digits = `0${digits.slice(3)}`;
+  }
+  return digits;
 }
 
 export function storageFileStem(path: string) {
@@ -112,6 +109,8 @@ function recordingDetailRow(
       label: 'הקלטה',
       value: '',
       audioUrl: readyUrl,
+      downloadPath: log.storagePath,
+      downloadName: recordingDownloadName(log),
     };
   }
 
@@ -128,6 +127,8 @@ function recordingDetailRow(
       key: 'recording',
       label: 'הקלטה',
       value: 'טוען הקלטה...',
+      downloadPath: log.storagePath,
+      downloadName: recordingDownloadName(log),
     };
   }
 
@@ -136,6 +137,25 @@ function recordingDetailRow(
     label: 'הקלטה',
     value: 'אין הקלטה',
   };
+}
+
+export function recordingDownloadName(
+  log: Pick<ConversationLog, 'storagePath' | 'externalId' | 'recordingMime'>,
+) {
+  const fromPath = log.storagePath?.split('/').pop()?.trim();
+  if (fromPath) return fromPath;
+
+  const mime = log.recordingMime ?? '';
+  const extension = mime.includes('mpeg') || mime.includes('mp3')
+    ? 'mp3'
+    : mime.includes('wav')
+      ? 'wav'
+      : mime.includes('mp4')
+        ? 'mp4'
+        : mime.includes('webm')
+          ? 'webm'
+          : 'ogg';
+  return `recording-${log.externalId || 'call'}.${extension}`;
 }
 
 export function logRecordingLabel(log: ConversationLog) {
@@ -170,16 +190,12 @@ export function formatLogCell(
   switch (key) {
     case 'startedAt':
       return formatLogDateTime(log.startedAt ?? log.createdAt);
-    case 'endedAt':
-      return formatLogDateTime(log.endedAt);
     case 'channel':
       return formatLogChannel(log.channel);
     case 'clientPhone':
-      return log.clientPhone || '—';
+      return formatIsraeliPhone(log.clientPhone) || '—';
     case 'durationSeconds':
       return formatDurationSeconds(log.durationSeconds);
-    case 'estimatedCost':
-      return formatEstimatedCost(log.estimatedCost, log.currency);
     case 'summary':
       return log.summary || '—';
     case 'recording':
@@ -197,23 +213,17 @@ export function toConversationDetailRows(
 
   return [
     { key: 'startedAt', label: 'התחלה', value: formatLogDateTime(log.startedAt) },
-    { key: 'endedAt', label: 'סיום', value: formatLogDateTime(log.endedAt) },
     { key: 'channel', label: 'ערוץ', value: formatLogChannel(log.channel) },
     {
       key: 'clientPhone',
       label: 'טלפון',
-      value: log.clientPhone || '',
+      value: formatIsraeliPhone(log.clientPhone),
       dir: 'ltr',
     },
     {
       key: 'duration',
       label: 'משך',
       value: formatDurationSeconds(log.durationSeconds),
-    },
-    {
-      key: 'cost',
-      label: 'עלות משוערת',
-      value: formatEstimatedCost(log.estimatedCost, log.currency),
     },
     { key: 'summary', label: 'סיכום', value: log.summary || '' },
     { key: 'transcript', label: 'תמלול', value: transcript },
@@ -252,23 +262,17 @@ function matchesLogColumnFilters(log: ConversationLog, filters: ColumnFilters) {
     }
 
     if (key === 'clientPhone') {
-      return columnDigitsInclude(log.clientPhone ?? '', query);
+      const shown = formatIsraeliPhone(log.clientPhone);
+      return (
+        columnDigitsInclude(shown, query) ||
+        columnDigitsInclude(log.clientPhone ?? '', query)
+      );
     }
 
     if (key === 'durationSeconds' && log.durationSeconds != null) {
       return (
         columnExactNumber(log.durationSeconds, query) ||
         columnTextIncludes(formatDurationSeconds(log.durationSeconds), query)
-      );
-    }
-
-    if (key === 'estimatedCost' && log.estimatedCost != null) {
-      return (
-        columnExactNumber(log.estimatedCost, query) ||
-        columnTextIncludes(
-          formatEstimatedCost(log.estimatedCost, log.currency),
-          query,
-        )
       );
     }
 
@@ -292,14 +296,6 @@ function compareLogs(
     );
   }
 
-  if (sort.key === 'endedAt') {
-    return compareByNumber(
-      timestampValue(left.endedAt),
-      timestampValue(right.endedAt),
-      sort.direction,
-    );
-  }
-
   if (sort.key === 'durationSeconds') {
     return compareByNumber(
       left.durationSeconds ?? -1,
@@ -308,18 +304,10 @@ function compareLogs(
     );
   }
 
-  if (sort.key === 'estimatedCost') {
-    return compareByNumber(
-      left.estimatedCost ?? -1,
-      right.estimatedCost ?? -1,
-      sort.direction,
-    );
-  }
-
   if (sort.key === 'clientPhone') {
     return compareByText(
-      (left.clientPhone ?? '').replace(/\D/g, ''),
-      (right.clientPhone ?? '').replace(/\D/g, ''),
+      formatIsraeliPhone(left.clientPhone),
+      formatIsraeliPhone(right.clientPhone),
       sort.direction,
     );
   }

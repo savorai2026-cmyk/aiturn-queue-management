@@ -171,3 +171,17 @@ export async function getRecordingSignedUrl(storagePath: string) {
 
   return data.signedUrl;
 }
+
+export async function getRecordingDownloadUrl(storagePath: string, fileName: string) {
+  const { data, error } = await supabase.storage
+    .from(RECORDINGS_BUCKET)
+    .createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS, {
+      download: fileName,
+    });
+
+  if (error || !data?.signedUrl) {
+    throw new Error(error?.message || 'לא ניתן להוריד את ההקלטה.');
+  }
+
+  return data.signedUrl;
+}

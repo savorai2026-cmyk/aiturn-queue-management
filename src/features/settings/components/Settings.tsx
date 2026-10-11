@@ -230,7 +230,7 @@ export default function Settings({
             onSaved={onBusinessUpdated}
           />
         ) : activeTab === 'config' ? (
-          <>
+          <div>
             <BusinessConfigForm
               key={`${business.business_code}-config`}
               business={business}
@@ -246,7 +246,7 @@ export default function Settings({
                 accountClosed={Boolean(business.closed_at)}
               />
             ) : null}
-          </>
+          </div>
         ) : activeTab === 'hours' ? (
           <OperatingHoursForm
             key={`${business.business_code}-hours`}
