@@ -78,3 +78,55 @@
 .primary:hover {
   background: #0f766e;
 }
+
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 10px 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: var(--color-surface);
+  color: var(--color-navy-900);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.charge {
+  display: grid;
+  gap: 10px;
+}
+
+.chargeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.amount {
+  width: 96px;
+  padding: 9px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: #ffffff;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.success {
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 7px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 14px;
+}

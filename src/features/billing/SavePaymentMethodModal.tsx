@@ -136,7 +136,7 @@ export default function SavePaymentMethodModal({
     };
   }, [businessCode, flow, onSaved]);
 
-  const handleStart = async () => {
+  const handleStart = async (paymentType: 'validate' | 'regular') => {
     setErrorMessage('');
     setFlow('starting');
 
@@ -144,7 +144,7 @@ export default function SavePaymentMethodModal({
     popupRef.current = popup;
 
     try {
-      const url = await startBillingEnrollment(businessCode);
+      const url = await startBillingEnrollment(businessCode, paymentType);
       startedAtRef.current = Date.now();
       setStartUrl(url);
 
@@ -217,9 +217,9 @@ export default function SavePaymentMethodModal({
             {mode === 'gate' ? <PlanRates plan={plan} /> : null}
 
             <ul className={styles.points}>
-              <li>דף ההזנה שייך לקרדיטגארד ואינו עובר דרך המערכת.</li>
+              <li>דף ההזנה שייך למקס ואינו עובר דרך המערכת.</li>
               <li>אנחנו שומרים רק אסימון וארבע ספרות אחרונות.</li>
-              <li>אפשר לסגור את חלון הסליקה ולנסות שוב אם התהליך נקטע.</li>
+              <li>אפשר לבדוק שמירה בלי חיוב, או שמירה עם חיוב של שקל אחד.</li>
             </ul>
 
             {last4 && mode === 'update' && flow === 'ready' ? (
@@ -254,7 +254,7 @@ export default function SavePaymentMethodModal({
               <button
                 type="button"
                 className={styles.primary}
-                onClick={() => void handleStart()}
+                onClick={() => void handleStart('validate')}
                 disabled={flow === 'starting' || flow === 'waiting'}
               >
                 <CardIcon />
@@ -262,9 +262,16 @@ export default function SavePaymentMethodModal({
                   ? 'פותח דף מאובטח...'
                   : flow === 'waiting'
                     ? 'ממתין לשמירה'
-                    : mode === 'update' && last4
-                      ? 'החלפת כרטיס'
-                      : 'שמירת כרטיס'}
+                    : 'שמירה בלי חיוב'}
+              </button>
+
+              <button
+                type="button"
+                className={styles.secondary}
+                onClick={() => void handleStart('regular')}
+                disabled={flow === 'starting' || flow === 'waiting'}
+              >
+                שמירה עם חיוב של 1 ש״ח
               </button>
 
               {flow === 'waiting' && startUrl ? (

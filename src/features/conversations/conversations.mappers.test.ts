@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   filterAndSortLogs,
+  findLogClient,
   findRecordingForLog,
+  defaultLogDateRange,
   formatDurationSeconds,
+  logRangeBound,
   formatIsraeliPhone,
+  logSearchText,
+  nationalIdSearch,
+  phoneSearchNeedle,
   formatLogChannel,
   logRecordingLabel,
   storageFileStem,
@@ -16,6 +22,8 @@ const LOG: ConversationLog = {
   externalId: '01a0bdbf-8154-7dd6-ae94-ff6163b0f3b6',
   channel: 'whatsapp',
   clientPhone: '0501234567',
+  clientName: 'דנה לוי',
+  nationalId: '123456782',
   startedAt: '2026-09-20T07:00:00.000Z',
   endedAt: '2026-09-20T07:04:00.000Z',
   durationSeconds: 125,
@@ -42,6 +50,47 @@ describe('conversation log mappers', () => {
     expect(formatIsraeliPhone('+972501234567')).toBe('0501234567');
     expect(formatIsraeliPhone('972-50-123-4567')).toBe('0501234567');
     expect(formatIsraeliPhone('0501234567')).toBe('0501234567');
+    expect(phoneSearchNeedle('+972501234567')).toBe('501234567');
+    expect(phoneSearchNeedle('050-123-4567')).toBe('501234567');
+    expect(phoneSearchNeedle('אין')).toBe('');
+    expect(nationalIdSearch('12-3456782')).toBe('123456782');
+    expect(logSearchText(' אביב% ')).toBe('אביב');
+    expect(defaultLogDateRange(new Date(2026, 9, 16))).toEqual({
+      from: '2026-07-16',
+      to: '2026-10-16',
+    });
+    const start = new Date(logRangeBound('2026-10-16', 'start'));
+    expect(start.getFullYear()).toBe(2026);
+    expect(start.getMonth()).toBe(9);
+    expect(start.getDate()).toBe(16);
+    expect(start.getHours()).toBe(0);
+    const end = new Date(logRangeBound('2026-10-16', 'end'));
+    expect(end.getHours()).toBe(23);
+    expect(end.getMinutes()).toBe(59);
+  });
+
+  it('matches a log to the client mobile before the WhatsApp number', () => {
+    const clients = [
+      {
+        id: 4,
+        fullName: 'דנה לוי',
+        nationalId: '123456782',
+        mobilePhone: '0501234567',
+        whatsappNumber: null,
+      },
+      {
+        id: 9,
+        fullName: 'אחר',
+        nationalId: '999',
+        mobilePhone: '0500000000',
+        whatsappNumber: '+972501234567',
+      },
+    ];
+
+    expect(findLogClient(LOG, clients)?.fullName).toBe('דנה לוי');
+    expect(
+      findLogClient({ ...LOG, clientPhone: '+972500000000', clientId: '9' }, clients)?.id,
+    ).toBe(9);
   });
 
   it('matches a storage file to the log external id', () => {
@@ -80,6 +129,7 @@ describe('conversation log mappers', () => {
     }).find((item) => item.key === 'recording');
     expect(row?.audioUrl).toBe('https://example.com/rec.ogg');
     expect(row?.downloadName).toContain(LOG.externalId);
+    expect(row?.durationSeconds).toBe(125);
     expect(row?.value).toBe('');
     expect(
       toConversationDetailRows({

@@ -1,17 +1,21 @@
-export const MONTHLY_PLAN_ILS = 150;
-export const EXPANDED_MONTHLY_ILS = 250;
-export const REGULAR_INCLUDED_USERS = 3;
-export const EXPANDED_INCLUDED_USERS = 5;
-export const EXTRA_USER_ILS = 30;
-export const EXPANDED_EXTRA_USER_ILS = 40;
+export const MONTHLY_PLAN_ILS = 99;
+export const EXPANDED_MONTHLY_ILS = 199;
+export const REGULAR_INCLUDED_USERS = 2;
+export const EXPANDED_INCLUDED_USERS = 4;
+export const EXTRA_USER_ILS = 40;
+export const EXPANDED_EXTRA_USER_ILS = 30;
 export const VAT_RATE = 0.18;
-export const VOICE_AGOROT_PER_MINUTE = 70;
+export const REGULAR_VOICE_AGOROT_PER_MINUTE = 90;
+export const EXPANDED_VOICE_AGOROT_PER_MINUTE = 70;
+export const VOICE_AGOROT_PER_MINUTE = REGULAR_VOICE_AGOROT_PER_MINUTE;
 export const REGULAR_INCLUDED_STORAGE_GB = 5;
 export const EXPANDED_INCLUDED_STORAGE_GB = 7;
 export const EXTRA_STORAGE_GB_ILS = 5;
 export const EXPANDED_EXTRA_STORAGE_GB_ILS = 3;
-export const WHATSAPP_CUSTOMER_AGOROT = 10;
+export const WHATSAPP_CUSTOMER_AGOROT = 11;
+export const EXPANDED_WHATSAPP_CUSTOMER_AGOROT = 9;
 export const WHATSAPP_BUSINESS_AGOROT = 25;
+export const EXPANDED_WHATSAPP_BUSINESS_AGOROT = 22;
 export const REGULAR_RECORDING_MAX_DAYS = 90;
 export const EXPANDED_RECORDING_MAX_DAYS = 2555;
 export const DEFAULT_RECORDING_RETENTION_DAYS = 30;
@@ -109,9 +113,15 @@ export function catalogTariff(plan: SubscriptionPlan): PlanTariff {
     extraUserIls: expanded ? EXPANDED_EXTRA_USER_ILS : EXTRA_USER_ILS,
     includedStorageGb: expanded ? EXPANDED_INCLUDED_STORAGE_GB : REGULAR_INCLUDED_STORAGE_GB,
     extraStorageGbIls: expanded ? EXPANDED_EXTRA_STORAGE_GB_ILS : EXTRA_STORAGE_GB_ILS,
-    voiceAgorotPerMinute: VOICE_AGOROT_PER_MINUTE,
-    whatsappCustomerAgorot: WHATSAPP_CUSTOMER_AGOROT,
-    whatsappBusinessAgorot: WHATSAPP_BUSINESS_AGOROT,
+    voiceAgorotPerMinute: expanded
+      ? EXPANDED_VOICE_AGOROT_PER_MINUTE
+      : REGULAR_VOICE_AGOROT_PER_MINUTE,
+    whatsappCustomerAgorot: expanded
+      ? EXPANDED_WHATSAPP_CUSTOMER_AGOROT
+      : WHATSAPP_CUSTOMER_AGOROT,
+    whatsappBusinessAgorot: expanded
+      ? EXPANDED_WHATSAPP_BUSINESS_AGOROT
+      : WHATSAPP_BUSINESS_AGOROT,
     recordingMaxDays: expanded ? EXPANDED_RECORDING_MAX_DAYS : REGULAR_RECORDING_MAX_DAYS,
     historyMaxMonths: expanded ? EXPANDED_HISTORY_MAX_MONTHS : REGULAR_HISTORY_MAX_MONTHS,
     correspondenceMaxMonths: expanded ? EXPANDED_HISTORY_MAX_MONTHS : REGULAR_HISTORY_MAX_MONTHS,
@@ -179,10 +189,58 @@ export function normalizeHistoryMonths(
   return months;
 }
 
+const WHATSAPP_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export interface WhatsappWindowLog {
+  id: string;
+  phone: string | null;
+  startedAt: string;
+}
+
+function whatsappPhoneKey(phone: string | null, fallback: string) {
+  const digits = (phone ?? '').replace(/\D/g, '');
+  if (!digits) return fallback;
+  const local = digits.startsWith('972') ? digits.slice(3) : digits;
+  return local.startsWith('0') ? local.slice(1) : local;
+}
+
+export function countWhatsappWindows(
+  logs: WhatsappWindowLog[],
+  monthStartMs: number,
+): number {
+  const byPhone = new Map<string, number[]>();
+  const seen = new Set<string>();
+
+  for (const log of logs) {
+    if (seen.has(log.id)) continue;
+    seen.add(log.id);
+    const started = Date.parse(log.startedAt);
+    if (!Number.isFinite(started)) continue;
+    const key = whatsappPhoneKey(log.phone, `log:${log.id}`);
+    const starts = byPhone.get(key) ?? [];
+    starts.push(started);
+    byPhone.set(key, starts);
+  }
+
+  let windows = 0;
+  for (const starts of byPhone.values()) {
+    starts.sort((left, right) => left - right);
+    let openedAt = Number.NEGATIVE_INFINITY;
+    for (const started of starts) {
+      if (started < openedAt + WHATSAPP_WINDOW_MS) continue;
+      openedAt = started;
+      if (started >= monthStartMs) windows += 1;
+    }
+  }
+
+  return windows;
+}
+
 export function monthChargeIls(input: {
   voiceSeconds: number;
   quotaGb: number;
   memberCount?: number;
+  whatsappWindows?: number;
   plan?: SubscriptionPlan;
   tariff?: PlanTariff;
 }): number {
@@ -193,8 +251,10 @@ export function monthChargeIls(input: {
     !Number.isFinite(input.voiceSeconds) || input.voiceSeconds <= 0
       ? 0
       : (input.voiceSeconds / 60) * (tariff.voiceAgorotPerMinute / 100) * (1 + VAT_RATE);
+  const windows = Number.isFinite(input.whatsappWindows) ? Math.max(0, input.whatsappWindows ?? 0) : 0;
+  const whatsapp = windows * (tariff.whatsappCustomerAgorot / 100) * (1 + VAT_RATE);
   const extraStorage = Math.max(0, input.quotaGb - tariff.includedStorageGb) * tariff.extraStorageGbIls;
-  return tariff.monthlyIls + extraUsers * tariff.extraUserIls + voice + extraStorage;
+  return tariff.monthlyIls + extraUsers * tariff.extraUserIls + voice + whatsapp + extraStorage;
 }
 
 export function formatPlanIls(value: number): string {

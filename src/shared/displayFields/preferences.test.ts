@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   hasStoredUiPreferences,
+  moveColumn,
   parseUiPreferences,
   resolveVisibleFields,
   sanitizeVisibleFields,
@@ -51,6 +52,11 @@ describe('ui preference merge', () => {
       logs: { visibleFields: ['startedAt', 'channel'] },
       usage: { visibleFields: ['action', 'amountCredits'] },
     });
+
+    expect(moveColumn(['a', 'b', 'c'], 'c', 'a', 'before')).toEqual(['c', 'a', 'b']);
+    expect(moveColumn(['a', 'b', 'c'], 'a', 'c', 'after')).toEqual(['b', 'c', 'a']);
+    expect(moveColumn(['a', 'b', 'c'], 'a', 'b', 'after')).toEqual(['b', 'a', 'c']);
+    expect(moveColumn(['a', 'b', 'c'], 'a', 'a', 'before')).toEqual(['a', 'b', 'c']);
 
     expect(hasStoredUiPreferences({})).toBe(false);
     expect(

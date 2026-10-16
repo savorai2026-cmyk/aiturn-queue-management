@@ -192,6 +192,8 @@ export type Database = {
           expires_at: string
           id: string
           payment_method_id: string | null
+          payment_type: string | null
+          provider_session_id: string | null
           status: string
           uniqueid: string
         }
@@ -203,6 +205,8 @@ export type Database = {
           expires_at: string
           id?: string
           payment_method_id?: string | null
+          payment_type?: string | null
+          provider_session_id?: string | null
           status?: string
           uniqueid: string
         }
@@ -214,6 +218,8 @@ export type Database = {
           expires_at?: string
           id?: string
           payment_method_id?: string | null
+          payment_type?: string | null
+          provider_session_id?: string | null
           status?: string
           uniqueid?: string
         }
@@ -222,7 +228,7 @@ export type Database = {
             foreignKeyName: "billing_sessions_payment_method_id_fkey"
             columns: ["payment_method_id"]
             isOneToOne: false
-            referencedRelation: "business_payment_methods"
+            referencedRelation: "payment_methods"
             referencedColumns: ["id"]
           },
         ]
@@ -274,7 +280,7 @@ export type Database = {
           },
         ]
       }
-      business_payment_methods: {
+      payment_methods: {
         Row: {
           business_code: string
           cg_card_exp: string | null
@@ -283,6 +289,7 @@ export type Database = {
           created_at: string
           id: string
           provider: string
+          provider_reference: string | null
           status: string
           tokenized_at: string | null
           uniqueid: string | null
@@ -296,6 +303,7 @@ export type Database = {
           created_at?: string
           id?: string
           provider?: string
+          provider_reference?: string | null
           status?: string
           tokenized_at?: string | null
           uniqueid?: string | null
@@ -309,6 +317,7 @@ export type Database = {
           created_at?: string
           id?: string
           provider?: string
+          provider_reference?: string | null
           status?: string
           tokenized_at?: string | null
           uniqueid?: string | null

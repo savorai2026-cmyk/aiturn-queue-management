@@ -47,7 +47,7 @@ export default function TopBar({
   return (
     <header className={styles.topBar}>
       <div className={styles.rightSection}>
-        <img src={logo} alt="Featurn Logo" className={styles.logo} />
+        <img src={logo} alt="QGent" className={styles.logo} />
       </div>
 
       <div className={styles.navGroup}>

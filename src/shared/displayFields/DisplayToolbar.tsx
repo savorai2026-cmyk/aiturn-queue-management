@@ -9,6 +9,7 @@ interface DisplayToolbarProps {
   fields: DisplayField[];
   visibleKeys: string[];
   onToggle: (key: string) => void;
+  onReorder?: (keys: string[]) => void;
   onViewDetails?: () => void;
   canViewDetails?: boolean;
   variant?: 'default' | 'onDark';
@@ -22,6 +23,7 @@ export default function DisplayToolbar({
   fields,
   visibleKeys,
   onToggle,
+  onReorder,
   onViewDetails,
   canViewDetails,
   variant = 'default',
@@ -37,7 +39,9 @@ export default function DisplayToolbar({
     <HelpTip
       variant={variant}
       text={
-        onToggleFilters
+        onReorder
+          ? `גלגל השיניים בוחר אילו שדות יופיעו ואת הסדר שלהם. אפשר גם לגרור כותרת עמודה.${onToggleFilters ? ' המשפך מציג או מסתיר את שורת הסינון.' : ''}${onViewDetails ? ' המשקפיים מציגים את כל פרטי הרשומה שנבחרה.' : ''}`
+          : onToggleFilters
           ? onViewDetails
             ? 'גלגל השיניים בוחר אילו שדות יופיעו בטבלה. המשפך מציג או מסתיר את שורת הסינון. המשקפיים מציגים את כל פרטי הרשומה שנבחרה.'
             : 'גלגל השיניים בוחר אילו שדות יופיעו בטבלה. המשפך מציג או מסתיר את שורת הסינון.'
@@ -90,6 +94,7 @@ export default function DisplayToolbar({
           fields={fields}
           visibleKeys={visibleKeys}
           onToggle={onToggle}
+          onReorder={onReorder}
           onClose={() => setIsOpen(false)}
           anchorRef={gearRef}
         />

@@ -25,6 +25,59 @@
   font-weight: 700;
 }
 
+.vatNote {
+  margin: 6px 0 0;
+  color: var(--color-text-muted);
+  font-size: 12.5px;
+}
+
+.lines {
+  margin-top: 12px;
+  border-top: 1px solid #d7e6e8;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 0;
+  border-bottom: 1px solid #e7f0f1;
+}
+
+.line:last-child {
+  border-bottom: 0;
+  padding-bottom: 2px;
+}
+
+.lineTitle {
+  margin: 0;
+  color: var(--color-navy-900);
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.lineDetail {
+  margin: 2px 0 0;
+  color: var(--color-text-muted);
+  font-size: 12.5px;
+}
+
+.lineAmount {
+  margin: 0;
+  color: var(--color-navy-900);
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.catalogTitle {
+  margin: 6px 0 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .totalDetail,
 .live,
 .pendingNote,

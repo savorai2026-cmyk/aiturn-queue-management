@@ -22,6 +22,7 @@ interface PriceListProps {
   storageError: string;
   memberCount: number | null;
   voiceSeconds: number | null;
+  whatsappWindows: number | null;
   planError: string;
   subscriptionPlan: SubscriptionPlan | null;
   regularTariff: PlanTariff;
@@ -40,6 +41,7 @@ export default function PriceList({
   storageError,
   memberCount,
   voiceSeconds,
+  whatsappWindows,
   planError,
   subscriptionPlan,
   regularTariff,
@@ -60,13 +62,18 @@ export default function PriceList({
   const storageIls = Math.max(0, quotaGb - terms.includedStorageGb) * terms.extraStorageGbIls;
   const extraUsers = memberCount == null ? 0 : extraUserCount(memberCount, terms.includedUsers);
   const extraUserAmount = extraUsers * terms.extraUserIls;
+  const whatsappIls =
+    whatsappWindows == null
+      ? null
+      : whatsappWindows * (terms.whatsappCustomerAgorot / 100) * (1 + VAT_RATE);
   const total =
-    voiceSeconds == null || subscriptionPlan == null || memberCount == null
+    voiceSeconds == null || subscriptionPlan == null || memberCount == null || whatsappWindows == null
       ? null
       : monthChargeIls({
           voiceSeconds,
           quotaGb,
           memberCount,
+          whatsappWindows,
           plan,
           tariff: terms,
         });
@@ -75,30 +82,74 @@ export default function PriceList({
       ? 0
       : Math.min(100, (memberCount / terms.includedUsers) * 100);
   const overUsers = memberCount != null && memberCount > terms.includedUsers;
+  const money = (amount: number | null) =>
+    planError ? 'לא זמין' : amount == null ? 'מחשב...' : formatPlanIls(amount);
+  const extraStorageGb = Math.max(0, quotaGb - terms.includedStorageGb);
 
   return (
     <div className={styles.list}>
       <section className={styles.total}>
         <p className={styles.totalLabel}>עלות החודש עד עכשיו</p>
         <p className={styles.totalValue}>
-          {total == null ? 'מחשב...' : formatPlanIls(total)}
+          {planError ? 'לא זמין' : total == null ? 'מחשב...' : formatPlanIls(total)}
         </p>
-        <p className={styles.totalDetail}>
-          {subscriptionPlan == null
-            ? ''
-            : `מנוי ${planLabel(plan)} ${formatPlanIls(terms.monthlyIls)}. `}
-          {hasOverride ? 'לעסק הזה יש תעריף מיוחד, והוא גובר על מחירון המנוי. ' : ''}
-          {extraUserAmount > 0
-            ? `משתמשים נוספים ${formatPlanIls(extraUserAmount)}. `
-            : ''}
-          {voiceIls == null
-            ? ''
-            : `שיחות קוליות ${formatPlanIls(voiceIls)}, כולל מע״מ. `}
-          {`אחסון ${formatPlanIls(storageIls)}. `}
-          הסכום משוער לפי השימוש עד עכשיו, והוא מתעדכן לפי דקות השיחה והאחסון.
-        </p>
+        <p className={styles.vatNote}>כל הסכומים כאן כוללים מע״מ.</p>
+        {hasOverride && (
+          <p className={styles.vatNote}>לעסק הזה יש תעריף מיוחד, והוא גובר על מחירון המנוי.</p>
+        )}
+        <div className={styles.lines}>
+          <ChargeLine
+            title={`מנוי ${subscriptionPlan == null ? '' : planLabel(plan)}`.trim()}
+            detail="דמי המנוי לחודש"
+            amount={subscriptionPlan == null ? 'מחשב...' : formatPlanIls(terms.monthlyIls)}
+          />
+          <ChargeLine
+            title="משתמשים נוספים"
+            detail={
+              memberCount == null
+                ? 'מחשב משתמשים'
+                : extraUsers === 0
+                  ? `אין משתמשים מעבר ל־${terms.includedUsers} הכלולים`
+                  : `${extraUsers.toLocaleString('he-IL')} מעבר ל־${terms.includedUsers} הכלולים`
+            }
+            amount={money(memberCount == null ? null : extraUserAmount)}
+          />
+          <ChargeLine
+            title="שיחות קוליות"
+            detail={
+              planError
+                ? 'החישוב נכשל'
+                : voiceSeconds == null
+                  ? 'מחשב דקות'
+                  : formatSpokenTime(voiceSeconds)
+            }
+            amount={money(voiceIls)}
+          />
+          <ChargeLine
+            title="וואטסאפ"
+            detail={
+              planError
+                ? 'החישוב נכשל'
+                : whatsappWindows == null
+                  ? 'מחשב חלונות'
+                  : `${whatsappWindows.toLocaleString('he-IL')} חלונות, פניית לקוח`
+            }
+            amount={money(whatsappIls)}
+          />
+          <ChargeLine
+            title="אחסון"
+            detail={
+              extraStorageGb === 0
+                ? `תשלום נוסף על ${terms.includedStorageGb} ג׳יגה כלולים`
+                : `תשלום נוסף על ${terms.includedStorageGb} ג׳יגה כלולים, ${extraStorageGb.toLocaleString('he-IL')} ג׳יגה נוספות`
+            }
+            amount={formatPlanIls(storageIls)}
+          />
+        </div>
         {planError && <p className={styles.error}>{planError}</p>}
       </section>
+
+      <p className={styles.catalogTitle}>מחירון</p>
 
       <section className={styles.row}>
         <div className={styles.copy}>
@@ -139,9 +190,11 @@ export default function PriceList({
         </div>
         <div className={styles.meterHead}>
           <span>
-            {memberCount == null
-              ? 'מחשב משתמשים'
-              : `${memberCount.toLocaleString('he-IL')} מתוך ${terms.includedUsers} משתמשים`}
+            {planError
+              ? 'החישוב נכשל'
+              : memberCount == null
+                ? 'מחשב משתמשים'
+                : `${memberCount.toLocaleString('he-IL')} מתוך ${terms.includedUsers} משתמשים`}
           </span>
         </div>
         <div
@@ -158,15 +211,12 @@ export default function PriceList({
             style={{ width: `${userFill}%` }}
           />
         </div>
-        {overUsers ? (
-          <p className={styles.live}>
-            {extraUsers.toLocaleString('he-IL')} משתמשים נוספים, {formatPlanIls(extraUserAmount)} לחודש.
-          </p>
-        ) : (
-          <p className={styles.live}>
-            משתמש נוסף מעבר ל־{terms.includedUsers}: {terms.extraUserIls} ₪ לחודש.
-          </p>
-        )}
+        <p className={styles.live}>
+          {overUsers
+            ? `${extraUsers.toLocaleString('he-IL')} משתמשים מעבר לחבילה. `
+            : ''}
+          משתמש נוסף: {terms.extraUserIls} ₪ לחודש.
+        </p>
         <button
           type="button"
           className={styles.linkButton}
@@ -182,13 +232,10 @@ export default function PriceList({
           <p>החיוב לפי השניות שדיברו בפועל.</p>
         </div>
         <p className={styles.price}>
-          {terms.voiceAgorotPerMinute} אגורות לדקה לפני מע״מ
+          {terms.voiceAgorotPerMinute} אגורות לדקה
         </p>
         <p className={styles.live}>
-          כולל מע״מ: {voiceAgorotIncludingVat(terms.voiceAgorotPerMinute).toLocaleString('he-IL')} אגורות לדקה.
-          {voiceSeconds == null
-            ? ' מחשב דקות...'
-            : ` ${formatSpokenTime(voiceSeconds)} החודש, ${formatPlanIls(voiceIls ?? 0)}.`}
+          כולל מע״מ: {formatAgorot(voiceAgorotIncludingVat(terms.voiceAgorotPerMinute))} אגורות לדקה.
         </p>
       </section>
 
@@ -222,19 +269,22 @@ export default function PriceList({
       <section className={styles.row}>
         <div className={styles.copy}>
           <h2>וואטסאפ</h2>
-          <p>התעריף לחלון של 24 שעות.</p>
+          <p>
+            חלון של 24 שעות לכל מספר. שיחה נוספת בתוך אותו חלון לא מחויבת שוב.
+            בלוג לא שמור מי פתח את החלון, ולכן כל חלון מחושב כפניית לקוח.
+          </p>
         </div>
         <p className={styles.price}>
-          פניית לקוח: {terms.whatsappCustomerAgorot} אגורות ל־24 שעות לפני מע״מ
+          פניית לקוח: {terms.whatsappCustomerAgorot} אגורות ל־24 שעות
         </p>
         <p className={styles.live}>
-          כולל מע״מ: {agorotIncludingVat(terms.whatsappCustomerAgorot).toLocaleString('he-IL')} אגורות.
+          כולל מע״מ: {formatAgorot(agorotIncludingVat(terms.whatsappCustomerAgorot))} אגורות.
         </p>
         <p className={styles.price}>
-          פניית העסק: {terms.whatsappBusinessAgorot} אגורות ל־24 שעות לפני מע״מ
+          פניית העסק: {terms.whatsappBusinessAgorot} אגורות ל־24 שעות
         </p>
         <p className={styles.live}>
-          כולל מע״מ: {agorotIncludingVat(terms.whatsappBusinessAgorot).toLocaleString('he-IL')} אגורות.
+          כולל מע״מ: {formatAgorot(agorotIncludingVat(terms.whatsappBusinessAgorot))} אגורות.
         </p>
       </section>
       <PriceRow
@@ -247,6 +297,30 @@ export default function PriceList({
         price={PENDING}
         detail="הפקת חשבונית ללקוח."
       />
+    </div>
+  );
+}
+
+function formatAgorot(value: number): string {
+  return value.toLocaleString('he-IL', { maximumFractionDigits: 2 });
+}
+
+function ChargeLine({
+  title,
+  detail,
+  amount,
+}: {
+  title: string;
+  detail: string;
+  amount: string;
+}) {
+  return (
+    <div className={styles.line}>
+      <div>
+        <p className={styles.lineTitle}>{title}</p>
+        <p className={styles.lineDetail}>{detail}</p>
+      </div>
+      <p className={styles.lineAmount}>{amount}</p>
     </div>
   );
 }

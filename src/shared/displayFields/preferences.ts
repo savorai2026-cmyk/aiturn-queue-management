@@ -75,6 +75,35 @@ export function resolveVisibleFields(
   return getDefaultVisibleKeys(scope);
 }
 
+export function orderCatalogFields<T extends { key: string }>(
+  catalog: T[],
+  keys: string[],
+): T[] {
+  const byKey = new Map(catalog.map((field) => [field.key, field]));
+  return keys.flatMap((key) => {
+    const field = byKey.get(key);
+    return field ? [field] : [];
+  });
+}
+
+export function moveColumn(
+  keys: string[],
+  fromKey: string,
+  targetKey: string,
+  place: 'before' | 'after',
+): string[] {
+  if (fromKey === targetKey) return keys;
+  const from = keys.indexOf(fromKey);
+  const target = keys.indexOf(targetKey);
+  if (from < 0 || target < 0) return keys;
+
+  const next = keys.filter((key) => key !== fromKey);
+  let index = next.indexOf(targetKey);
+  if (place === 'after') index += 1;
+  next.splice(index, 0, fromKey);
+  return next;
+}
+
 export function toggleVisibleField(keys: string[], key: string): string[] {
   if (keys.includes(key)) {
     const next = keys.filter((item) => item !== key);

@@ -25,10 +25,118 @@
   margin: 0;
 }
 
+.search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 14px;
+  padding: 4px 10px 4px 4px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  color: var(--color-navy-900);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.field input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: #ffffff;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.phoneField {
+  width: 132px;
+}
+
+.idField {
+  width: 118px;
+}
+
+.nameField {
+  width: 168px;
+}
+
+.dateField {
+  width: auto;
+}
+
+.field input:focus {
+  border-color: var(--color-teal-600);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.28);
+}
+
+.searchButton,
+.clearSearch,
+.pageButton {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.searchButton {
+  border: 1px solid var(--color-teal-600);
+  background: var(--color-teal-600);
+  color: #ffffff;
+}
+
+.searchButton:hover:not(:disabled) {
+  background: #0f766e;
+}
+
+.searchButton:disabled,
+.pageButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.clearSearch,
+.pageButton {
+  border: 1px solid var(--color-line);
+  background: #ffffff;
+  color: var(--color-navy-900);
+}
+
+.clearSearch:hover,
+.pageButton:hover:not(:disabled) {
+  border-color: var(--color-teal-600);
+  color: var(--color-teal-600);
+}
+
 .note {
   margin: 0 0 16px;
   color: var(--color-text-muted);
   font-size: 13px;
+}
+
+.pager {
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pagerTop {
+  margin-top: 0;
+  margin-bottom: 12px;
 }
 
 .tableResponsive {
@@ -48,6 +156,10 @@
 
 .table th[data-column='channel'],
 .table td[data-column='channel'],
+.table th[data-column='clientName'],
+.table td[data-column='clientName'],
+.table th[data-column='nationalId'],
+.table td[data-column='nationalId'],
 .table th[data-column='clientPhone'],
 .table td[data-column='clientPhone'],
 .table th[data-column='durationSeconds'],
@@ -61,7 +173,7 @@
 .table th[data-column='summary'],
 .table td[data-column='summary'] {
   width: auto;
-  min-width: 280px;
+  min-width: 180px;
   white-space: normal;
 }
 
@@ -91,5 +203,15 @@
 
   .tableControls {
     flex-wrap: wrap;
+  }
+
+  .search {
+    width: 100%;
+  }
+
+  .phoneField,
+  .idField,
+  .nameField {
+    width: 100%;
   }
 }

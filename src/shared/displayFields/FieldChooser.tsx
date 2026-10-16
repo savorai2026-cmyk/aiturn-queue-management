@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
+import { moveColumn } from './preferences';
 import type { DisplayField } from './types';
 import styles from './FieldChooser.module.css';
 
@@ -7,8 +8,19 @@ interface FieldChooserProps {
   fields: DisplayField[];
   visibleKeys: string[];
   onToggle: (key: string) => void;
+  onReorder?: (keys: string[]) => void;
   onClose: () => void;
   anchorRef: RefObject<HTMLElement | null>;
+}
+
+function chooserFields(fields: DisplayField[], visibleKeys: string[]) {
+  const byKey = new Map(fields.map((field) => [field.key, field]));
+  const visible = visibleKeys.flatMap((key) => {
+    const field = byKey.get(key);
+    return field ? [field] : [];
+  });
+  const hidden = fields.filter((field) => !visibleKeys.includes(field.key));
+  return [...visible, ...hidden];
 }
 
 function menuPosition(anchor: HTMLElement, menu: HTMLElement) {
@@ -40,6 +52,7 @@ export default function FieldChooser({
   fields,
   visibleKeys,
   onToggle,
+  onReorder,
   onClose,
   anchorRef,
 }: FieldChooserProps) {
@@ -90,16 +103,56 @@ export default function FieldChooser({
         aria-label="בחירת שדות לתצוגה"
       >
         <div className={styles.title}>בחר שדות להצגה</div>
-        {fields.map((field) => (
-          <label key={field.key} className={styles.label}>
-            <input
-              type="checkbox"
-              checked={visibleKeys.includes(field.key)}
-              onChange={() => onToggle(field.key)}
-            />
-            {field.label}
-          </label>
-        ))}
+        {onReorder ? (
+          <p className={styles.note}>השדות המסומנים מוצגים לפי הסדר. החצים מזיזים עמודה.</p>
+        ) : null}
+        {chooserFields(fields, visibleKeys).map((field) => {
+          const visibleIndex = visibleKeys.indexOf(field.key);
+          const shown = visibleIndex >= 0;
+
+          return (
+            <div key={field.key} className={styles.row}>
+              <label className={styles.label}>
+                <input
+                  type="checkbox"
+                  checked={shown}
+                  onChange={() => onToggle(field.key)}
+                />
+                {field.label}
+              </label>
+              {onReorder && shown ? (
+                <span className={styles.moves}>
+                  <button
+                    type="button"
+                    className={styles.move}
+                    aria-label={`הזז את ${field.label} למעלה`}
+                    disabled={visibleIndex === 0}
+                    onClick={() =>
+                      onReorder(
+                        moveColumn(visibleKeys, field.key, visibleKeys[visibleIndex - 1], 'before'),
+                      )
+                    }
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.move}
+                    aria-label={`הזז את ${field.label} למטה`}
+                    disabled={visibleIndex === visibleKeys.length - 1}
+                    onClick={() =>
+                      onReorder(
+                        moveColumn(visibleKeys, field.key, visibleKeys[visibleIndex + 1], 'after'),
+                      )
+                    }
+                  >
+                    ↓
+                  </button>
+                </span>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </>,
     document.body,

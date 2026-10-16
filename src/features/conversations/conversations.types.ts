@@ -2,7 +2,10 @@ export interface ConversationLog {
   id: string;
   externalId: string;
   channel: string;
+  clientId?: string | null;
   clientPhone: string | null;
+  clientName: string | null;
+  nationalId: string | null;
   startedAt: string | null;
   endedAt: string | null;
   durationSeconds: number | null;
@@ -21,9 +24,19 @@ export interface ConversationLog {
   createdAt: string;
 }
 
+export interface LogLookup {
+  phone: string;
+  nationalId: string;
+  clientName: string;
+  from: string;
+  to: string;
+}
+
 export interface ConversationLogsResult {
   logs: ConversationLog[];
-  truncated: boolean;
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface LogRecordingPlayback {
@@ -34,6 +47,8 @@ export interface LogRecordingPlayback {
 export type ConversationLogColumnKey =
   | 'startedAt'
   | 'channel'
+  | 'clientName'
+  | 'nationalId'
   | 'clientPhone'
   | 'durationSeconds'
   | 'summary'

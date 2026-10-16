@@ -38,4 +38,5 @@ export interface DetailRow {
   audioUrl?: string;
   downloadPath?: string | null;
   downloadName?: string;
+  durationSeconds?: number | null;
 }

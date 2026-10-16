@@ -23,10 +23,13 @@
 }
 
 .logo {
-  width: 150px;
-  height: 58px;
+  width: 168px;
+  height: 54px;
+  padding: 2px 4px;
+  box-sizing: border-box;
   object-fit: contain;
-  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.16));
+  background: #ffffff;
+  border-radius: 6px;
 }
 
 .navBtn {
@@ -119,8 +122,8 @@
 
 @media (max-width: 620px) {
   .logo {
-    width: 118px;
-    height: 46px;
+    width: 132px;
+    height: 44px;
   }
 
   .greeting {

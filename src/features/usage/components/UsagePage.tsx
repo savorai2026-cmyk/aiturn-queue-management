@@ -32,6 +32,7 @@ export default function UsagePage({
           storageError={meters.error}
           memberCount={meters.memberCount}
           voiceSeconds={meters.voiceSeconds}
+          whatsappWindows={meters.whatsappWindows}
           planError={meters.planError}
           subscriptionPlan={meters.subscriptionPlan}
           regularTariff={tariffs.regular}

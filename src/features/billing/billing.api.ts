@@ -82,7 +82,7 @@ export async function getActivePaymentMethod(
   businessCode: string,
 ): Promise<PaymentMethodSummary | null> {
   const { data, error } = await supabase
-    .from('business_payment_methods')
+    .from('payment_methods')
     .select(PAYMENT_METHOD_COLUMNS)
     .eq('business_code', businessCode)
     .eq('status', 'active')
@@ -144,9 +144,12 @@ export async function getLatestBillingSession(
   return row ? toBillingSessionSummary(row) : null;
 }
 
-export async function startBillingEnrollment(businessCode: string) {
+export async function startBillingEnrollment(
+  businessCode: string,
+  paymentType: 'validate' | 'regular',
+) {
   const { data, error } = await supabase.functions.invoke('billing-start', {
-    body: { business_code: businessCode },
+    body: { business_code: businessCode, payment_type: paymentType },
   });
 
   if (error) {
@@ -170,4 +173,41 @@ export async function startBillingEnrollment(businessCode: string) {
   }
 
   return body.url;
+}
+
+export async function chargeSavedCard(businessCode: string, amountIls: number) {
+  const { data, error } = await supabase.functions.invoke('billing-charge', {
+    body: { business_code: businessCode, amount_ils: amountIls },
+  });
+
+  if (error) {
+    let message = getErrorMessage(error);
+
+    if (error instanceof FunctionsHttpError) {
+      try {
+        const body = (await error.context.json()) as BillingStartBody;
+        message = body.error || message;
+      } catch {
+        // Keep the original Functions error message.
+      }
+    }
+
+    throw new Error(message);
+  }
+
+  const body = (data ?? {}) as {
+    ok?: boolean;
+    error?: string;
+    approval_number?: string;
+    amount_ils?: number;
+  };
+
+  if (!body.ok) {
+    throw new Error(body.error || 'מקס דחתה את החיוב.');
+  }
+
+  return {
+    approvalNumber: body.approval_number ?? '',
+    amountIls: body.amount_ils ?? amountIls,
+  };
 }

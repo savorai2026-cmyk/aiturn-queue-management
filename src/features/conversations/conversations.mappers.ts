@@ -11,10 +11,11 @@ import {
 import type {
   ConversationLog,
   ConversationLogColumnKey,
+  LogLookup,
   LogRecordingPlayback,
 } from './conversations.types';
 
-export const CONVERSATION_LOG_LIMIT = 500;
+export const LOG_PAGE_SIZE = 100;
 export const RECORDINGS_BUCKET = 'recordings';
 
 const CHANNEL_LABELS: Record<string, string> = {
@@ -58,6 +59,78 @@ export function formatLogDateTime(value: string | null) {
     dateStyle: 'short',
     timeStyle: 'short',
   });
+}
+
+export function logSearchText(value: string) {
+  return value.trim().replace(/[%_*,().\\]/g, '');
+}
+
+export function phoneSearchNeedle(value: string | null | undefined) {
+  const digits = (value ?? '').replace(/\D/g, '');
+  if (!digits) return '';
+  const local = digits.startsWith('972') ? digits.slice(3) : digits;
+  return local.startsWith('0') ? local.slice(1) : local;
+}
+
+function toDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function defaultLogDateRange(now = new Date()) {
+  const from = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+  return { from: toDateKey(from), to: toDateKey(now) };
+}
+
+export function defaultLogLookup(now = new Date()): LogLookup {
+  return {
+    phone: '',
+    nationalId: '',
+    clientName: '',
+    ...defaultLogDateRange(now),
+  };
+}
+
+export function logRangeBound(dateKey: string, bound: 'start' | 'end') {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return '';
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const date = bound === 'start'
+    ? new Date(year, month - 1, day, 0, 0, 0, 0)
+    : new Date(year, month - 1, day, 23, 59, 59, 999);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+}
+
+export function nationalIdSearch(value: string) {
+  return logSearchText(value).replace(/\D/g, '');
+}
+
+export interface LogClientIdentity {
+  id: number;
+  fullName: string | null;
+  nationalId: string | null;
+  mobilePhone: string | null;
+  whatsappNumber: string | null;
+}
+
+export function findLogClient(
+  log: Pick<ConversationLog, 'clientId' | 'clientPhone'>,
+  clients: LogClientIdentity[],
+) {
+  if (log.clientId) {
+    const byId = clients.find((client) => String(client.id) === log.clientId);
+    if (byId) return byId;
+  }
+
+  const needle = phoneSearchNeedle(log.clientPhone);
+  if (!needle) return null;
+
+  return (
+    clients.find((client) => phoneSearchNeedle(client.mobilePhone) === needle) ??
+    clients.find((client) => phoneSearchNeedle(client.whatsappNumber) === needle) ??
+    null
+  );
 }
 
 export function formatIsraeliPhone(value: string | null | undefined) {
@@ -111,6 +184,7 @@ function recordingDetailRow(
       audioUrl: readyUrl,
       downloadPath: log.storagePath,
       downloadName: recordingDownloadName(log),
+      durationSeconds: log.durationSeconds,
     };
   }
 
@@ -192,6 +266,10 @@ export function formatLogCell(
       return formatLogDateTime(log.startedAt ?? log.createdAt);
     case 'channel':
       return formatLogChannel(log.channel);
+    case 'clientName':
+      return log.clientName?.trim() || '—';
+    case 'nationalId':
+      return log.nationalId?.trim() || '—';
     case 'clientPhone':
       return formatIsraeliPhone(log.clientPhone) || '—';
     case 'durationSeconds':
@@ -214,6 +292,13 @@ export function toConversationDetailRows(
   return [
     { key: 'startedAt', label: 'התחלה', value: formatLogDateTime(log.startedAt) },
     { key: 'channel', label: 'ערוץ', value: formatLogChannel(log.channel) },
+    { key: 'clientName', label: 'שם לקוח', value: log.clientName?.trim() || '—' },
+    {
+      key: 'nationalId',
+      label: 'תעודת זהות',
+      value: log.nationalId?.trim() || '—',
+      dir: 'ltr',
+    },
     {
       key: 'clientPhone',
       label: 'טלפון',

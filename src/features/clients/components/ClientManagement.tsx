@@ -31,6 +31,7 @@ import {
   type ColumnFilters,
   type ColumnSort,
 } from '../../../shared/displayFields/columnTable';
+import { orderCatalogFields } from '../../../shared/displayFields/preferences';
 import IconButton, {
   PencilIcon,
   TrashIcon,
@@ -41,6 +42,41 @@ import styles from './ClientManagement.module.css';
 
 interface ClientManagementProps {
   businessCode: string;
+}
+
+const CLIENT_PAGE_SIZE = 100;
+
+function ClientPager({
+  className,
+  page,
+  pageCount,
+  onPage,
+}: {
+  className?: string;
+  page: number;
+  pageCount: number;
+  onPage: (page: number) => void;
+}) {
+  return (
+    <div className={className ? `${styles.pager} ${className}` : styles.pager}>
+      <button
+        type="button"
+        className={styles.pageButton}
+        disabled={page === 0}
+        onClick={() => onPage(Math.max(0, page - 1))}
+      >
+        הקודם
+      </button>
+      <button
+        type="button"
+        className={styles.pageButton}
+        disabled={page + 1 >= pageCount}
+        onClick={() => onPage(page + 1)}
+      >
+        הבא
+      </button>
+    </div>
+  );
 }
 
 const CLIENT_SELECT_OPTIONS = {
@@ -60,7 +96,7 @@ const CLIENT_SELECT_OPTIONS = {
 
 export default function ClientManagement({ businessCode }: ClientManagementProps) {
   const { clients, error, isLoading, refresh } = useClients(businessCode);
-  const { visibleFieldsFor, toggleField } = useUiPreferences(businessCode);
+  const { visibleFieldsFor, toggleField, reorderFields } = useUiPreferences(businessCode);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
@@ -71,9 +107,7 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
   const [filtersVisible, setFiltersVisible] = useState(false);
 
   const visibleKeys = visibleFieldsFor('clients');
-  const activeColumns = CLIENT_FIELDS.filter((field) =>
-    visibleKeys.includes(field.key),
-  );
+  const activeColumns = orderCatalogFields(CLIENT_FIELDS, visibleKeys);
   const visibleFilters = useMemo(
     () => visibleColumnFilters(columnFilters, visibleKeys),
     [columnFilters, visibleKeys],
@@ -84,13 +118,34 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
     () => filterAndSortClients(clients, visibleFilters, visibleSort),
     [clients, visibleFilters, visibleSort],
   );
+  const listKey = `${JSON.stringify(visibleFilters)}|${visibleSort?.key ?? ''}|${visibleSort?.direction ?? ''}`;
+  const [page, setPage] = useState(0);
+  const [trackedListKey, setTrackedListKey] = useState(listKey);
+  if (trackedListKey !== listKey) {
+    setTrackedListKey(listKey);
+    setPage(0);
+  }
+  const pageCount = Math.max(1, Math.ceil(visibleClients.length / CLIENT_PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount - 1);
+  const pageClients = visibleClients.slice(
+    currentPage * CLIENT_PAGE_SIZE,
+    currentPage * CLIENT_PAGE_SIZE + CLIENT_PAGE_SIZE,
+  );
   const selectedClient =
     clients.find((client) => client.id === selectedClientId) ?? null;
   const hasActiveFilters = Object.keys(visibleFilters).length > 0;
   const hasTableControls = hasActiveFilters || visibleSort !== null;
-  const listTitle = hasTableControls
-    ? `ניהול לקוחות (${visibleClients.length} מתוך ${clients.length})`
-    : `ניהול לקוחות (${clients.length})`;
+  const rangeStart = visibleClients.length === 0 ? 0 : currentPage * CLIENT_PAGE_SIZE + 1;
+  const rangeEnd = Math.min(visibleClients.length, (currentPage + 1) * CLIENT_PAGE_SIZE);
+  const listTitle = visibleClients.length > CLIENT_PAGE_SIZE
+    ? `ניהול לקוחות (${rangeStart.toLocaleString('he-IL')}–${rangeEnd.toLocaleString('he-IL')} מתוך ${
+        hasTableControls
+          ? `${visibleClients.length.toLocaleString('he-IL')} מסוננים, ${clients.length.toLocaleString('he-IL')} בסה״כ`
+          : visibleClients.length.toLocaleString('he-IL')
+      })`
+    : hasTableControls
+      ? `ניהול לקוחות (${visibleClients.length} מתוך ${clients.length})`
+      : `ניהול לקוחות (${clients.length})`;
 
   const handleEdit = (client: Client) => {
     setEditingClient(client);
@@ -144,6 +199,7 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
             fields={CLIENT_FIELDS}
             visibleKeys={visibleKeys}
             onToggle={(key) => toggleField('clients', key)}
+            onReorder={(keys) => reorderFields('clients', keys)}
             onViewDetails={() => setIsDetailsOpen(true)}
             canViewDetails={selectedClient !== null}
             filtersVisible={filtersVisible}
@@ -180,6 +236,15 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
         </p>
       )}
 
+      {visibleClients.length > CLIENT_PAGE_SIZE ? (
+        <ClientPager
+          className={styles.pagerTop}
+          page={currentPage}
+          pageCount={pageCount}
+          onPage={setPage}
+        />
+      ) : null}
+
       <div className={styles.tableResponsive}>
         <table className={`data-table ${styles.table}`}>
           <ColumnTableHead
@@ -192,9 +257,10 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
               setColumnFilters((current) => ({ ...current, [key]: value }))
             }
             selectOptions={CLIENT_SELECT_OPTIONS}
+            onReorder={(keys) => reorderFields('clients', keys)}
           />
           <tbody>
-            {visibleClients.map((client) => (
+            {pageClients.map((client) => (
               <tr
                 key={client.id}
                 className={
@@ -244,6 +310,14 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
           </tbody>
         </table>
       </div>
+
+      {visibleClients.length > CLIENT_PAGE_SIZE ? (
+        <ClientPager
+          page={currentPage}
+          pageCount={pageCount}
+          onPage={setPage}
+        />
+      ) : null}
 
       {isModalOpen && (
         <AddClientModal

@@ -1,55 +1,20 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import {
+  adminClient,
+  corsHeaders,
+  jsonResponse,
+  postJson,
+  readJson,
+  requireBillingManager,
+} from '../_shared/billingHttp.ts';
+import {
+  CREATE_SESSION_URL,
+  createSessionRequest,
+  functionUrl,
+  parseSavePaymentType,
+  readCreatedSession,
+} from '../_shared/maxBilling.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type',
-};
-
-const LINK_TTL_SECONDS = 20 * 60;
-
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      'Content-Type': 'application/json',
-    },
-  });
-}
-
-function toHex(bytes: ArrayBuffer) {
-  return [...new Uint8Array(bytes)]
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-function publicOrigin(raw: string | undefined) {
-  if (!raw) return null;
-
-  try {
-    return new URL(raw).origin;
-  } catch {
-    return null;
-  }
-}
-
-async function signStartLink(secret: string, businessCode: string, exp: number) {
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
-  const signature = await crypto.subtle.sign(
-    'HMAC',
-    key,
-    new TextEncoder().encode(`${businessCode}.${exp}`),
-  );
-
-  return toHex(signature);
-}
+const SESSION_TTL_MS = 60 * 60 * 1000;
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
@@ -60,75 +25,100 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
-  const authorization = request.headers.get('Authorization');
-  if (!authorization) {
-    return jsonResponse({ error: 'Missing authorization header' }, 401);
-  }
-
-  const secret =
-    Deno.env.get('BILLING_LINK_SECRET') || Deno.env.get('VAPI_SECRET');
-  const publicBase =
-    publicOrigin(Deno.env.get('BILLING_PUBLIC_BASE_URL')) ||
-    publicOrigin(Deno.env.get('SCHEDULER_API_URL'));
-
-  if (!secret || !publicBase) {
-    return jsonResponse(
-      { error: 'Billing start is not configured' },
-      500,
-    );
-  }
-
-  let body: { business_code?: unknown };
-
-  try {
-    body = await request.json();
-  } catch {
-    return jsonResponse({ error: 'Invalid JSON body' }, 400);
-  }
+  const body = await readJson(request);
+  if (body instanceof Response) return body;
 
   const businessCode =
     typeof body.business_code === 'string' ? body.business_code.trim() : '';
   if (!businessCode) {
-    return jsonResponse({ error: 'Missing business_code' }, 400);
+    return jsonResponse({ error: 'חסר מזהה עסק.' }, 400);
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return jsonResponse({ error: 'Supabase is not configured' }, 500);
+  const manager = await requireBillingManager(request, businessCode);
+  if (manager instanceof Response) return manager;
+
+  const key = Deno.env.get('ZCREDIT_WEBCHECKOUT_KEY')?.trim() ?? '';
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  if (!key || !supabaseUrl || !anonKey) {
+    return jsonResponse(
+      { error: 'סליקת מקס עדיין לא הוגדרה בשרת. חסר מפתח WebCheckout.' },
+      500,
+    );
   }
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authorization } },
+  const admin = adminClient();
+  if (!admin) {
+    return jsonResponse({ error: 'השרת אינו מוגדר.' }, 500);
+  }
+
+  const paymentType = parseSavePaymentType(body.payment_type);
+  const uniqueId = crypto.randomUUID();
+  const now = Date.now();
+  const publicParams = { apikey: anonKey, uniqueid: uniqueId };
+
+  const { error: insertError } = await admin.from('billing_sessions').insert({
+    business_code: businessCode,
+    uniqueid: uniqueId,
+    status: 'pending',
+    payment_type: paymentType,
+    created_at: new Date(now).toISOString(),
+    expires_at: new Date(now + SESSION_TTL_MS).toISOString(),
   });
 
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) {
-    return jsonResponse({ error: 'Not authenticated' }, 401);
+  if (insertError) {
+    return jsonResponse({ error: insertError.message }, 400);
   }
 
-  const { data: membership, error: membershipError } = await supabase
-    .from('business_members')
-    .select('role')
-    .eq('business_code', businessCode)
-    .eq('user_id', userData.user.id)
-    .eq('status', 'active')
-    .maybeSingle();
+  const sessionRequest = createSessionRequest({
+    key,
+    uniqueId,
+    paymentType,
+    callbackUrl: functionUrl(supabaseUrl, 'billing-callback', publicParams),
+    failureCallbackUrl: functionUrl(supabaseUrl, 'billing-callback', publicParams),
+    successUrl: functionUrl(supabaseUrl, 'billing-return', {
+      ...publicParams,
+      outcome: 'success',
+    }),
+    cancelUrl: functionUrl(supabaseUrl, 'billing-return', {
+      ...publicParams,
+      outcome: 'cancel',
+    }),
+    failureRedirectUrl: functionUrl(supabaseUrl, 'billing-return', {
+      ...publicParams,
+      outcome: 'failure',
+    }),
+  });
 
-  if (membershipError) {
-    return jsonResponse({ error: membershipError.message }, 400);
+  let created: ReturnType<typeof readCreatedSession>;
+  try {
+    const response = await postJson(CREATE_SESSION_URL, sessionRequest);
+    created = readCreatedSession(response.body);
+  } catch {
+    created = { error: 'לא ניתן להתחבר למקס.' };
   }
 
-  if (membership?.role !== 'owner' && membership?.role !== 'admin') {
-    return jsonResponse({ error: 'Not allowed' }, 403);
+  if ('error' in created) {
+    await admin
+      .from('billing_sessions')
+      .update({
+        status: 'failed',
+        error_text: created.error,
+        completed_at: new Date().toISOString(),
+      })
+      .eq('uniqueid', uniqueId);
+
+    return jsonResponse({ error: created.error }, 502);
   }
 
-  const exp = Math.floor(Date.now() / 1000) + LINK_TTL_SECONDS;
-  const sig = await signStartLink(secret, businessCode, exp);
-  const url = new URL('/billing/start', publicBase);
-  url.searchParams.set('business_code', businessCode);
-  url.searchParams.set('exp', String(exp));
-  url.searchParams.set('sig', sig);
+  const { error: updateError } = await admin
+    .from('billing_sessions')
+    .update({ provider_session_id: created.sessionId })
+    .eq('uniqueid', uniqueId);
 
-  return jsonResponse({ url: url.toString() });
+  if (updateError) {
+    return jsonResponse({ error: updateError.message }, 400);
+  }
+
+  return jsonResponse({ url: created.sessionUrl });
 });

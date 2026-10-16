@@ -54,6 +54,7 @@ export default function RecordDetailsModal({
                     src={row.audioUrl}
                     storagePath={row.downloadPath}
                     fileName={row.downloadName || 'recording.ogg'}
+                    knownDuration={row.durationSeconds}
                   />
                 ) : row.downloadPath ? (
                   row.value || '—'

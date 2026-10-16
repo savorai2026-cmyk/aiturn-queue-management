@@ -84,6 +84,8 @@ export const BUSINESS_CONFIG_FIELDS: DisplayField[] = [
 export const LOG_FIELDS: DisplayField[] = [
   { key: 'startedAt', label: 'התחלה', defaultVisible: true },
   { key: 'channel', label: 'ערוץ', defaultVisible: true },
+  { key: 'clientName', label: 'שם לקוח', defaultVisible: true },
+  { key: 'nationalId', label: 'תעודת זהות', defaultVisible: true, dir: 'ltr' },
   { key: 'clientPhone', label: 'טלפון', defaultVisible: true, dir: 'ltr' },
   { key: 'durationSeconds', label: 'משך', defaultVisible: true },
   { key: 'summary', label: 'סיכום', defaultVisible: false },

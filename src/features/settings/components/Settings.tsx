@@ -53,6 +53,7 @@ import {
   STATUS_FIELDS,
 } from '../../../shared/displayFields/catalogs';
 import { useUiPreferences } from '../../../shared/displayFields/useUiPreferences';
+import { orderCatalogFields } from '../../../shared/displayFields/preferences';
 import ColumnTableHead, {
   columnTableStyles,
 } from '../../../shared/displayFields/ColumnTableHead';
@@ -123,7 +124,7 @@ export default function Settings({
     useSettings(businessCode);
   const { activeBusiness } = useBusiness();
   const payment = usePaymentMethod(businessCode);
-  const { visibleFieldsFor, toggleField } = useUiPreferences(businessCode);
+  const { visibleFieldsFor, toggleField, reorderFields } = useUiPreferences(businessCode);
 
   useEffect(() => {
     setActiveTab(readStoredSettingsTab(businessCode));
@@ -262,6 +263,7 @@ export default function Settings({
             services={services}
             visibleFields={visibleFieldsFor('services')}
             onToggleField={(key) => toggleField('services', key)}
+            onReorderFields={(keys) => reorderFields('services', keys)}
             onServicesChanged={refresh}
           />
         ) : activeTab === 'statuses' ? (
@@ -270,6 +272,7 @@ export default function Settings({
             statuses={statuses}
             visibleFields={visibleFieldsFor('statuses')}
             onToggleField={(key) => toggleField('statuses', key)}
+            onReorderFields={(keys) => reorderFields('statuses', keys)}
             onStatusesChanged={refresh}
           />
         ) : (
@@ -1148,12 +1151,14 @@ function ServicesTable({
   services,
   visibleFields,
   onToggleField,
+  onReorderFields,
   onServicesChanged,
 }: {
   businessCode: string;
   services: Service[];
   visibleFields: string[];
   onToggleField: (key: string) => void;
+  onReorderFields: (keys: string[]) => void;
   onServicesChanged: () => void;
 }) {
   const [modalMode, setModalMode] = useState<'add' | 'edit' | null>(null);
@@ -1165,9 +1170,7 @@ function ServicesTable({
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<ColumnSort | null>(null);
   const [filtersVisible, setFiltersVisible] = useState(false);
-  const activeColumns = SERVICE_FIELDS.filter((field) =>
-    visibleFields.includes(field.key),
-  );
+  const activeColumns = orderCatalogFields(SERVICE_FIELDS, visibleFields);
   const selectedService =
     services.find((service) => service.id === selectedServiceId) ?? null;
   const visibleFilters = useMemo(
@@ -1213,6 +1216,7 @@ function ServicesTable({
           fields={SERVICE_FIELDS}
           visibleKeys={visibleFields}
           onToggle={onToggleField}
+          onReorder={onReorderFields}
           onViewDetails={() => setIsDetailsOpen(true)}
           canViewDetails={selectedService !== null}
           filtersVisible={filtersVisible}
@@ -1271,6 +1275,7 @@ function ServicesTable({
           onFilter={(key, value) =>
             setColumnFilters((current) => ({ ...current, [key]: value }))
           }
+          onReorder={onReorderFields}
           selectOptions={{
             is_active: [
               { value: 'active', label: 'פעיל' },
@@ -1388,12 +1393,14 @@ function StatusesTable({
   statuses,
   visibleFields,
   onToggleField,
+  onReorderFields,
   onStatusesChanged,
 }: {
   businessCode: string;
   statuses: AppointmentStatusRow[];
   visibleFields: string[];
   onToggleField: (key: string) => void;
+  onReorderFields: (keys: string[]) => void;
   onStatusesChanged: () => void;
 }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -1404,9 +1411,7 @@ function StatusesTable({
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<ColumnSort | null>(null);
   const [filtersVisible, setFiltersVisible] = useState(false);
-  const activeColumns = STATUS_FIELDS.filter((field) =>
-    visibleFields.includes(field.key),
-  );
+  const activeColumns = orderCatalogFields(STATUS_FIELDS, visibleFields);
   const selectedStatus =
     statuses.find((status) => status.status_code === selectedStatusCode) ??
     null;
@@ -1439,6 +1444,7 @@ function StatusesTable({
           fields={STATUS_FIELDS}
           visibleKeys={visibleFields}
           onToggle={onToggleField}
+          onReorder={onReorderFields}
           onViewDetails={() => setIsDetailsOpen(true)}
           canViewDetails={selectedStatus !== null}
           filtersVisible={filtersVisible}
@@ -1471,6 +1477,7 @@ function StatusesTable({
           onFilter={(key, value) =>
             setColumnFilters((current) => ({ ...current, [key]: value }))
           }
+          onReorder={onReorderFields}
         />
         <tbody>
           {visibleStatuses.length === 0 ? (

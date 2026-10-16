@@ -32,8 +32,8 @@ insert into public.plan_tariffs (
   correspondence_max_months
 )
 values
-  ('regular', 150, 3, 30, 5, 5, 70, 10, 25, 90, 24, 24),
-  ('expanded', 250, 5, 40, 7, 3, 70, 10, 25, 2555, 84, 84)
+  ('regular', 99, 2, 40, 5, 5, 90, 11, 25, 90, 24, 24),
+  ('expanded', 199, 4, 30, 7, 3, 70, 9, 22, 2555, 84, 84)
 on conflict (plan) do update set
   monthly_ils = excluded.monthly_ils,
   included_users = excluded.included_users,

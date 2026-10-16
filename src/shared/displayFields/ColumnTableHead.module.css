@@ -10,6 +10,22 @@
   border: 0;
 }
 
+.sortButton[draggable='true'] {
+  cursor: grab;
+}
+
+.sortButton[draggable='true']:active {
+  cursor: grabbing;
+}
+
+:global(.data-table) thead th[data-drop='before'] {
+  box-shadow: inset -3px 0 0 var(--color-teal-600);
+}
+
+:global(.data-table) thead th[data-drop='after'] {
+  box-shadow: inset 3px 0 0 var(--color-teal-600);
+}
+
 .sortButton {
   display: inline-flex;
   align-items: center;
@@ -22,7 +38,7 @@
   color: inherit;
   font: inherit;
   font-weight: 600;
-  cursor: pointer;
+  cursor: inherit;
   text-align: inherit;
   transform: none;
   box-shadow: none;

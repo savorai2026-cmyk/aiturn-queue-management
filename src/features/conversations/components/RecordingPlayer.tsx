@@ -6,6 +6,7 @@ interface RecordingPlayerProps {
   src: string;
   storagePath?: string | null;
   fileName: string;
+  knownDuration?: number | null;
 }
 
 function formatClock(seconds: number) {
@@ -16,34 +17,136 @@ function formatClock(seconds: number) {
   return `${minutes}:${rest.toString().padStart(2, '0')}`;
 }
 
+function finiteDuration(value: number | null | undefined) {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
+}
+
 export default function RecordingPlayer({
   src,
   storagePath,
   fileName,
+  knownDuration,
 }: RecordingPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  const seekingRef = useRef(false);
+  const seekRef = useRef<HTMLInputElement>(null);
+  const clockRef = useRef<HTMLSpanElement>(null);
+  const durationRef = useRef(0);
+  const volumeRef = useRef(1);
+  const scrubbingRef = useRef(false);
+  const pendingSeekRef = useRef<number | null>(null);
+  const endScrubRef = useRef<(() => void) | null>(null);
+  const seenSrcRef = useRef(src);
+  if (seenSrcRef.current !== src) {
+    seenSrcRef.current = src;
+    durationRef.current = finiteDuration(knownDuration);
+  } else if (durationRef.current <= 0) {
+    durationRef.current = finiteDuration(knownDuration);
+  }
   const menuId = useId();
   const [playing, setPlaying] = useState(false);
-  const [time, setTime] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [menuOpen, setMenuOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
 
+  const applyMax = (input: HTMLInputElement, max: number) => {
+    if (max > 0) {
+      input.max = String(max);
+      input.setAttribute('aria-valuemax', String(max));
+    }
+  };
+
+  const writeClock = (seconds: number) => {
+    if (!clockRef.current) return;
+    clockRef.current.textContent = `${formatClock(seconds)} / ${formatClock(durationRef.current)}`;
+  };
+
+  const paintProgress = (input: HTMLInputElement) => {
+    const max = Number(input.max);
+    const value = Number(input.value);
+    const progress = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
+    input.style.setProperty('--progress', `${progress}%`);
+  };
+
+  const adoptDuration = (raw: number) => {
+    const next = finiteDuration(raw) || finiteDuration(knownDuration);
+    if (!next) return;
+    durationRef.current = next;
+    const input = seekRef.current;
+    if (!input) return;
+    applyMax(input, next);
+    paintProgress(input);
+    writeClock(scrubbingRef.current ? Number(input.value) : audioRef.current?.currentTime || 0);
+  };
+
+  const commitSeek = (next: number) => {
+    const max = durationRef.current;
+    const clamped = max > 0 ? Math.min(Math.max(0, next), max) : Math.max(0, next);
+    pendingSeekRef.current = clamped;
+    const input = seekRef.current;
+    if (input) {
+      input.value = String(clamped);
+      paintProgress(input);
+    }
+    writeClock(clamped);
+
+    const audio = audioRef.current;
+    if (!audio || audio.readyState < HTMLMediaElement.HAVE_METADATA) return;
+    try {
+      audio.currentTime = clamped;
+    } catch {
+      pendingSeekRef.current = null;
+    }
+  };
+
+  const beginScrub = () => {
+    if (scrubbingRef.current) return;
+    scrubbingRef.current = true;
+
+    const finish = () => {
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      window.removeEventListener('mouseup', finish);
+      endScrubRef.current = null;
+      if (!scrubbingRef.current) return;
+      scrubbingRef.current = false;
+      commitSeek(Number(seekRef.current?.value ?? 0));
+    };
+
+    endScrubRef.current = () => {
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      window.removeEventListener('mouseup', finish);
+      scrubbingRef.current = false;
+    };
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+    window.addEventListener('mouseup', finish);
+  };
+
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
-    audio.pause();
-    audio.volume = volume;
+    scrubbingRef.current = false;
+    pendingSeekRef.current = null;
+    const max = finiteDuration(knownDuration);
+    durationRef.current = max;
+    if (seekRef.current) {
+      seekRef.current.max = String(max || 0);
+      if (max > 0) seekRef.current.setAttribute('aria-valuemax', String(max));
+      seekRef.current.value = '0';
+      seekRef.current.style.setProperty('--progress', '0%');
+    }
+    writeClock(0);
     setPlaying(false);
-    setTime(0);
-    setDuration(0);
     setMenuOpen(false);
     setError('');
+    if (!audio) return;
+    audio.pause();
+    audio.volume = volumeRef.current;
   }, [src]);
+
+  useEffect(() => () => endScrubRef.current?.(), []);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -117,10 +220,29 @@ export default function RecordingPlayer({
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onTimeUpdate={(event) => {
-          if (!seekingRef.current) setTime(event.currentTarget.currentTime);
+          if (scrubbingRef.current || pendingSeekRef.current != null) return;
+          const current = event.currentTarget.currentTime;
+          const input = seekRef.current;
+          if (!input) return;
+          input.value = String(current);
+          paintProgress(input);
+          writeClock(current);
         }}
-        onLoadedMetadata={(event) => setDuration(event.currentTarget.duration || 0)}
-        onDurationChange={(event) => setDuration(event.currentTarget.duration || 0)}
+        onLoadedMetadata={(event) => {
+          adoptDuration(event.currentTarget.duration);
+          const pending = pendingSeekRef.current;
+          if (pending != null) event.currentTarget.currentTime = pending;
+        }}
+        onDurationChange={(event) => adoptDuration(event.currentTarget.duration)}
+        onSeeked={(event) => {
+          pendingSeekRef.current = null;
+          if (scrubbingRef.current) return;
+          const input = seekRef.current;
+          if (!input) return;
+          input.value = String(event.currentTarget.currentTime);
+          paintProgress(input);
+          writeClock(event.currentTarget.currentTime);
+        }}
         onEnded={() => setPlaying(false)}
       />
       <button
@@ -132,27 +254,24 @@ export default function RecordingPlayer({
         {playing ? '❚❚' : '▶'}
       </button>
       <input
+        ref={seekRef}
         className={styles.seek}
         type="range"
         min={0}
-        max={duration || 0}
-        step={0.1}
-        value={Math.min(time, duration || 0)}
+        step="any"
+        defaultValue={0}
         aria-label="דילוג בהקלטה"
-        onPointerDown={() => {
-          seekingRef.current = true;
-        }}
-        onPointerUp={() => {
-          seekingRef.current = false;
-        }}
-        onChange={(event) => {
-          const next = Number(event.target.value);
-          setTime(next);
-          if (audioRef.current) audioRef.current.currentTime = next;
+        aria-valuemin={0}
+        onPointerDown={beginScrub}
+        onMouseDown={beginScrub}
+        onInput={(event) => {
+          paintProgress(event.currentTarget);
+          writeClock(Number(event.currentTarget.value));
+          if (!scrubbingRef.current) commitSeek(Number(event.currentTarget.value));
         }}
       />
-      <span className={styles.time}>
-        {formatClock(time)} / {formatClock(duration)}
+      <span ref={clockRef} className={styles.time}>
+        0:00 / {formatClock(finiteDuration(knownDuration))}
       </span>
       <button
         type="button"
@@ -178,6 +297,7 @@ export default function RecordingPlayer({
               aria-label="עוצמת קול"
               onChange={(event) => {
                 const next = Number(event.target.value);
+                volumeRef.current = next;
                 setVolume(next);
                 if (audioRef.current) audioRef.current.volume = next;
               }}

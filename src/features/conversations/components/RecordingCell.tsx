@@ -65,6 +65,7 @@ export default function RecordingCell({ log }: RecordingCellProps) {
           src={audioUrl}
           storagePath={log.storagePath}
           fileName={recordingDownloadName(log)}
+          knownDuration={log.durationSeconds}
         />
       ) : (
         <span>טוען הקלטה...</span>

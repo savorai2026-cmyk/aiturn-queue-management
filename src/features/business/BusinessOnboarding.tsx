@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import logo from '../../assets/logo.png';
 import { useBusiness } from './BusinessContextState';
 import styles from './BusinessOnboarding.module.css';
 
@@ -18,7 +19,7 @@ export default function BusinessOnboarding() {
   return (
     <main className={styles.page}>
       <section className={styles.card}>
-        <div className={styles.brand}>Featurn</div>
+        <img src={logo} alt="QGent" className={styles.logo} />
         <h1 className={styles.title}>הקמת העסק שלך</h1>
         <p className={styles.description}>
           עוד רגע מתחילים. הזן את פרטי העסק הראשוניים; ניתן יהיה להשלים

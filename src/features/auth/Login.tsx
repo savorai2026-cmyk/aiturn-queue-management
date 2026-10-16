@@ -184,7 +184,7 @@ export default function Login() {
   return (
     <main className={styles.page}>
       <section className={styles.card}>
-        <img src={logo} alt="Featurn" className={styles.logo} />
+        <img src={logo} alt="QGent" className={styles.logo} />
         <h1>{title}</h1>
 
         {errorMessage && (

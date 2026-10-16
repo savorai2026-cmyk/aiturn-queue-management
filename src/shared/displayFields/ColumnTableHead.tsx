@@ -1,5 +1,7 @@
+import { useRef, useState, type DragEvent } from 'react';
 import type { DisplayField } from './types';
 import type { ColumnFilters, ColumnSort } from './columnTable';
+import { moveColumn } from './preferences';
 import styles from './ColumnTableHead.module.css';
 
 export { styles as columnTableStyles };
@@ -13,6 +15,7 @@ interface ColumnTableHeadProps {
   selectOptions?: Record<string, Array<{ value: string; label: string }>>;
   showFilters?: boolean;
   showActions?: boolean;
+  onReorder?: (keys: string[]) => void;
 }
 
 export default function ColumnTableHead({
@@ -24,7 +27,25 @@ export default function ColumnTableHead({
   selectOptions,
   showFilters = false,
   showActions = true,
+  onReorder,
 }: ColumnTableHeadProps) {
+  const dragKey = useRef<string | null>(null);
+  const suppressSort = useRef(false);
+  const [drop, setDrop] = useState<{ key: string; place: 'before' | 'after' } | null>(null);
+
+  const placeFor = (event: DragEvent<HTMLTableCellElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return event.clientX > rect.left + rect.width / 2 ? 'before' : 'after';
+  };
+
+  const finishDrop = (targetKey: string, place: 'before' | 'after') => {
+    const fromKey = dragKey.current;
+    dragKey.current = null;
+    setDrop(null);
+    if (!onReorder || !fromKey || fromKey === targetKey) return;
+    onReorder(moveColumn(columns.map((column) => column.key), fromKey, targetKey, place));
+  };
+
   return (
     <thead>
       <tr>
@@ -38,11 +59,51 @@ export default function ColumnTableHead({
               : 'none';
 
           return (
-            <th key={column.key} data-column={column.key} aria-sort={ariaSort}>
+            <th
+              key={column.key}
+              data-column={column.key}
+              data-drop={drop?.key === column.key ? drop.place : undefined}
+              aria-sort={ariaSort}
+              title={onReorder ? 'גררו כדי לשנות את מקום העמודה' : undefined}
+              onDragOver={(event) => {
+                if (!onReorder || !dragKey.current) return;
+                event.preventDefault();
+                const place = placeFor(event);
+                setDrop((current) =>
+                  current?.key === column.key && current.place === place
+                    ? current
+                    : { key: column.key, place },
+                );
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                finishDrop(column.key, placeFor(event));
+              }}
+              onDragEnd={() => {
+                dragKey.current = null;
+                setDrop(null);
+              }}
+            >
               <button
                 type="button"
                 className={styles.sortButton}
-                onClick={() => onSort(column.key)}
+                draggable={Boolean(onReorder)}
+                onDragStart={(event) => {
+                  dragKey.current = column.key;
+                  suppressSort.current = false;
+                  event.dataTransfer.effectAllowed = 'move';
+                  event.dataTransfer.setData('text/plain', column.key);
+                }}
+                onDrag={() => {
+                  suppressSort.current = true;
+                }}
+                onClick={() => {
+                  if (suppressSort.current) {
+                    suppressSort.current = false;
+                    return;
+                  }
+                  onSort(column.key);
+                }}
               >
                 {column.label}
                 <span className={styles.sortMark} aria-hidden="true">

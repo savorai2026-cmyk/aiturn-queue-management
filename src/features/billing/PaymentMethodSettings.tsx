@@ -2,6 +2,7 @@ import { useState } from 'react';
 import HelpTip from '../../shared/components/HelpTip';
 import { CardIcon } from '../../shared/components/icons';
 import type { BusinessRole } from '../business/BusinessContextState';
+import { chargeSavedCard } from './billing.api';
 import {
   canManagePaymentMethods,
   formatCardExpiry,
@@ -40,11 +41,36 @@ export default function PaymentMethodSettings({
   onRefresh,
 }: PaymentMethodSettingsProps) {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [chargeAmount, setChargeAmount] = useState('1');
+  const [chargeState, setChargeState] = useState<'idle' | 'charging' | 'done'>('idle');
+  const [chargeMessage, setChargeMessage] = useState('');
+  const [chargeError, setChargeError] = useState('');
   const canManage = canManagePaymentMethods(role);
   const last4 = formatCardLast4(paymentMethod?.last4);
   const expiry = formatCardExpiry(paymentMethod?.cardExp);
   const savedAt = formatSavedAt(paymentMethod?.tokenizedAt ?? paymentMethod?.updatedAt ?? null);
   const hasCard = isActivePaymentMethod(paymentMethod);
+
+  const handleCharge = async () => {
+    const amount = Number(chargeAmount);
+    setChargeError('');
+    setChargeMessage('');
+    setChargeState('charging');
+    try {
+      const result = await chargeSavedCard(businessCode, amount);
+      setChargeState('done');
+      setChargeMessage(
+        result.approvalNumber
+          ? `מקס אישרה חיוב של ${result.amountIls} ש״ח. מספר אישור ${result.approvalNumber}.`
+          : `מקס אישרה חיוב של ${result.amountIls} ש״ח.`,
+      );
+    } catch (caught) {
+      setChargeState('idle');
+      setChargeError(
+        caught instanceof Error ? caught.message : 'מקס דחתה את החיוב.',
+      );
+    }
+  };
 
   return (
     <div className={styles.container} dir="rtl">
@@ -53,7 +79,7 @@ export default function PaymentMethodSettings({
           <CardIcon />
           כרטיס אשראי
         </h3>
-        <HelpTip text="פרטי הכרטיס המלאים נשמרים אצל קרדיטגארד. במערכת מופיעות רק ארבע הספרות האחרונות וסטטוס השמירה." />
+        <HelpTip text="פרטי הכרטיס המלאים נשמרים אצל מקס. במערכת מופיעות רק ארבע הספרות האחרונות וסטטוס השמירה." />
       </div>
 
       {error ? (
@@ -92,6 +118,49 @@ export default function PaymentMethodSettings({
           עדיין לא נשמר כרטיס אשראי לעסק זה.
         </p>
       )}
+
+      {canManage && hasCard && paymentMethod?.provider === 'max' ? (
+        <form
+          className={styles.charge}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleCharge();
+          }}
+        >
+          <p className={styles.muted}>
+            חיוב בדיקה לכרטיס שכבר נשמר. הסכום בין 1 ל־10 ש״ח.
+          </p>
+          <div className={styles.chargeRow}>
+            <input
+              className={styles.amount}
+              type="number"
+              min={1}
+              max={10}
+              step="0.01"
+              value={chargeAmount}
+              onChange={(event) => setChargeAmount(event.target.value)}
+              aria-label="סכום חיוב בדיקה"
+            />
+            <button
+              type="submit"
+              className={styles.secondary}
+              disabled={chargeState === 'charging'}
+            >
+              {chargeState === 'charging' ? 'מחייב...' : 'חיוב הכרטיס השמור'}
+            </button>
+          </div>
+          {chargeMessage ? (
+            <p className={styles.success} role="status">
+              {chargeMessage}
+            </p>
+          ) : null}
+          {chargeError ? (
+            <p className={styles.error} role="alert">
+              {chargeError}
+            </p>
+          ) : null}
+        </form>
+      ) : null}
 
       {canManage ? (
         <button

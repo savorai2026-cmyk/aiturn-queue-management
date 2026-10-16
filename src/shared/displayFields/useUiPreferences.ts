@@ -10,6 +10,7 @@ import {
   readCachedUiPreferences,
   readLegacyClientColumns,
   resolveVisibleFields,
+  sanitizeVisibleFields,
   toggleVisibleField,
   withScopeVisibleFields,
   writeCachedUiPreferences,
@@ -110,6 +111,24 @@ export function useUiPreferences(businessCode: string) {
     [businessCode, businessPrefs, memberId, memberPrefs, userId],
   );
 
+  const reorderFields = useCallback(
+    (scope: DisplayScope, keys: string[]) => {
+      const nextKeys = sanitizeVisibleFields(scope, keys);
+      const nextPrefs = withScopeVisibleFields(memberPrefs, scope, nextKeys);
+      setMemberPrefs(nextPrefs);
+      writeCachedUiPreferences(businessCode, userId, nextPrefs);
+
+      if (!memberId) return;
+
+      void updateMemberUiPreferences(memberId, nextPrefs).catch(
+        (error: unknown) => {
+          console.error('שגיאה בשמירת סדר עמודות:', getErrorMessage(error));
+        },
+      );
+    },
+    [businessCode, memberId, memberPrefs, userId],
+  );
+
   const catalogs = useMemo(
     () => ({
       clients: getDisplayCatalog('clients'),
@@ -129,5 +148,6 @@ export function useUiPreferences(businessCode: string) {
     catalogs,
     visibleFieldsFor,
     toggleField,
+    reorderFields,
   };
 }

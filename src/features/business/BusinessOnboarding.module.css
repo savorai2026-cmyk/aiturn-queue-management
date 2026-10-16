@@ -18,11 +18,12 @@
   box-shadow: var(--shadow-floating);
 }
 
-.brand {
+.logo {
+  display: block;
+  width: min(240px, 100%);
+  height: auto;
   margin-bottom: 18px;
-  color: var(--color-teal-600);
-  font-size: 18px;
-  font-weight: 800;
+  object-fit: contain;
 }
 
 .title {

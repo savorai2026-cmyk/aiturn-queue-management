@@ -299,7 +299,7 @@ export async function getBusinessStorageQuotaGb(
 
 export async function getBusinessPlanUsage(
   businessCode: string,
-): Promise<{ memberCount: number; voiceSeconds: number }> {
+): Promise<{ memberCount: number; voiceSeconds: number; whatsappWindows: number }> {
   const { data, error } = await supabase.rpc('business_plan_usage', {
     p_business_code: businessCode,
   });
@@ -311,13 +311,16 @@ export async function getBusinessPlanUsage(
   const payload = (data ?? {}) as {
     member_count?: unknown;
     voice_seconds?: unknown;
+    whatsapp_windows?: unknown;
   };
   const memberCount = Number(payload.member_count);
   const voiceSeconds = Number(payload.voice_seconds);
+  const whatsappWindows = Number(payload.whatsapp_windows);
 
   return {
     memberCount: Number.isFinite(memberCount) ? memberCount : 0,
     voiceSeconds: Number.isFinite(voiceSeconds) ? voiceSeconds : 0,
+    whatsappWindows: Number.isFinite(whatsappWindows) ? whatsappWindows : 0,
   };
 }
 
