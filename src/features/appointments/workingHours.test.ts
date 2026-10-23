@@ -8,7 +8,11 @@ import {
   resolveWorkingDay,
   toFullCalendarBusinessHoursForRange,
   toWorkingDayDrafts,
+  expandSpecialDayDrafts,
+  isUpcomingSpecialDay,
+  toSpecialDayDrafts,
   toWorkingHoursPayload,
+  validateSpecialDayDrafts,
   validateWorkingDayDrafts,
   validateWorkingHourExceptions,
 } from './workingHours';
@@ -223,5 +227,112 @@ describe('working hours', () => {
         endRecur: '2026-09-26',
       },
     ]);
+  });
+
+  it('expands a closed date range into one exception per day', () => {
+    const exceptions = expandSpecialDayDrafts([
+      {
+        id: 'range',
+        date: '2026-10-01',
+        endDate: '2026-10-03',
+        is_closed: true,
+        shifts: [{ start: '09:00', end: '13:00' }],
+        note: 'חופשה',
+      },
+    ]);
+
+    expect(exceptions).toEqual([
+      { date: '2026-10-01', is_closed: true, shifts: [], note: 'חופשה' },
+      { date: '2026-10-02', is_closed: true, shifts: [], note: 'חופשה' },
+      { date: '2026-10-03', is_closed: true, shifts: [], note: 'חופשה' },
+    ]);
+
+    const hours = parseWorkingHours({
+      thursday: { is_closed: false, shifts: [{ start: '09:00', end: '18:00' }] },
+    });
+    for (const item of exceptions) {
+      expect(resolveWorkingDay(hours, exceptions, item.date)?.is_closed).toBe(
+        true,
+      );
+    }
+  });
+
+  it('collapses consecutive identical days back into one range', () => {
+    const drafts = toSpecialDayDrafts([
+      { date: '2026-10-05', is_closed: true, shifts: [], note: 'חופשה' },
+      { date: '2026-10-03', is_closed: true, shifts: [], note: 'חופשה' },
+      { date: '2026-10-04', is_closed: true, shifts: [], note: 'חופשה' },
+      {
+        date: '2026-10-07',
+        is_closed: false,
+        shifts: [{ start: '09:00', end: '13:00' }],
+      },
+    ]);
+
+    expect(drafts).toHaveLength(2);
+    expect(drafts[0]).toMatchObject({
+      date: '2026-10-03',
+      endDate: '2026-10-05',
+      is_closed: true,
+      note: 'חופשה',
+    });
+    expect(drafts[1]).toMatchObject({
+      date: '2026-10-07',
+      endDate: '2026-10-07',
+      is_closed: false,
+    });
+  });
+
+  it('rejects a range that repeats a date already used by another card', () => {
+    expect(
+      validateSpecialDayDrafts([
+        {
+          id: 'a',
+          date: '2026-10-01',
+          endDate: '2026-10-03',
+          is_closed: true,
+          shifts: [],
+        },
+        {
+          id: 'b',
+          date: '2026-10-03',
+          endDate: '2026-10-03',
+          is_closed: true,
+          shifts: [],
+        },
+      ]),
+    ).toMatch(/אותו תאריך/);
+  });
+
+  it('hides a special day only after its last date has passed', () => {
+    expect(
+      isUpcomingSpecialDay(
+        { date: '2026-10-01', endDate: '2026-10-03' },
+        '2026-10-03',
+      ),
+    ).toBe(true);
+    expect(
+      isUpcomingSpecialDay(
+        { date: '2026-10-01', endDate: '2026-10-03' },
+        '2026-10-04',
+      ),
+    ).toBe(false);
+    expect(
+      isUpcomingSpecialDay({ date: '2026-10-23' }, '2026-10-23'),
+    ).toBe(true);
+  });
+
+  it('rejects a special-day range longer than 62 days', () => {
+    expect(
+      validateSpecialDayDrafts([
+        {
+          id: 'long',
+          date: '2026-01-01',
+          endDate: '2026-03-15',
+          is_closed: true,
+          shifts: [],
+        },
+      ]),
+    ).toMatch(/62/);
   });
 });

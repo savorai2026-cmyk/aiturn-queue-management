@@ -299,7 +299,12 @@ export async function getBusinessStorageQuotaGb(
 
 export async function getBusinessPlanUsage(
   businessCode: string,
-): Promise<{ memberCount: number; voiceSeconds: number; whatsappWindows: number }> {
+): Promise<{
+  memberCount: number;
+  voiceSeconds: number;
+  whatsappCustomerWindows: number;
+  whatsappBusinessWindows: number;
+}> {
   const { data, error } = await supabase.rpc('business_plan_usage', {
     p_business_code: businessCode,
   });
@@ -312,15 +317,24 @@ export async function getBusinessPlanUsage(
     member_count?: unknown;
     voice_seconds?: unknown;
     whatsapp_windows?: unknown;
+    whatsapp_customer_windows?: unknown;
+    whatsapp_business_windows?: unknown;
   };
   const memberCount = Number(payload.member_count);
   const voiceSeconds = Number(payload.voice_seconds);
-  const whatsappWindows = Number(payload.whatsapp_windows);
+  const customerWindows = Number(payload.whatsapp_customer_windows);
+  const businessWindows = Number(payload.whatsapp_business_windows);
+  const legacyWindows = Number(payload.whatsapp_windows);
 
   return {
     memberCount: Number.isFinite(memberCount) ? memberCount : 0,
     voiceSeconds: Number.isFinite(voiceSeconds) ? voiceSeconds : 0,
-    whatsappWindows: Number.isFinite(whatsappWindows) ? whatsappWindows : 0,
+    whatsappCustomerWindows: Number.isFinite(customerWindows)
+      ? customerWindows
+      : Number.isFinite(legacyWindows)
+        ? legacyWindows
+        : 0,
+    whatsappBusinessWindows: Number.isFinite(businessWindows) ? businessWindows : 0,
   };
 }
 

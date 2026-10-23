@@ -42,7 +42,6 @@ export const APPOINTMENT_FIELDS: DisplayField[] = [
 ];
 
 export const SERVICE_FIELDS: DisplayField[] = [
-  { key: 'service_code', label: 'קוד שירות', defaultVisible: true },
   { key: 'title', label: 'שם השירות', defaultVisible: true },
   { key: 'duration_minutes', label: 'משך (דקות)', defaultVisible: true },
   { key: 'price', label: 'מחיר (₪)', defaultVisible: true },

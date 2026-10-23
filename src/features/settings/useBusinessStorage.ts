@@ -43,7 +43,8 @@ export function usePlanMeters(businessCode: string) {
   const storage = useBusinessStorage(businessCode);
   const [memberCount, setMemberCount] = useState<number | null>(null);
   const [voiceSeconds, setVoiceSeconds] = useState<number | null>(null);
-  const [whatsappWindows, setWhatsappWindows] = useState<number | null>(null);
+  const [whatsappCustomerWindows, setWhatsappCustomerWindows] = useState<number | null>(null);
+  const [whatsappBusinessWindows, setWhatsappBusinessWindows] = useState<number | null>(null);
   const [planError, setPlanError] = useState('');
   const [subscriptionPlan, setSubscriptionPlan] = useState<SubscriptionPlan | null>(null);
 
@@ -51,7 +52,8 @@ export function usePlanMeters(businessCode: string) {
     let cancelled = false;
     setMemberCount(null);
     setVoiceSeconds(null);
-    setWhatsappWindows(null);
+    setWhatsappCustomerWindows(null);
+    setWhatsappBusinessWindows(null);
     setPlanError('');
     setSubscriptionPlan(null);
 
@@ -63,7 +65,8 @@ export function usePlanMeters(businessCode: string) {
         if (cancelled) return;
         setMemberCount(usage.memberCount);
         setVoiceSeconds(usage.voiceSeconds);
-        setWhatsappWindows(usage.whatsappWindows);
+        setWhatsappCustomerWindows(usage.whatsappCustomerWindows);
+        setWhatsappBusinessWindows(usage.whatsappBusinessWindows);
         setSubscriptionPlan(plan);
       })
       .catch(() => {
@@ -75,5 +78,13 @@ export function usePlanMeters(businessCode: string) {
     };
   }, [businessCode]);
 
-  return { ...storage, memberCount, voiceSeconds, whatsappWindows, planError, subscriptionPlan };
+  return {
+    ...storage,
+    memberCount,
+    voiceSeconds,
+    whatsappCustomerWindows,
+    whatsappBusinessWindows,
+    planError,
+    subscriptionPlan,
+  };
 }

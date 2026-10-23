@@ -594,6 +594,87 @@ export function createSpecialDayFromWeekly(
 
 export interface SpecialDayDraft extends WorkingHourException {
   id: string;
+  endDate?: string;
+}
+
+export function isUpcomingSpecialDay(
+  day: Pick<SpecialDayDraft, 'date' | 'endDate'>,
+  today = toDateKey(new Date()),
+) {
+  const end = (day.endDate || day.date || '').trim();
+  if (!end) return true;
+  return end >= today;
+}
+
+const MAX_SPECIAL_RANGE_DAYS = 62;
+
+function exceptionShape(item: Pick<WorkingHourException, 'is_closed' | 'shifts' | 'note'>) {
+  const note = item.note?.trim() ?? '';
+  const shifts = item.is_closed
+    ? ''
+    : item.shifts.map((shift) => `${shift.start}-${shift.end}`).join('|');
+  return `${item.is_closed ? 'closed' : 'open'}|${note}|${shifts}`;
+}
+
+export function expandSpecialDayDrafts(
+  drafts: SpecialDayDraft[],
+): WorkingHourException[] {
+  const expanded: WorkingHourException[] = [];
+
+  for (const draft of drafts) {
+    const end =
+      draft.endDate && dateFromKey(draft.endDate) ? draft.endDate : draft.date;
+    const last = !dateFromKey(draft.date) || end < draft.date ? draft.date : end;
+    let current = draft.date;
+    let guard = 0;
+
+    while (guard < MAX_SPECIAL_RANGE_DAYS + 1) {
+      expanded.push({
+        date: current,
+        is_closed: draft.is_closed,
+        shifts: draft.is_closed ? [] : draft.shifts.map((shift) => ({ ...shift })),
+        ...(draft.note?.trim()
+          ? { note: draft.note.trim().slice(0, 80) }
+          : {}),
+      });
+      if (!dateFromKey(current) || current === last) {
+        break;
+      }
+      current = addDaysToDateKey(current, 1);
+      guard += 1;
+    }
+  }
+
+  return expanded;
+}
+
+export function validateSpecialDayDrafts(
+  drafts: SpecialDayDraft[],
+): string | null {
+  for (const draft of drafts) {
+    if (!dateFromKey(draft.date)) {
+      return 'יש לבחור תאריך לכל יום מיוחד.';
+    }
+    const end = draft.endDate?.trim() || draft.date;
+    if (!dateFromKey(end)) {
+      return 'יש לבחור תאריך סיום לטווח.';
+    }
+    if (end < draft.date) {
+      return 'תאריך הסיום חייב להיות ביום ההתחלה או אחריו.';
+    }
+
+    let count = 1;
+    let current = draft.date;
+    while (current < end) {
+      current = addDaysToDateKey(current, 1);
+      count += 1;
+      if (count > MAX_SPECIAL_RANGE_DAYS) {
+        return `טווח ימים מיוחדים יכול לכלול עד ${MAX_SPECIAL_RANGE_DAYS} ימים.`;
+      }
+    }
+  }
+
+  return validateWorkingHourExceptions(expandSpecialDayDrafts(drafts));
 }
 
 function nextSpecialDayId() {
@@ -603,7 +684,33 @@ function nextSpecialDayId() {
 export function toSpecialDayDrafts(
   exceptions: WorkingHourException[],
 ): SpecialDayDraft[] {
-  return exceptions.map((item) => ({ ...item, id: nextSpecialDayId() }));
+  const sorted = [...exceptions].sort((left, right) =>
+    left.date.localeCompare(right.date),
+  );
+  const drafts: SpecialDayDraft[] = [];
+
+  for (const item of sorted) {
+    const previous = drafts[drafts.length - 1];
+    const previousEnd = previous?.endDate || previous?.date;
+    if (
+      previous &&
+      previousEnd &&
+      addDaysToDateKey(previousEnd, 1) === item.date &&
+      exceptionShape(previous) === exceptionShape(item)
+    ) {
+      previous.endDate = item.date;
+      continue;
+    }
+
+    drafts.push({
+      ...item,
+      shifts: item.shifts.map((shift) => ({ ...shift })),
+      id: nextSpecialDayId(),
+      endDate: item.date,
+    });
+  }
+
+  return drafts;
 }
 
 export function createBlankSpecialDay(
@@ -612,6 +719,7 @@ export function createBlankSpecialDay(
   return {
     id: nextSpecialDayId(),
     date: toDateKey(new Date()),
+    endDate: toDateKey(new Date()),
     is_closed: true,
     shifts: [],
   };

@@ -1,0 +1,865 @@
+diff --git a/app.py b/app.py
+index 999c8ce..b3fa3dd 100644
+--- a/app.py
++++ b/app.py
+@@ -26,6 +26,7 @@ from scheduler import (
+     spoken_message_from_result,
+ )
+ import helper
++import log_redaction
+ from whatsapp.factory import get_whatsapp_provider
+ from whatsapp.handler import handle_incoming_message
+ from billing import config as billing_config
+@@ -91,6 +92,7 @@ logging.basicConfig(
+     level=logging.INFO,
+     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+ )
++log_redaction.install()
+ logger = logging.getLogger(__name__)
+ supabase_client = get_db_client()
+ register_quality(app, lambda: supabase_client)
+@@ -103,9 +105,9 @@ ASSISTANT_ID = os.getenv("ASSISTANT_ID", "4771fd69-2c60-4172-b344-687739827b37")
+ VAPI_MODEL_PROVIDER = os.getenv("VAPI_MODEL_PROVIDER", "openai")
+ VAPI_MODEL = os.getenv("VAPI_MODEL", "gpt-5.6-luna")
+ if not (os.getenv("VAPI_SECRET") or "").strip():
+-    logger.warning(
++    logger.error(
+         "VAPI_SECRET is not set: /book, /cancel, /reschedule, /confirm, /slots, /appointments and "
+-        "/vapi-init accept unauthenticated requests. Set the same value in the Vapi "
++        "/vapi-init reject every request. Set the same value in the Vapi "
+         "dashboard (Server URL secret) and in Cloud Run."
+     )
+ 
+@@ -152,12 +154,25 @@ def _parse_vapi_request():
+ 
+     if not isinstance(arguments, dict):
+         arguments = {}
++    arguments.pop("_caller_phone", None)
+     message = data.get("message") if isinstance(data.get("message"), dict) else {}
+     resolved = _resolve_vapi_business(message, data)
+     arguments, _identity_err = _apply_resolved_business(arguments, data, resolved)
++    if tool_call:
++        caller = helper.vapi_customer_number(message, data)
++        if caller:
++            arguments["_caller_phone"] = helper.normalize_phone(caller)
+     return data, arguments, tool_call
+ 
+ 
++def _client_phone(arguments, data):
++    """On a Vapi call the customer is the caller. The model cannot pick another customer's phone."""
++    caller = (arguments or {}).get("_caller_phone")
++    if caller:
++        return caller
++    return _field(arguments, data, 'client_phone')
++
++
+ def _field(arguments, data, name, default=None):
+     value = arguments.get(name)
+     if value is None:
+@@ -420,6 +435,11 @@ def _run_scheduler_events(arguments, data, default_action=None):
+             _normalize_event(item, defaults=defaults, default_action=default_action)
+             for item in raw_events
+         ]
++    caller = (arguments or {}).get("_caller_phone")
++    if caller:
++        for event in events:
++            if event.get("action") != "book" or not event.get("client_phone"):
++                event["client_phone"] = caller
+     results = [_apply_scheduler_event(event) for event in events]
+     combined = _combine_event_results(results)
+     if (
+@@ -454,8 +474,8 @@ def _vapi_tool_response(tool_call, result, success=True):
+ def _unauthorized_if_needed():
+     secret = (os.getenv("VAPI_SECRET") or "").strip()
+     if not secret:
+-        # Backwards compatible: deployments without VAPI_SECRET keep working (warned at startup).
+-        return None
++        logger.error("VAPI_SECRET is not set: rejecting %s", request.path)
++        return jsonify({"error": "Server is not configured"}), 503
+     if _secret_matches(secret, request.headers.get("x-vapi-secret"), request.headers.get("Authorization")):
+         return None
+     return jsonify({"error": "Unauthorized"}), 401
+@@ -666,6 +686,9 @@ def get_slots():
+     Endpoint לקבלת תורים פנויים.
+     דוגמה לקריאה: /api/v1/slots?business_code=RUTH_LEV&date=2026-07-20&duration=45&strict=true
+     """
++    denied = _unauthorized_if_needed()
++    if denied:
++        return denied
+     business_code = request.args.get('business_code')
+     date_str = request.args.get('date')
+     duration = request.args.get('duration', type=int)
+@@ -682,8 +705,9 @@ def get_slots():
+             "date": date_str,
+             "available_slots": slots
+         }), 200
+-    except Exception as e:
+-        return jsonify({"error": str(e)}), 500
++    except Exception:
++        logger.exception("slots lookup failed business_code=%s", business_code)
++        return jsonify({"error": "slots_failed"}), 500
+ 
+ 
+ @app.route('/book', methods=['POST'])
+@@ -727,7 +751,7 @@ def reschedule_appointment_route():
+         return denied_identity
+     if _collect_events(arguments, data) is None and not _field(arguments, data, 'new_appointment_time'):
+         business_code = _field(arguments, data, 'business_code')
+-        client_phone = _field(arguments, data, 'client_phone')
++        client_phone = _client_phone(arguments, data)
+         service_id = _field(arguments, data, 'service_id')
+         if not all([business_code, client_phone, service_id]):
+             return jsonify({"success": False, "error": "Missing required fields"}), 400
+@@ -756,7 +780,7 @@ def confirm_appointment_route():
+     if denied_identity:
+         return denied_identity
+     business_code = _field(arguments, data, 'business_code')
+-    client_phone = _field(arguments, data, 'client_phone')
++    client_phone = _client_phone(arguments, data)
+     if not all([business_code, client_phone]):
+         return jsonify({"success": False, "error": "Missing required fields"}), 400
+     result = confirm_customer_appointment(
+@@ -818,7 +842,7 @@ def suggest_slots_route():
+         target_date_str=date_str,
+         duration_minutes=duration,
+         service_id=service_id,
+-        client_phone=_field(arguments, data, 'client_phone'),
++        client_phone=_client_phone(arguments, data),
+         current_appointment_time=_field(arguments, data, 'current_appointment_time'),
+         include_other_windows=_as_bool(_field(arguments, data, 'include_other_windows'), default=False),
+     )
+@@ -835,7 +859,7 @@ def list_appointments_route():
+     if denied_identity:
+         return denied_identity
+     business_code = _field(arguments, data, 'business_code')
+-    client_phone = _field(arguments, data, 'client_phone')
++    client_phone = _client_phone(arguments, data)
+     appointment_date = _field(arguments, data, 'appointment_date')
+     service_id = _field(arguments, data, 'service_id')
+     if not all([business_code, client_phone]):
+@@ -1388,7 +1412,11 @@ def whatsapp_webhook():
+         token = request.args.get("hub.verify_token")
+         challenge = request.args.get("hub.challenge")
+         verify_token = os.getenv("WHATSAPP_VERIFY_TOKEN") or ""
+-        if mode == "subscribe" and verify_token and token == verify_token:
++        if (
++            mode == "subscribe"
++            and verify_token
++            and hmac.compare_digest((token or "").encode("utf-8"), verify_token.encode("utf-8"))
++        ):
+             return challenge or "", 200
+         return jsonify({"error": "forbidden"}), 403
+ 
+@@ -1402,14 +1430,21 @@ def whatsapp_webhook():
+         logger.warning("whatsapp webhook rejected: signature/token mismatch")
+         return jsonify({"error": "Unauthorized"}), 401
+     if verified is None:
++        if provider.requires_verification():
++            logger.error("whatsapp webhook rejected: signing secret is not configured")
++            return jsonify({"error": "Server is not configured"}), 503
+         _warn_whatsapp_webhook_unverified()
+ 
+     payload = request.get_json(silent=True) or {}
+-    incoming = provider.parse_webhook(payload)
+-    if incoming is None:
++    messages = provider.parse_webhook_messages(payload)
++    if not messages:
+         return jsonify({"ok": True, "ignored": True}), 200
+ 
+-    handle_incoming_message(provider, incoming)
++    for incoming in messages:
++        try:
++            handle_incoming_message(provider, incoming)
++        except Exception:
++            logger.exception("whatsapp message handling failed message_id=%s", incoming.message_id)
+     return jsonify({"ok": True}), 200
+ 
+ 
+diff --git a/billing/fx.py b/billing/fx.py
+index 5e33adb..5c1e6b4 100644
+--- a/billing/fx.py
++++ b/billing/fx.py
+@@ -68,7 +68,7 @@ def ils_amount(amount_usd, rate, markup_percent=0):
+     usd = _decimal(amount_usd) or Decimal("0")
+     fx = _decimal(rate) or Decimal("0")
+     markup = _decimal(markup_percent) or Decimal("0")
+-    ils = usd * fx * (Decimal("1") + markup)
++    ils = usd * fx * (Decimal("1") + markup / Decimal("100"))
+     return ils.quantize(Decimal("0.0001"))
+ 
+ 
+diff --git a/billing/usage.py b/billing/usage.py
+index a12c68b..b976101 100644
+--- a/billing/usage.py
++++ b/billing/usage.py
+@@ -23,6 +23,8 @@ _UNITS = {
+     "outreach_dispatch": "event",
+ }
+ 
++DUPLICATE = "duplicate"
++
+ 
+ def record_usage(
+     supabase_client,
+@@ -32,7 +34,7 @@ def record_usage(
+     unit=None,
+     meta=None,
+ ):
+-    """Insert a usage event and decrement balance. Never raises."""
++    """Insert a usage event. Never raises."""
+     try:
+         return _record_usage(supabase_client, business_code, action, quantity, unit, meta)
+     except Exception:
+@@ -127,15 +129,16 @@ def _record_usage(supabase_client, business_code, action, quantity, unit, meta):
+         "amount_credits": float(amount),
+         "meta": payload,
+     }
+-    supabase_client.table("usage_events").insert(event).execute()
+-    if amount > 0:
+-        try:
+-            supabase_client.rpc(
+-                "apply_usage_charge",
+-                {"p_business_code": business_code, "p_amount": float(amount)},
+-            ).execute()
+-        except Exception:
+-            logger.exception("usage balance decrement failed business_code=%s", business_code)
++    key = idempotency_key(action, payload)
++    if key:
++        event["idempotency_key"] = key
++    try:
++        supabase_client.table("usage_events").insert(event).execute()
++    except Exception as exc:
++        if key and _is_duplicate(exc):
++            logger.info("usage duplicate skipped action=%s business_code=%s", action, business_code)
++            return DUPLICATE
++        raise
+     logger.info(
+         "usage recorded action=%s qty=%s amount=%s business_code=%s",
+         action,
+@@ -146,6 +149,26 @@ def _record_usage(supabase_client, business_code, action, quantity, unit, meta):
+     return event
+ 
+ 
++_KEY_FIELDS = {
++    "whatsapp_inbound": "message_id",
++    "whisper_seconds": "message_id",
++    "vapi_call_seconds": "external_id",
++}
++
++
++def idempotency_key(action, meta):
++    """Provider event id. A redelivered webhook carries the same id and is not billed twice."""
++    field = _KEY_FIELDS.get(action)
++    value = str((meta or {}).get(field) or "").strip() if field else ""
++    return value[:200] or None
++
++
++def _is_duplicate(exc):
++    code = str(getattr(exc, "code", "") or "")
++    text = str(exc)
++    return code == "23505" or "23505" in text or "duplicate key" in text.lower()
++
++
+ def _price_row(supabase_client, action):
+     try:
+         response = (
+diff --git a/conversations/recordings.py b/conversations/recordings.py
+index 78cd711..5e825ce 100644
+--- a/conversations/recordings.py
++++ b/conversations/recordings.py
+@@ -1,3 +1,4 @@
++import ipaddress
+ import logging
+ import os
+ import re
+@@ -567,47 +568,57 @@ def _vapi_bearer_headers():
+     return {"Authorization": f"Bearer {key}"}
+ 
+ 
+-def _download_headers(url, *, force_bearer=False):
++_MAX_RECORDING_BYTES = 200 * 1024 * 1024
++_BLOCKED_HOSTS = {"localhost", "metadata.google.internal", "metadata"}
++
++
++def _is_vapi_host(host):
++    return host == "vapi.ai" or host.endswith(".vapi.ai")
++
++
++def _public_https_url(url):
++    parsed = urlparse(url or "")
++    host = (parsed.hostname or "").lower().rstrip(".")
++    if parsed.scheme != "https" or not host or host in _BLOCKED_HOSTS:
++        return False
++    if host.endswith(".internal") or host.endswith(".local"):
++        return False
++    try:
++        address = ipaddress.ip_address(host)
++    except ValueError:
++        return True
++    return address.is_global
++
++
++def _download_headers(url):
+     host = (urlparse(url).hostname or "").lower()
+-    vapi_host = host == "vapi.ai" or host.endswith(".vapi.ai")
+-    if force_bearer or vapi_host:
++    if _is_vapi_host(host):
+         return _vapi_bearer_headers()
+     return {}
+ 
+ 
+ def _download_audio_bytes(url):
+-    last_error = None
+-    tried_bearer = False
+-    for force_bearer in (False, True):
+-        headers = _download_headers(url, force_bearer=force_bearer)
+-        if force_bearer:
+-            if tried_bearer or not headers:
+-                break
+-            tried_bearer = True
+-        elif headers.get("Authorization"):
+-            tried_bearer = True
+-        try:
+-            response = httpx.get(
+-                url,
+-                timeout=60.0,
+-                follow_redirects=True,
+-                headers=headers,
+-            )
+-            if response.status_code in (400, 404) and _unsigned_object_store(url):
+-                last_error = response.status_code
+-                break
+-            if response.status_code in (401, 403) and not force_bearer:
+-                last_error = response.status_code
+-                continue
+-            response.raise_for_status()
+-            return response.content, response.headers.get("content-type")
+-        except Exception as exc:
+-            last_error = exc
+-            if force_bearer:
+-                break
+-            continue
+-    if last_error:
+-        logger.warning("recording download failed url_len=%s error=%s", len(url or ""), last_error)
++    if not _public_https_url(url):
++        logger.warning("recording download skipped: not a public https url url_len=%s", len(url or ""))
++        return None, None
++    try:
++        response = httpx.get(
++            url,
++            timeout=60.0,
++            follow_redirects=True,
++            headers=_download_headers(url),
++        )
++        if response.status_code in (400, 404) and _unsigned_object_store(url):
++            logger.warning("recording download failed url_len=%s error=%s", len(url or ""), response.status_code)
++            return None, None
++        response.raise_for_status()
++        content = response.content
++        if content is not None and len(content) > _MAX_RECORDING_BYTES:
++            logger.warning("recording download skipped: too large bytes=%s", len(content))
++            return None, None
++        return content, response.headers.get("content-type")
++    except Exception as exc:
++        logger.warning("recording download failed url_len=%s error=%s", len(url or ""), type(exc).__name__)
+     return None, None
+ 
+ 
+diff --git a/database.py b/database.py
+index e60a2eb..8e84076 100644
+--- a/database.py
++++ b/database.py
+@@ -8,6 +8,7 @@ import httpx
+ from supabase import Client, ClientOptions, create_client
+ from dotenv import load_dotenv
+ import helper
++from log_redaction import RedactingFilter
+ 
+ # טעינת משתני סביבה מקובץ .env
+ load_dotenv()
+@@ -17,13 +18,12 @@ logger.setLevel(logging.INFO)
+ if not logger.handlers:
+     _handler = logging.StreamHandler(sys.stdout)
+     _handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s"))
++    _handler.addFilter(RedactingFilter())
+     logger.addHandler(_handler)
+ 
+ 
+ def _log(message: str, *args):
+-    text = message % args if args else message
+-    logger.info(text)
+-    print(text, flush=True)
++    logger.info(message, *args)
+ 
+ SUPABASE_URL = os.getenv("SUPABASE_URL")
+ # Server-side must use the service role key: RLS on clients allows only "authenticated".
+@@ -95,13 +95,7 @@ def db_get_customer_by_phone(supabase_client: Client, normalized_phone: str, bus
+         # בדיקה האם חזרו נתונים
+         if response.data and len(response.data) > 0:
+             customer = response.data[0]
+-            _log(
+-                "db_get_customer_by_phone found: id=%s full_name=%r mobile_phone=%r landline_phone=%r",
+-                customer.get("id"),
+-                customer.get("full_name"),
+-                customer.get("mobile_phone"),
+-                customer.get("landline_phone"),
+-            )
++            _log("db_get_customer_by_phone found: id=%s", customer.get("id"))
+             return customer
+ 
+         _log(
+@@ -111,14 +105,13 @@ def db_get_customer_by_phone(supabase_client: Client, normalized_phone: str, bus
+         )
+         return None
+         
+-    except Exception as e:
++    except Exception:
+         # רישום שגיאה במידה והחיבור או השאילתה נכשלו
+         logger.exception(
+             "Supabase error during customer lookup: normalized_phone=%r business_code=%r",
+             normalized_phone,
+             business_code,
+         )
+-        print(f"Supabase error during customer lookup: {e}")
+         return None
+ 
+ 
+diff --git a/helper.py b/helper.py
+index e5afcdc..ff57cae 100644
+--- a/helper.py
++++ b/helper.py
+@@ -20,7 +20,6 @@ def normalize_phone(raw_phone: str) -> str:
+     # ניקוי נוסף למקרה שקידומת המרכזיה (9) הגיעה בשדה ה-number הסטנדרטי
+     if re.match(r'^90[234589]', phone_to_search):
+         phone_to_search = phone_to_search[1:]
+-        print(f"Cleaned trunk prefix '9' from standard number field: {phone_to_search}")
+ 
+     if phone_to_search.startswith('972'):
+         phone_to_search = '0' + phone_to_search[3:]
+diff --git a/log_redaction.py b/log_redaction.py
+new file mode 100644
+index 0000000..99b7f14
+--- /dev/null
++++ b/log_redaction.py
+@@ -0,0 +1,46 @@
++import logging
++import re
++
++_PHONE = re.compile(r"(?<![\d+])(?:\+?972|0)(?:[\s-]?\d){8,9}(?!\d)|\+\d{10,15}(?!\d)")
++_EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
++_LONG_NUMBER = re.compile(r"(?<!\d)\d(?:[\s-]?\d){6,}(?!\d)")
++
++
++def _mask_phone(match):
++    digits = re.sub(r"\D", "", match.group(0))
++    return "***" + digits[-2:]
++
++
++def redact(text):
++    text = _PHONE.sub(_mask_phone, text)
++    return _EMAIL.sub("***@***", text)
++
++
++def redact_content(text):
++    """Stricter redaction for customer text sent to third parties: also masks IDs and card numbers."""
++    return _LONG_NUMBER.sub("***", redact(text or ""))
++
++
++class RedactingFilter(logging.Filter):
++    """Mask phone numbers and email addresses before a log line leaves the process."""
++
++    def filter(self, record):
++        try:
++            message = record.getMessage()
++        except Exception:
++            return True
++        redacted = redact(message)
++        if redacted != message:
++            record.msg = redacted
++            record.args = None
++        if record.exc_info and not record.exc_text:
++            record.exc_text = redact(logging.Formatter().formatException(record.exc_info))
++        elif record.exc_text:
++            record.exc_text = redact(record.exc_text)
++        return True
++
++
++def install():
++    redacting = RedactingFilter()
++    for handler in logging.getLogger().handlers:
++        handler.addFilter(redacting)
+diff --git a/quality/cursor_agent.py b/quality/cursor_agent.py
+index 5e8b3c7..01a5705 100644
+--- a/quality/cursor_agent.py
++++ b/quality/cursor_agent.py
+@@ -3,6 +3,7 @@ import os
+ import threading
+ 
+ from database import get_db_client
++from log_redaction import redact_content
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -18,7 +19,7 @@ def start_code_fix(proposal):
+     if not code_fix_available():
+         return "not_configured"
+     proposal_id = proposal["id"]
+-    note = (proposal.get("code_note") or proposal.get("quote") or "").strip()
++    note = redact_content((proposal.get("code_note") or proposal.get("quote") or "").strip())
+     channel = proposal.get("channel") or ""
+     threading.Thread(
+         target=_run,
+diff --git a/quality/judge.py b/quality/judge.py
+index 3d27e77..d4efb92 100644
+--- a/quality/judge.py
++++ b/quality/judge.py
+@@ -4,6 +4,7 @@ import re
+ 
+ import httpx
+ 
++from log_redaction import redact_content
+ from quality.rules import acceptable_prompt_line
+ from whatsapp.config import chat_sampling, openai_api_key, openai_api_url, openai_model
+ 
+@@ -34,12 +35,12 @@ def judge_finding(transcript, tool_calls, failure_code, default_line):
+             },
+             {
+                 "role": "user",
+-                "content": json.dumps({
++                "content": redact_content(json.dumps({
+                     "failure_code": failure_code,
+                     "default_line": default_line,
+                     "transcript": (transcript or "")[-4000:],
+                     "tool_calls": tool_calls or [],
+-                }, ensure_ascii=False),
++                }, ensure_ascii=False)),
+             },
+         ],
+     }
+diff --git a/quality/rules.py b/quality/rules.py
+index 59224fb..4f0ce70 100644
+--- a/quality/rules.py
++++ b/quality/rules.py
+@@ -2,6 +2,7 @@ import json
+ import re
+ from collections import Counter
+ 
++from log_redaction import redact_content
+ from outreach.jobs import classify_ended_reason
+ 
+ _CONFIRM = re.compile(r"(כן|מתאים|תקבעי?|בסדר|יאללה|בטח|אפשר לקבוע)")
+@@ -106,7 +107,7 @@ def _hit(failure_code, tool_name, transcript):
+     return {
+         "failure_code": failure_code,
+         "tool_name": tool_name,
+-        "quote": (transcript or "")[-240:],
++        "quote": redact_content((transcript or "")[-240:]),
+         "kind": "prompt",
+         "prompt_line": DEFAULT_LINES.get(failure_code),
+     }
+diff --git a/tests/test_fx_usage.py b/tests/test_fx_usage.py
+index d56aecc..5da5cf3 100644
+--- a/tests/test_fx_usage.py
++++ b/tests/test_fx_usage.py
+@@ -3,7 +3,7 @@ from datetime import date
+ from decimal import Decimal
+ 
+ from billing.fx import clear_rate_cache, ils_amount, parse_boi_monthly_csv, rate_months
+-from billing.usage import record_usage
++from billing.usage import idempotency_key, record_usage
+ 
+ 
+ class _Result:
+@@ -85,8 +85,15 @@ class FxUsageTests(unittest.TestCase):
+         self.assertEqual(parsed["average_rate"], Decimal("3.0334"))
+         self.assertEqual(parsed["observation_count"], 21)
+ 
++    def test_redelivered_event_has_the_same_key(self):
++        self.assertEqual(idempotency_key("whatsapp_inbound", {"message_id": "m1"}), "m1")
++        self.assertEqual(idempotency_key("vapi_call_seconds", {"external_id": "c1"}), "c1")
++        self.assertIsNone(idempotency_key("whatsapp_outbound", {"message_id": "m1"}))
++        self.assertIsNone(idempotency_key("whatsapp_inbound", {}))
++
+     def test_ils_is_usd_times_rate(self):
+         self.assertEqual(ils_amount("1.50", "3", "0"), Decimal("4.5000"))
++        self.assertEqual(ils_amount("1.00", "3", "10"), Decimal("3.3000"))
+ 
+     def test_vapi_report_cost_replaces_the_per_second_price(self):
+         client = _priced_client()
+diff --git a/tests/test_log_redaction.py b/tests/test_log_redaction.py
+new file mode 100644
+index 0000000..e2e7583
+--- /dev/null
++++ b/tests/test_log_redaction.py
+@@ -0,0 +1,31 @@
++import logging
++import unittest
++
++from log_redaction import RedactingFilter, redact, redact_content
++
++
++class RedactTests(unittest.TestCase):
++    def test_masks_israeli_and_e164_phones(self):
++        self.assertEqual(redact("phone=0501234567"), "phone=***67")
++        self.assertEqual(redact("phone=972501234567"), "phone=***67")
++        self.assertEqual(redact("to +972-50-123-4567 now"), "to ***67 now")
++        self.assertEqual(redact("intl +14155550123"), "intl ***23")
++
++    def test_keeps_dates_ids_and_counts(self):
++        text = "at 2026-10-25 10:00 id=6889467d-d4d6-4246 rows=12 qty=3500"
++        self.assertEqual(redact(text), text)
++
++    def test_masks_email(self):
++        self.assertEqual(redact("mail a.b+c@example.co.il"), "mail ***@***")
++
++    def test_content_masks_long_numbers(self):
++        self.assertEqual(redact_content("ת.ז 123456782 כרטיס 4580 1234 5678 9012"), "ת.ז *** כרטיס ***")
++
++    def test_filter_rewrites_formatted_message(self):
++        record = logging.LogRecord("x", logging.INFO, __file__, 1, "inbound phone=%s n=%s", ("0501234567", 2), None)
++        RedactingFilter().filter(record)
++        self.assertEqual(record.getMessage(), "inbound phone=***67 n=2")
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/tests/test_reminders.py b/tests/test_reminders.py
+index 7a4473e..36e0329 100644
+--- a/tests/test_reminders.py
++++ b/tests/test_reminders.py
+@@ -869,8 +869,7 @@ class RouteAndAssistantTests(unittest.TestCase):
+                 },
+             }
+         }
+-        with patch.dict(os.environ, {}, clear=False):
+-            os.environ.pop("VAPI_SECRET", None)
++        with patch.dict(os.environ, {"VAPI_SECRET": "test-secret"}):
+             with patch.object(app_mod, "fetch_job", return_value=job), \
+                     patch.object(app_mod, "fetch_client", return_value={"id": 1, "full_name": "דנה לוי"}), \
+                     patch.object(
+@@ -889,7 +888,9 @@ class RouteAndAssistantTests(unittest.TestCase):
+                     patch.object(app_mod, "get_business_recording_policy", return_value={"save_recordings": False}), \
+                     patch.object(app_mod, "split_business_services") as split_services, \
+                     patch.object(app_mod, "build_voice_model") as build_model:
+-                response = app_mod.app.test_client().post("/vapi-init", json=body)
++                response = app_mod.app.test_client().post(
++                    "/vapi-init", json=body, headers={"x-vapi-secret": "test-secret"}
++                )
+         self.assertEqual(response.status_code, 200)
+         overrides = response.get_json()["assistantOverrides"]
+         self.assertEqual(overrides["model"]["tools"], [])
+@@ -928,8 +929,7 @@ class RouteAndAssistantTests(unittest.TestCase):
+                 },
+             }
+         }
+-        with patch.dict(os.environ, {}, clear=False):
+-            os.environ.pop("VAPI_SECRET", None)
++        with patch.dict(os.environ, {"VAPI_SECRET": "test-secret"}):
+             with patch.object(app_mod, "fetch_job", return_value=job), \
+                     patch.object(app_mod, "fetch_client", return_value={"id": 1, "full_name": "דנה לוי"}), \
+                     patch.object(
+@@ -943,7 +943,9 @@ class RouteAndAssistantTests(unittest.TestCase):
+                     patch.object(app_mod, "get_business_recording_policy", return_value={"save_recordings": False}), \
+                     patch.object(app_mod, "split_business_services") as split_services, \
+                     patch.object(app_mod, "build_voice_model") as build_model:
+-                response = app_mod.app.test_client().post("/vapi-init", json=body)
++                response = app_mod.app.test_client().post(
++                    "/vapi-init", json=body, headers={"x-vapi-secret": "test-secret"}
++                )
+         self.assertEqual(response.status_code, 200)
+         overrides = response.get_json()["assistantOverrides"]
+         names = [tool.get("function", {}).get("name") for tool in overrides["model"]["tools"]]
+@@ -966,11 +968,12 @@ class RouteAndAssistantTests(unittest.TestCase):
+                 "messages": [{"role": "user", "message": "User's Keypad Entry: 1"}],
+             }
+         }
+-        with patch.dict(os.environ, {}, clear=False):
+-            os.environ.pop("VAPI_SECRET", None)
++        with patch.dict(os.environ, {"VAPI_SECRET": "test-secret"}):
+             with patch.object(app_mod, "remember_keypad_choice", return_value={"id": "job-1"}) as remember, \
+                     patch.object(app_mod, "acknowledge_keypad", create=True) as say:
+-                response = app_mod.app.test_client().post("/vapi-init", json=body)
++                response = app_mod.app.test_client().post(
++                    "/vapi-init", json=body, headers={"x-vapi-secret": "test-secret"}
++                )
+         self.assertEqual(response.status_code, 200)
+         remember.assert_called_once()
+         say.assert_not_called()
+diff --git a/tests/test_whatsapp_webhook_auth.py b/tests/test_whatsapp_webhook_auth.py
+index a1a8999..acb6724 100644
+--- a/tests/test_whatsapp_webhook_auth.py
++++ b/tests/test_whatsapp_webhook_auth.py
+@@ -40,6 +40,45 @@ class MetaWebhookSignatureTests(unittest.TestCase):
+             self.assertFalse(provider.verify_webhook({"X-Hub-Signature-256": "md5=abc"}, self.BODY))
+ 
+ 
++def _text(message_id, sender="972501234567", body="שלום"):
++    return {"from": sender, "id": message_id, "type": "text", "text": {"body": body}}
++
++
++class MetaBatchTests(unittest.TestCase):
++    def test_all_messages_in_one_delivery_are_parsed_once(self):
++        payload = {"entry": [
++            {"changes": [{"value": {"messages": [_text("wamid.1"), _text("wamid.2")]}}]},
++            {"changes": [{"value": {"messages": [_text("wamid.2"), _text("wamid.3")]}}]},
++        ]}
++        ids = [m.message_id for m in MetaWhatsAppProvider().parse_webhook_messages(payload)]
++        self.assertEqual(ids, ["wamid.1", "wamid.2", "wamid.3"])
++
++    def test_status_only_delivery_is_ignored(self):
++        payload = {"entry": [{"changes": [{"value": {"statuses": [{"id": "wamid.1", "status": "read"}]}}]}]}
++        self.assertEqual(MetaWhatsAppProvider().parse_webhook_messages(payload), [])
++
++    def test_only_meta_requires_a_signature(self):
++        self.assertTrue(MetaWhatsAppProvider().requires_verification())
++        self.assertFalse(GreenApiWhatsAppProvider().requires_verification())
++
++
++class RedeliveryTests(unittest.TestCase):
++    def test_redelivered_message_is_not_answered_again(self):
++        from billing.usage import DUPLICATE
++        from whatsapp import handler
++        from whatsapp.models import IncomingMessage
++
++        message = IncomingMessage(sender_phone="972501234567", text="שלום", message_id="wamid.1", raw_payload={})
++        with patch.object(handler, "get_db_client"), \
++                patch.object(handler, "business_code", return_value="b1"), \
++                patch.object(handler, "record_usage", return_value=DUPLICATE), \
++                patch.object(handler, "reply_to_incoming") as reply, \
++                patch.object(handler, "_fill_audio_text") as fill:
++            handler.handle_incoming_message(object(), message)
++        reply.assert_not_called()
++        fill.assert_not_called()
++
++
+ class GreenApiWebhookTokenTests(unittest.TestCase):
+     def test_not_configured_returns_none(self):
+         with patch.dict(os.environ, {}, clear=False):
+diff --git a/whatsapp/agent.py b/whatsapp/agent.py
+index d0cd7b6..61eb744 100644
+--- a/whatsapp/agent.py
++++ b/whatsapp/agent.py
+@@ -191,7 +191,7 @@ def _chat_completion(messages, tools):
+         logger.exception("OpenAI request failed")
+         return None, {}, "request_failed"
+     if response.status_code >= 400:
+-        logger.error("OpenAI error status=%s body=%s", response.status_code, response.text)
++        logger.error("OpenAI error status=%s body=%s", response.status_code, (response.text or "")[:500])
+         if response.status_code == 400 and "invalid_request_error" in (response.text or ""):
+             return None, {}, "invalid_request"
+         return None, {}, "bad_status"
+diff --git a/whatsapp/handler.py b/whatsapp/handler.py
+index 311b029..c208a39 100644
+--- a/whatsapp/handler.py
++++ b/whatsapp/handler.py
+@@ -2,7 +2,7 @@ import logging
+ import time
+ 
+ import helper
+-from billing.usage import record_usage
++from billing.usage import DUPLICATE, record_usage
+ from conversations.recordings import estimate_audio_seconds, persist_audio_bytes
+ from conversations.store import flush_expired_whatsapp_sessions
+ from database import db_get_customer_by_phone, get_db_client
+@@ -102,23 +102,26 @@ def _fill_audio_text(provider: WhatsAppProvider, message: IncomingMessage) -> No
+ 
+ 
+ def handle_incoming_message(provider: WhatsAppProvider, message: IncomingMessage) -> None:
+-    _fill_audio_text(provider, message)
+-    logger.info(
+-        "whatsapp inbound phone=%s text=%s button_id=%s message_id=%s is_audio=%s",
+-        message.sender_phone,
+-        message.text,
+-        message.button_id,
+-        message.message_id,
+-        message.is_audio,
+-    )
+     client = get_db_client()
+-    record_usage(
++    recorded = record_usage(
+         client,
+         business_code(client),
+         "whatsapp_inbound",
+         quantity=1,
+         meta={"message_id": message.message_id, "is_audio": bool(message.is_audio)},
+     )
++    if recorded == DUPLICATE:
++        logger.info("whatsapp redelivery skipped message_id=%s", message.message_id)
++        return
++    _fill_audio_text(provider, message)
++    logger.info(
++        "whatsapp inbound phone=%s text_len=%s button_id=%s message_id=%s is_audio=%s",
++        message.sender_phone,
++        len(message.text or ""),
++        message.button_id,
++        message.message_id,
++        message.is_audio,
++    )
+     if message.is_audio and not (message.text or "").strip():
+         _send_text(
+             provider,
+diff --git a/whatsapp/meta.py b/whatsapp/meta.py
+index 602463e..e928cf1 100644
+--- a/whatsapp/meta.py
++++ b/whatsapp/meta.py
+@@ -38,17 +38,27 @@ class MetaWhatsAppProvider(WhatsAppProvider):
+         expected = hmac.new(app_secret.encode("utf-8"), raw_body or b"", hashlib.sha256).hexdigest()
+         return hmac.compare_digest(expected, signature[7:].strip().lower())
+ 
++    def requires_verification(self) -> bool:
++        return True
++
+     def parse_webhook(self, request_data: dict) -> Optional[IncomingMessage]:
++        messages = self.parse_webhook_messages(request_data)
++        return messages[0] if messages else None
++
++    def parse_webhook_messages(self, request_data: dict) -> List[IncomingMessage]:
+         if not isinstance(request_data, dict):
+-            return None
++            return []
++        parsed_messages = []
++        seen = set()
+         for entry in request_data.get("entry") or []:
+             for change in (entry or {}).get("changes") or []:
+                 value = (change or {}).get("value") or {}
+                 for msg in value.get("messages") or []:
+                     parsed = self._parse_message(msg, request_data, value)
+-                    if parsed:
+-                        return parsed
+-        return None
++                    if parsed and parsed.message_id not in seen:
++                        seen.add(parsed.message_id)
++                        parsed_messages.append(parsed)
++        return parsed_messages
+ 
+     def send_text(self, to_phone: str, text: str) -> bool:
+         return self._post(
+@@ -187,7 +197,7 @@ class MetaWhatsAppProvider(WhatsAppProvider):
+                 timeout=self._timeout,
+             )
+             if response.status_code >= 400:
+-                logger.error("Meta send failed status=%s body=%s", response.status_code, response.text)
++                logger.error("Meta send failed status=%s body=%s", response.status_code, (response.text or "")[:500])
+                 return False
+             return True
+         except httpx.HTTPError:
+diff --git a/whatsapp/provider.py b/whatsapp/provider.py
+index 7a63653..eea1fce 100644
+--- a/whatsapp/provider.py
++++ b/whatsapp/provider.py
+@@ -27,6 +27,15 @@ class WhatsAppProvider(ABC):
+         """Convert a vendor payload into IncomingMessage, or None if ignored."""
+         pass
+ 
++    def parse_webhook_messages(self, request_data: dict) -> List[IncomingMessage]:
++        """All messages in one delivery. Vendors that batch override this."""
++        message = self.parse_webhook(request_data)
++        return [message] if message else []
++
++    def requires_verification(self) -> bool:
++        """When True, an unsigned webhook is rejected instead of accepted with a warning."""
++        return False
++
+     @abstractmethod
+     def send_text(self, to_phone: str, text: str) -> bool:
+         """Send a plain text message."""

@@ -260,9 +260,85 @@
 }
 
 .controlSuffix {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 5.2em;
+  flex: 0 0 5.2em;
   color: var(--color-text-muted);
   font-size: 13px;
   font-weight: 500;
+}
+
+.planBoard {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.planOption {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: #ffffff;
+  color: inherit;
+  font: inherit;
+  text-align: right;
+  cursor: pointer;
+}
+
+.planOption[data-selected='true'] {
+  border-color: var(--color-teal-600);
+  background: #f3fbfa;
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.14);
+}
+
+.planHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.planName {
+  color: var(--color-navy-900);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.planBadge {
+  color: var(--color-teal-600);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.planPrice {
+  color: var(--color-navy-900);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.planPrice span {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.planOption ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0 1.15em 0 0;
+  color: var(--color-text);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .toggle {
@@ -444,6 +520,10 @@
   }
 
   .settingsRow {
+    grid-template-columns: 1fr;
+  }
+
+  .planBoard {
     grid-template-columns: 1fr;
   }
 

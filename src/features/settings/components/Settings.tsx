@@ -22,11 +22,13 @@ import {
   monthsLimitText,
   normalizeHistoryMonths,
   parseSubscriptionPlan,
+  planLabel,
+  type PlanTariff,
+  type SubscriptionPlan,
 } from '../../usage/planPricing';
 import { usePlanTariffs } from '../../usage/tariffs.api';
 import {
   INCLUDED_STORAGE_GB,
-  MAX_STORAGE_QUOTA_GB,
   normalizeStorageQuotaGb,
 } from '../storageQuota';
 import type {
@@ -73,6 +75,7 @@ import { getTimezoneGroups } from '../timezones';
 import AddServiceModal from './AddServiceModal';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
 import BusinessAccountPanel from './BusinessAccountPanel';
+import TwoFactorPanel from './TwoFactorPanel';
 import OperatingHoursForm from './OperatingHoursForm';
 import RewriteAgentPromptModal from './RewriteAgentPromptModal';
 import StatusModal from './StatusModal';
@@ -123,12 +126,19 @@ export default function Settings({
   const { business, services, statuses, error, isLoading, refresh } =
     useSettings(businessCode);
   const { activeBusiness } = useBusiness();
+  const isOwner = activeBusiness?.role === 'owner';
   const payment = usePaymentMethod(businessCode);
   const { visibleFieldsFor, toggleField, reorderFields } = useUiPreferences(businessCode);
 
   useEffect(() => {
     setActiveTab(readStoredSettingsTab(businessCode));
   }, [businessCode]);
+
+  useEffect(() => {
+    if (!isOwner && activeTab === 'config') {
+      setActiveTab('business');
+    }
+  }, [activeTab, isOwner]);
 
   useEffect(() => {
     try {
@@ -184,13 +194,17 @@ export default function Settings({
         >
           פרטי העסק
         </button>
-        <span className={styles.tabDivider} aria-hidden="true" />
-        <button
-          className={`${styles.tabBtn} ${activeTab === 'config' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('config')}
-        >
-          הגדרות העסק
-        </button>
+        {isOwner ? (
+          <>
+            <span className={styles.tabDivider} aria-hidden="true" />
+            <button
+              className={`${styles.tabBtn} ${activeTab === 'config' ? styles.activeTab : ''}`}
+              onClick={() => setActiveTab('config')}
+            >
+              הגדרות העסק
+            </button>
+          </>
+        ) : null}
         <span className={styles.tabDivider} aria-hidden="true" />
         <button
           className={`${styles.tabBtn} ${activeTab === 'hours' ? styles.activeTab : ''}`}
@@ -223,14 +237,17 @@ export default function Settings({
 
       <div className={styles.contentCard}>
         {activeTab === 'business' ? (
-          <BusinessProfileForm
-            key={business.business_code}
-            business={business}
-            visibleFields={visibleFieldsFor('business')}
-            onToggleField={(key) => toggleField('business', key)}
-            onSaved={onBusinessUpdated}
-          />
-        ) : activeTab === 'config' ? (
+          <>
+            <BusinessProfileForm
+              key={business.business_code}
+              business={business}
+              visibleFields={visibleFieldsFor('business')}
+              onToggleField={(key) => toggleField('business', key)}
+              onSaved={onBusinessUpdated}
+            />
+            {isOwner ? null : <TwoFactorPanel />}
+          </>
+        ) : activeTab === 'config' && isOwner ? (
           <div>
             <BusinessConfigForm
               key={`${business.business_code}-config`}
@@ -239,14 +256,13 @@ export default function Settings({
               onToggleField={(key) => toggleField('businessConfig', key)}
               onSaved={onBusinessUpdated}
             />
-            {activeBusiness?.role === 'owner' ? (
-              <BusinessAccountPanel
-                businessCode={business.business_code}
-                plan={parseSubscriptionPlan(business.subscription_plan)}
-                agentsActive={business.is_active !== false}
-                accountClosed={Boolean(business.closed_at)}
-              />
-            ) : null}
+            <BusinessAccountPanel
+              businessCode={business.business_code}
+              plan={parseSubscriptionPlan(business.subscription_plan)}
+              agentsActive={business.is_active !== false}
+              accountClosed={Boolean(business.closed_at)}
+            />
+            <TwoFactorPanel />
           </div>
         ) : activeTab === 'hours' ? (
           <OperatingHoursForm
@@ -275,7 +291,7 @@ export default function Settings({
             onReorderFields={(keys) => reorderFields('statuses', keys)}
             onStatusesChanged={refresh}
           />
-        ) : (
+        ) : activeTab === 'payment' ? (
           <PaymentMethodSettings
             businessCode={businessCode}
             role={activeBusiness?.role ?? 'viewer'}
@@ -284,7 +300,7 @@ export default function Settings({
             error={payment.error}
             onRefresh={payment.refresh}
           />
-        )}
+        ) : null}
       </div>
     </div>
   );
@@ -643,7 +659,7 @@ function BusinessConfigForm({
       const quotaGb = normalizeStorageQuotaGb(formData.storage_quota_gb);
       if (quotaGb == null) {
         setMessage({
-          text: `מכסת האחסון חייבת להיות מספר שלם בין 5 ל-${MAX_STORAGE_QUOTA_GB} ג׳יגה.`,
+          text: 'מכסת האחסון חייבת להיות מספר שלם של לפחות 5 ג׳יגה.',
           type: 'error',
         });
         return;
@@ -713,6 +729,32 @@ function BusinessConfigForm({
 
   const selectedPlan = parseSubscriptionPlan(formData.subscription_plan);
   const terms = tariffs.resolve(selectedPlan);
+  const regularTerms = tariffs.resolve('regular');
+  const expandedTerms = tariffs.resolve('expanded');
+
+  const applyPlan = (subscriptionPlan: SubscriptionPlan) => {
+    const nextTerms = tariffs.resolve(subscriptionPlan);
+    setFormData((previous) => {
+      const correspondenceMonths = Math.min(
+        previous.whatsapp_retention_months,
+        nextTerms.correspondenceMaxMonths,
+      );
+      return {
+        ...previous,
+        subscription_plan: subscriptionPlan,
+        recordings_retention_days: Math.min(
+          previous.recordings_retention_days,
+          nextTerms.recordingMaxDays,
+        ),
+        history_retention_months: Math.min(
+          previous.history_retention_months,
+          nextTerms.historyMaxMonths,
+        ),
+        voice_log_retention_months: correspondenceMonths,
+        whatsapp_retention_months: correspondenceMonths,
+      };
+    });
+  };
 
   return (
     <div>
@@ -783,7 +825,7 @@ function BusinessConfigForm({
         {isVisible('agent_prompt') && (
           <SettingsGroup
             title="סוכן"
-            description="כאן מגדירים מה העסק עושה ומה הוא לא עושה. זה לא פרומפט לשיחת הזמנת תור."
+            description="הטקסט הזה הוא חלק מהפרומפט של הסוכן, כדי שידע את מי הוא מייצג, מה העסק עושה ומה הוא לא עושה."
             action={
               <button
                 type="button"
@@ -798,7 +840,7 @@ function BusinessConfigForm({
             <SettingsRow
               label="תיאור מקצועי"
               htmlFor="business-agent-prompt"
-              help="מה העסק עושה ובמה הוא לא מתעסק, מבחינה מקצועית. למשל רופא שיניים כללי ולא אורתודונט."
+              help="חלק מהפרומפט של הסוכן: מי העסק, במה הוא עוסק, ובמה הוא לא עוסק."
               stacked
             >
               <textarea
@@ -821,13 +863,13 @@ function BusinessConfigForm({
 
         {isVisible('deposit_percent') && (
           <SettingsGroup
-            title="תשלום"
-            description="חל רק על לקוחות שדרישת התשלום שלהם היא מקדמה. תשלום מלא בכרטיס הלקוח תמיד גובה 100%."
+            title="תשלום המקדמה"
+            description="האחוז כאן חל על כל הלקוחות שדרישת התשלום שלהם היא מקדמה. בחירה של 5% קובעת 5% לכולם. אצל לקוח מסוים אפשר לבחור אחרת: בלי מקדמה, או לדרוש מקדמה גם אם לשאר הלקוחות אין. תשלום מלא בכרטיס תמיד 100%."
           >
             <SettingsRow
               label="אחוז מקדמה"
               htmlFor="business-deposit-percent"
-              help="הסכום הוא אחוז ממחיר התור. 0 משמעו בלי גבייה."
+              help="גובה המקדמה לכל הלקוחות. אצל הלקוח עצמו בוחרים רק אם הוא משלם מקדמה, תשלום מלא, או בלי תשלום."
             >
               <input
                 id="business-deposit-percent"
@@ -856,7 +898,7 @@ function BusinessConfigForm({
         <SettingsGroup
           id="cloud-storage"
           title="אחסון בענן"
-          description={`מכסת הקבצים של העסק. ${terms.includedStorageGb} ג׳יגה כלולים במנוי, כל ג׳יגה נוספת עולה ${terms.extraStorageGbIls} ₪ לחודש, והמקסימום ${MAX_STORAGE_QUOTA_GB} ג׳יגה.`}
+          description={`${terms.includedStorageGb} ג׳יגה כלולים במנוי. כל ג׳יגה נוספת עולה ${terms.extraStorageGbIls} ₪ לחודש, בלי תקרת מכסה.`}
         >
           <StorageUsageMeter
             businessCode={business.business_code}
@@ -874,14 +916,13 @@ function BusinessConfigForm({
             <SettingsRow
               label="מכסה לעסק"
               htmlFor="business-storage-quota"
-              help={`אפשר להגדיל מעבר ל־${terms.includedStorageGb} ג׳יגה הכלולות. כל ג׳יגה נוספת ${terms.extraStorageGbIls} ₪ לחודש.`}
+              help={`אפשר להגדיל מעבר ל־${terms.includedStorageGb} ג׳יגה הכלולות. כל ג׳יגה נוספת ${terms.extraStorageGbIls} ₪ לחודש, בלי הגבלה.`}
             >
               <input
                 id="business-storage-quota"
                 type="number"
                 name="storage_quota_gb"
                 min="5"
-                max={MAX_STORAGE_QUOTA_GB}
                 step="1"
                 dir="ltr"
                 value={formData.storage_quota_gb}
@@ -903,58 +944,26 @@ function BusinessConfigForm({
         <SettingsGroup
           id="subscription-plan"
           title="מנוי"
-          description={
-            selectedPlan === 'expanded'
-              ? `הקלטה, היסטוריית תורים, תמלול, סיכום והתכתבות וואטסאפ ${monthsLimitText(terms.correspondenceMaxMonths)}. משתמש נוסף ${terms.extraUserIls} ₪ לחודש.`
-              : `הקלטת קול ${daysLimitText(terms.recordingMaxDays)}. היסטוריית תורים ${monthsLimitText(terms.historyMaxMonths)}. תמלול, סיכום והתכתבות וואטסאפ ${monthsLimitText(terms.correspondenceMaxMonths)}. משתמש נוסף ${terms.extraUserIls} ₪ לחודש.`
-          }
+          description="הסכום הקבוע לחודש, ומה משתנה במחיר לפי המנוי שנבחר."
         >
-          <SettingsRow
-            label="סוג מנוי"
-            htmlFor="business-subscription-plan"
-            help="התעריף והמגבלות מתעדכנים לפי המנוי שנבחר."
-          >
-            <select
-              id="business-subscription-plan"
-              value={formData.subscription_plan}
-              onChange={(event) => {
-                const subscriptionPlan = parseSubscriptionPlan(event.target.value);
-                const nextTerms = tariffs.resolve(subscriptionPlan);
-                setFormData((previous) => {
-                  const correspondenceMonths = Math.min(
-                    previous.whatsapp_retention_months,
-                    nextTerms.correspondenceMaxMonths,
-                  );
-                  return {
-                    ...previous,
-                    subscription_plan: subscriptionPlan,
-                    recordings_retention_days: Math.min(
-                      previous.recordings_retention_days,
-                      nextTerms.recordingMaxDays,
-                    ),
-                    history_retention_months: Math.min(
-                      previous.history_retention_months,
-                      nextTerms.historyMaxMonths,
-                    ),
-                    voice_log_retention_months: correspondenceMonths,
-                    whatsapp_retention_months: correspondenceMonths,
-                  };
-                });
-              }}
-              className={styles.compactInput}
-              aria-label="סוג מנוי"
-            >
-              <option value="regular">רגיל</option>
-              <option value="expanded">מורחב</option>
-            </select>
-          </SettingsRow>
+          <div className={styles.planBoard}>
+            <PlanChoice
+              plan="regular"
+              terms={regularTerms}
+              selected={selectedPlan === 'regular'}
+              onSelect={() => applyPlan('regular')}
+            />
+            <PlanChoice
+              plan="expanded"
+              terms={expandedTerms}
+              selected={selectedPlan === 'expanded'}
+              onSelect={() => applyPlan('expanded')}
+            />
+          </div>
         </SettingsGroup>
 
         {(isVisible('save_recordings') || isVisible('recordings_retention_days')) && (
-          <SettingsGroup
-            title="הקלטות"
-            description="הקובץ הקולי נשמר לפי ימים. היסטוריית התורים נשמרת לפי חודשים. תמלול השיחה, הסיכום והתכתבות הוואטסאפ נשמרים לפי אותו מספר חודשים."
-          >
+          <SettingsGroup title="הקלטות">
             {isVisible('save_recordings') && (
               <SettingsRow
                 label="שמירת הקלטות"
@@ -981,7 +990,7 @@ function BusinessConfigForm({
               <SettingsRow
                 label="ימי הקלטה קולית"
                 htmlFor="business-recordings-retention"
-                help={`אפשר ${daysLimitText(terms.recordingMaxDays)}.`}
+                help={`הקובץ הקולי נשמר לפי הימים האלה. אפשר ${daysLimitText(terms.recordingMaxDays)}.`}
               >
                 <input
                   id="business-recordings-retention"
@@ -1010,7 +1019,7 @@ function BusinessConfigForm({
             <SettingsRow
               label="היסטוריית תורים"
               htmlFor="business-history-retention"
-              help={`אפשר ${monthsLimitText(terms.historyMaxMonths)}.`}
+              help={`היסטוריית התורים נשמרת לפי החודשים האלה. אפשר ${monthsLimitText(terms.historyMaxMonths)}.`}
             >
               <input
                 id="business-history-retention"
@@ -1037,7 +1046,7 @@ function BusinessConfigForm({
             <SettingsRow
               label="התכתבות וואטסאפ ותמלול"
               htmlFor="business-whatsapp-retention"
-              help={`השדה קובע את תמלול השיחה, הסיכום והתכתבות הוואטסאפ. אפשר ${monthsLimitText(terms.correspondenceMaxMonths)}.`}
+              help={`תמלול השיחה, הסיכום והתכתבות הוואטסאפ נשמרים לפי אותו מספר חודשים. אפשר ${monthsLimitText(terms.correspondenceMaxMonths)}.`}
             >
               <input
                 id="business-whatsapp-retention"
@@ -1068,12 +1077,12 @@ function BusinessConfigForm({
         {isVisible('is_active') && (
           <SettingsGroup
             title="סוכנים"
-            description="כיבוי משבית את סוכן הקול ואת סוכן הוואטסאפ. היומן נשאר פתוח, ואפשר להפעיל שוב."
+            description="כיבוי משבית את סוכן הקול ואת סוכן הוואטסאפ. היומן נשאר פתוח."
           >
             <SettingsRow
               label="הסוכנים פעילים"
               htmlFor="business-is-active"
-              help="כשכבוי, הסוכנים מושבתים והיומן נשאר פתוח. סגירת החשבון נמצאת למטה, ורק בעל העסק יכול לבצע אותה."
+              help="כשכבוי, הסוכנים מושבתים והיומן נשאר פתוח. סגירת החשבון נמצאת למטה."
             >
               <label className={styles.toggle}>
                 <input
@@ -1560,5 +1569,57 @@ function StatusesTable({
         />
       )}
     </div>
+  );
+}
+
+function PlanChoice({
+  plan,
+  terms,
+  selected,
+  onSelect,
+}: {
+  plan: SubscriptionPlan;
+  terms: PlanTariff;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const amount = (value: number) => value.toLocaleString('he-IL');
+  return (
+    <button
+      type="button"
+      className={styles.planOption}
+      data-selected={selected}
+      aria-pressed={selected}
+      onClick={onSelect}
+    >
+      <span className={styles.planHead}>
+        <span className={styles.planName}>{planLabel(plan)}</span>
+        {selected ? <span className={styles.planBadge}>נבחר</span> : null}
+      </span>
+      <span className={styles.planPrice}>
+        {amount(terms.monthlyIls)} ₪ לחודש
+        <span>כולל מע״מ</span>
+      </span>
+      <ul>
+        <li>
+          עד {amount(terms.includedUsers)} משתמשים. כל משתמש נוסף {amount(terms.extraUserIls)} ₪ לחודש.
+        </li>
+        <li>
+          {amount(terms.includedStorageGb)} ג׳יגה כלולים. כל ג׳יגה נוספת {amount(terms.extraStorageGbIls)} ₪ לחודש.
+        </li>
+        <li>שיחת סוכן קולי: {amount(terms.voiceAgorotPerMinute)} אגורות לדקה, לפני מע״מ.</li>
+        <li>
+          וואטסאפ, פניית לקוח: {amount(terms.whatsappCustomerAgorot)} אגורות ל־24 שעות, לפני מע״מ.
+        </li>
+        <li>
+          וואטסאפ, פניית העסק: {amount(terms.whatsappBusinessAgorot)} אגורות ל־24 שעות, לפני מע״מ.
+        </li>
+        <li>הקלטת קול {daysLimitText(terms.recordingMaxDays)}.</li>
+        <li>היסטוריית תורים {monthsLimitText(terms.historyMaxMonths)}.</li>
+        <li>
+          תמלול, סיכום והתכתבות וואטסאפ {monthsLimitText(terms.correspondenceMaxMonths)}.
+        </li>
+      </ul>
+    </button>
   );
 }

@@ -145,7 +145,7 @@ export default function BusinessAccountPanel({
         <header className={styles.header}>
           <h3>משתמשים</h3>
           <p>
-            בעל העסק יוצר כאן משתמש לעובד. עד {terms.includedUsers} משתמשים כלולים, וכל
+            כאן יוצרים משתמש לעובד. עד {terms.includedUsers} משתמשים כלולים, וכל
             משתמש נוסף עולה {terms.extraUserIls} ₪ לחודש.
             {extraUsers > 0
               ? ` כרגע יש ${extraUsers.toLocaleString('he-IL')} מעבר למכסה.`
@@ -156,7 +156,7 @@ export default function BusinessAccountPanel({
         {loadError ? <p className={styles.error}>{loadError}</p> : null}
 
         <p className={styles.hint}>
-          כאן רואים את הסטטוס של כל משתמש. אצל בעל העסק מופיע גם מצב הסוכנים ומצב החשבון. את בעל העסק אי אפשר למחוק.
+          כאן רואים את הסטטוס של כל משתמש. את בעל החשבון אי אפשר למחוק.
         </p>
         <ul className={styles.list}>
           {members.map((member) => {

@@ -6,8 +6,10 @@ export interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   isPasswordRecovery: boolean;
+  needsMfa: boolean;
   error: string | null;
   signOut: () => Promise<void>;
+  refreshMfa: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);

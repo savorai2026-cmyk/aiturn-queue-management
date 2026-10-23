@@ -826,9 +826,13 @@ export type Database = {
         Row: {
           action: string
           amount_credits: number
+          amount_ils: number | null
+          amount_usd: number | null
           business_code: string
           created_at: string
           id: string
+          idempotency_key: string | null
+          initiated_by: string | null
           meta: Json | null
           quantity: number
           unit: string
@@ -836,9 +840,13 @@ export type Database = {
         Insert: {
           action: string
           amount_credits?: number
+          amount_ils?: number | null
+          amount_usd?: number | null
           business_code: string
           created_at?: string
           id?: string
+          idempotency_key?: string | null
+          initiated_by?: string | null
           meta?: Json | null
           quantity: number
           unit: string
@@ -846,9 +854,13 @@ export type Database = {
         Update: {
           action?: string
           amount_credits?: number
+          amount_ils?: number | null
+          amount_usd?: number | null
           business_code?: string
           created_at?: string
           id?: string
+          idempotency_key?: string | null
+          initiated_by?: string | null
           meta?: Json | null
           quantity?: number
           unit?: string
@@ -867,18 +879,60 @@ export type Database = {
         Row: {
           action: string
           amount_credits: number
+          amount_usd: number
+          cache_write_usd_per_million: number | null
+          cached_input_usd_per_million: number | null
+          effective_from: string
+          input_usd_per_million: number | null
+          long_cache_write_usd_per_million: number | null
+          long_cached_input_usd_per_million: number | null
+          long_input_usd_per_million: number | null
+          long_output_usd_per_million: number | null
+          markup_percent: number
+          output_usd_per_million: number | null
+          price_checked_at: string | null
+          price_model: string | null
+          price_source: string | null
           unit: string
           updated_at: string
         }
         Insert: {
           action: string
           amount_credits: number
+          amount_usd?: number
+          cache_write_usd_per_million?: number | null
+          cached_input_usd_per_million?: number | null
+          effective_from?: string
+          input_usd_per_million?: number | null
+          long_cache_write_usd_per_million?: number | null
+          long_cached_input_usd_per_million?: number | null
+          long_input_usd_per_million?: number | null
+          long_output_usd_per_million?: number | null
+          markup_percent?: number
+          output_usd_per_million?: number | null
+          price_checked_at?: string | null
+          price_model?: string | null
+          price_source?: string | null
           unit: string
           updated_at?: string
         }
         Update: {
           action?: string
           amount_credits?: number
+          amount_usd?: number
+          cache_write_usd_per_million?: number | null
+          cached_input_usd_per_million?: number | null
+          effective_from?: string
+          input_usd_per_million?: number | null
+          long_cache_write_usd_per_million?: number | null
+          long_cached_input_usd_per_million?: number | null
+          long_input_usd_per_million?: number | null
+          long_output_usd_per_million?: number | null
+          markup_percent?: number
+          output_usd_per_million?: number | null
+          price_checked_at?: string | null
+          price_model?: string | null
+          price_source?: string | null
           unit?: string
           updated_at?: string
         }
@@ -942,6 +996,10 @@ export type Database = {
         Returns: Json
       }
       business_agents_allowed: {
+        Args: { p_business_code: string }
+        Returns: boolean
+      }
+      business_writes_allowed: {
         Args: { p_business_code: string }
         Returns: boolean
       }

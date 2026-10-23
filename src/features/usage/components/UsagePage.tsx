@@ -5,8 +5,8 @@ import styles from './UsagePage.module.css';
 
 interface UsagePageProps {
   businessCode: string;
-  onOpenStorageSettings: () => void;
-  onOpenPlanSettings: () => void;
+  onOpenStorageSettings?: () => void;
+  onOpenPlanSettings?: () => void;
 }
 
 export default function UsagePage({
@@ -32,7 +32,8 @@ export default function UsagePage({
           storageError={meters.error}
           memberCount={meters.memberCount}
           voiceSeconds={meters.voiceSeconds}
-          whatsappWindows={meters.whatsappWindows}
+          whatsappCustomerWindows={meters.whatsappCustomerWindows}
+          whatsappBusinessWindows={meters.whatsappBusinessWindows}
           planError={meters.planError}
           subscriptionPlan={meters.subscriptionPlan}
           regularTariff={tariffs.regular}

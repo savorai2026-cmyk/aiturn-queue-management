@@ -1,5 +1,4 @@
 import { StorageUsageBar } from '../../settings/components/StorageUsageMeter';
-import { MAX_STORAGE_QUOTA_GB } from '../../settings/storageQuota';
 import {
   daysLimitText,
   monthsLimitText,
@@ -8,6 +7,7 @@ import {
   formatPlanIls,
   formatSpokenTime,
   monthChargeIls,
+  whatsappChargeIls,
   planLabel,
   VAT_RATE,
   voiceAgorotIncludingVat,
@@ -22,15 +22,16 @@ interface PriceListProps {
   storageError: string;
   memberCount: number | null;
   voiceSeconds: number | null;
-  whatsappWindows: number | null;
+  whatsappCustomerWindows: number | null;
+  whatsappBusinessWindows: number | null;
   planError: string;
   subscriptionPlan: SubscriptionPlan | null;
   regularTariff: PlanTariff;
   expandedTariff: PlanTariff;
   resolvedTariff: PlanTariff;
   hasOverride: boolean;
-  onOpenStorageSettings: () => void;
-  onOpenPlanSettings: () => void;
+  onOpenStorageSettings?: () => void;
+  onOpenPlanSettings?: () => void;
 }
 
 const PENDING = 'עדיין בפיתוח';
@@ -41,7 +42,8 @@ export default function PriceList({
   storageError,
   memberCount,
   voiceSeconds,
-  whatsappWindows,
+  whatsappCustomerWindows,
+  whatsappBusinessWindows,
   planError,
   subscriptionPlan,
   regularTariff,
@@ -62,18 +64,27 @@ export default function PriceList({
   const storageIls = Math.max(0, quotaGb - terms.includedStorageGb) * terms.extraStorageGbIls;
   const extraUsers = memberCount == null ? 0 : extraUserCount(memberCount, terms.includedUsers);
   const extraUserAmount = extraUsers * terms.extraUserIls;
-  const whatsappIls =
-    whatsappWindows == null
+  const whatsappCustomerIls =
+    whatsappCustomerWindows == null
       ? null
-      : whatsappWindows * (terms.whatsappCustomerAgorot / 100) * (1 + VAT_RATE);
+      : whatsappChargeIls(whatsappCustomerWindows, 0, terms);
+  const whatsappBusinessIls =
+    whatsappBusinessWindows == null
+      ? null
+      : whatsappChargeIls(0, whatsappBusinessWindows, terms);
   const total =
-    voiceSeconds == null || subscriptionPlan == null || memberCount == null || whatsappWindows == null
+    voiceSeconds == null ||
+    subscriptionPlan == null ||
+    memberCount == null ||
+    whatsappCustomerWindows == null ||
+    whatsappBusinessWindows == null
       ? null
       : monthChargeIls({
           voiceSeconds,
           quotaGb,
           memberCount,
-          whatsappWindows,
+          whatsappCustomerWindows,
+          whatsappBusinessWindows,
           plan,
           tariff: terms,
         });
@@ -126,15 +137,26 @@ export default function PriceList({
             amount={money(voiceIls)}
           />
           <ChargeLine
-            title="וואטסאפ"
+            title="וואטסאפ, פניית לקוח"
             detail={
               planError
                 ? 'החישוב נכשל'
-                : whatsappWindows == null
+                : whatsappCustomerWindows == null
                   ? 'מחשב חלונות'
-                  : `${whatsappWindows.toLocaleString('he-IL')} חלונות, פניית לקוח`
+                  : `${whatsappCustomerWindows.toLocaleString('he-IL')} חלונות`
             }
-            amount={money(whatsappIls)}
+            amount={money(whatsappCustomerIls)}
+          />
+          <ChargeLine
+            title="וואטסאפ, פניית העסק"
+            detail={
+              planError
+                ? 'החישוב נכשל'
+                : whatsappBusinessWindows == null
+                  ? 'מחשב חלונות'
+                  : `${whatsappBusinessWindows.toLocaleString('he-IL')} חלונות`
+            }
+            amount={money(whatsappBusinessIls)}
           />
           <ChargeLine
             title="אחסון"
@@ -157,7 +179,9 @@ export default function PriceList({
           <p>
             {subscriptionPlan == null
               ? 'מחשב את המנוי...'
-              : `העסק על המנוי ${planLabel(plan)}. שני המנויים כאן, ואפשר לעבור למורחב בהגדרות העסק.`}
+              : onOpenPlanSettings
+                ? `העסק על המנוי ${planLabel(plan)}. שני המנויים כאן, ואפשר לעבור למורחב בהגדרות העסק.`
+                : `העסק על המנוי ${planLabel(plan)}.`}
           </p>
         </div>
         <div className={styles.plans}>
@@ -172,21 +196,33 @@ export default function PriceList({
               תמלול, סיכום והתכתבות וואטסאפ {monthsLimitText(regularTariff.correspondenceMaxMonths)}.
             </p>
           </article>
-          <button
-            type="button"
-            className={styles.planCard}
-            data-current={plan === 'expanded'}
-            onClick={onOpenPlanSettings}
-          >
-            <h3>מורחב</h3>
-            <p className={styles.price}>{expandedTariff.monthlyIls} ₪ לחודש, כולל מע״מ</p>
-            <p>
-              עד {expandedTariff.includedUsers} משתמשים, וכל משתמש נוסף {expandedTariff.extraUserIls} ₪ לחודש.
-              {expandedTariff.includedStorageGb} ג׳יגה כלולים, וכל ג׳יגה נוספת {expandedTariff.extraStorageGbIls} ₪.
-              הקלטה, היסטוריית תורים, תמלול, סיכום והתכתבות וואטסאפ {monthsLimitText(expandedTariff.correspondenceMaxMonths)}.
-            </p>
-            <p>לבחירת המנוי בהגדרות העסק</p>
-          </button>
+          {onOpenPlanSettings ? (
+            <button
+              type="button"
+              className={styles.planCard}
+              data-current={plan === 'expanded'}
+              onClick={onOpenPlanSettings}
+            >
+              <h3>מורחב</h3>
+              <p className={styles.price}>{expandedTariff.monthlyIls} ₪ לחודש, כולל מע״מ</p>
+              <p>
+                עד {expandedTariff.includedUsers} משתמשים, וכל משתמש נוסף {expandedTariff.extraUserIls} ₪ לחודש.
+                {expandedTariff.includedStorageGb} ג׳יגה כלולים, וכל ג׳יגה נוספת {expandedTariff.extraStorageGbIls} ₪.
+                הקלטה, היסטוריית תורים, תמלול, סיכום והתכתבות וואטסאפ {monthsLimitText(expandedTariff.correspondenceMaxMonths)}.
+              </p>
+              <p>לבחירת המנוי בהגדרות העסק</p>
+            </button>
+          ) : (
+            <article className={styles.planCard} data-current={plan === 'expanded'}>
+              <h3>מורחב</h3>
+              <p className={styles.price}>{expandedTariff.monthlyIls} ₪ לחודש, כולל מע״מ</p>
+              <p>
+                עד {expandedTariff.includedUsers} משתמשים, וכל משתמש נוסף {expandedTariff.extraUserIls} ₪ לחודש.
+                {expandedTariff.includedStorageGb} ג׳יגה כלולים, וכל ג׳יגה נוספת {expandedTariff.extraStorageGbIls} ₪.
+                הקלטה, היסטוריית תורים, תמלול, סיכום והתכתבות וואטסאפ {monthsLimitText(expandedTariff.correspondenceMaxMonths)}.
+              </p>
+            </article>
+          )}
         </div>
         <div className={styles.meterHead}>
           <span>
@@ -217,13 +253,15 @@ export default function PriceList({
             : ''}
           משתמש נוסף: {terms.extraUserIls} ₪ לחודש.
         </p>
-        <button
-          type="button"
-          className={styles.linkButton}
-          onClick={onOpenPlanSettings}
-        >
-          שינוי המנוי בהגדרות העסק
-        </button>
+        {onOpenPlanSettings ? (
+          <button
+            type="button"
+            className={styles.linkButton}
+            onClick={onOpenPlanSettings}
+          >
+            שינוי המנוי בהגדרות העסק
+          </button>
+        ) : null}
       </section>
 
       <section className={styles.row}>
@@ -244,7 +282,6 @@ export default function PriceList({
           <h2>אחסון בענן</h2>
           <p>
             {terms.includedStorageGb} ג׳יגה כלולים במנוי. כל ג׳יגה נוספת: {terms.extraStorageGbIls} ₪ לחודש.
-            המקסימום {MAX_STORAGE_QUOTA_GB} ג׳יגה.
           </p>
         </div>
         <StorageUsageBar
@@ -257,21 +294,22 @@ export default function PriceList({
           }}
           error={storageError}
         />
-        <button
-          type="button"
-          className={styles.linkButton}
-          onClick={onOpenStorageSettings}
-        >
-          שינוי המכסה בהגדרות העסק
-        </button>
+        {onOpenStorageSettings ? (
+          <button
+            type="button"
+            className={styles.linkButton}
+            onClick={onOpenStorageSettings}
+          >
+            שינוי המכסה בהגדרות העסק
+          </button>
+        ) : null}
       </section>
 
       <section className={styles.row}>
         <div className={styles.copy}>
           <h2>וואטסאפ</h2>
           <p>
-            חלון של 24 שעות לכל מספר. שיחה נוספת בתוך אותו חלון לא מחויבת שוב.
-            בלוג לא שמור מי פתח את החלון, ולכן כל חלון מחושב כפניית לקוח.
+            חלון של 24 שעות לכל מספר. מי שפתח את החלון קובע את המחיר. הודעה נוספת בתוך אותו חלון לא נספרת שוב.
           </p>
         </div>
         <p className={styles.price}>

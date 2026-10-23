@@ -9,6 +9,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../../supabaseClient';
 import { AuthContext } from './AuthContextState';
 import { readAuthCallbackFromLocation } from './authRedirect';
+import { needsMfaChallenge } from './mfa.api';
 import { getAuthCallbackErrorMessage } from '../../shared/errors';
 
 const PASSWORD_RECOVERY_KEY = 'featurn-password-recovery';
@@ -44,6 +45,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
     readPasswordRecoveryFlag,
   );
   const [error, setError] = useState<string | null>(null);
+  const [mfaState, setMfaState] = useState<{ userId: string; needsMfa: boolean } | null>(null);
+
+  const userId = session?.user.id ?? null;
+  const accessToken = session?.access_token ?? null;
+  const mfaChecked = !userId || mfaState?.userId === userId;
+  const needsMfa = Boolean(userId && mfaState?.userId === userId && mfaState.needsMfa);
+
+  const refreshMfa = useCallback(async () => {
+    if (!userId) return;
+    const required = await needsMfaChallenge().catch(() => false);
+    setMfaState({ userId, needsMfa: required });
+  }, [userId]);
+
+  useEffect(() => {
+    if (!accessToken || !userId) return;
+    let cancelled = false;
+    needsMfaChallenge()
+      .catch(() => false)
+      .then((required) => {
+        if (!cancelled) setMfaState({ userId, needsMfa: required });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, userId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -97,12 +123,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     () => ({
       session,
       user: session?.user ?? null,
-      isLoading,
+      isLoading: isLoading || !mfaChecked,
       isPasswordRecovery,
+      needsMfa,
       error,
       signOut,
+      refreshMfa,
     }),
-    [session, isLoading, isPasswordRecovery, error, signOut],
+    [session, isLoading, mfaChecked, isPasswordRecovery, needsMfa, error, signOut, refreshMfa],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

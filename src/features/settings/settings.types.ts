@@ -10,7 +10,6 @@ export type AppointmentStatusUpdate = TablesUpdate<'statuses'>;
 
 export interface ServiceFormValues {
   title: string;
-  service_code: string;
   description: string;
   duration_minutes: string;
   buffer_time_minutes: string;

@@ -16,7 +16,7 @@ describe('storage quota', () => {
     expect(normalizeStorageQuotaGb(8.4)).toBe(8);
     expect(normalizeStorageQuotaGb(4)).toBeNull();
     expect(normalizeStorageQuotaGb(50)).toBe(50);
-    expect(normalizeStorageQuotaGb(51)).toBeNull();
+    expect(normalizeStorageQuotaGb(120)).toBe(120);
   });
 
   it('prices only the gigabytes above the included five', () => {

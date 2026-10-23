@@ -1,7 +1,43 @@
 .container {
   display: grid;
   gap: 28px;
+}
+
+.section,
+.formFoot {
   max-width: 760px;
+}
+
+.hoursBlock {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+}
+
+.tableTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--color-navy-900);
+  font-size: 16px;
+}
+
+.tableToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tableSave {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-inline-start: auto;
 }
 
 .section {
@@ -110,8 +146,9 @@
   font-size: 13px;
 }
 
-.todayHint {
-  margin-top: -8px;
+.formFoot {
+  display: grid;
+  gap: 10px;
 }
 
 .notice {
@@ -124,6 +161,7 @@
 }
 
 .days {
+  width: 100%;
   border: 1px solid var(--color-line);
   border-radius: 8px;
   overflow: hidden;
@@ -132,10 +170,10 @@
 .daysHead,
 .dayRow {
   display: grid;
-  grid-template-columns: 90px 110px minmax(0, 1fr);
+  grid-template-columns: 72px 96px minmax(0, 1fr);
   gap: 12px;
-  align-items: start;
-  padding: 12px 14px;
+  align-items: center;
+  padding: 8px 14px;
 }
 
 .daysHead {
@@ -155,7 +193,6 @@
 }
 
 .dayLabel {
-  padding-top: 8px;
   color: var(--color-navy-900);
   font-weight: 700;
 }
@@ -164,7 +201,6 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding-top: 8px;
   color: var(--color-text);
   font-size: 13px;
 }
@@ -173,6 +209,7 @@
   display: grid;
   gap: 8px;
   min-width: 0;
+  justify-items: start;
 }
 
 .shiftRow {
@@ -182,6 +219,13 @@
   gap: 8px;
 }
 
+.trashSlot {
+  display: inline-flex;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+}
+
 .shiftSep,
 .closedHint {
   color: var(--color-text-muted);
@@ -189,7 +233,7 @@
 }
 
 .closedHint {
-  padding-top: 8px;
+  padding-top: 0;
 }
 
 .addShift {
@@ -229,8 +273,9 @@
 }
 
 .shiftActions {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
 }
 
@@ -296,6 +341,11 @@
 }
 
 @media (max-width: 700px) {
+  .hoursBlock,
+  .days {
+    width: 100%;
+  }
+
   .daysHead,
   .dayRow {
     grid-template-columns: 1fr 1fr;

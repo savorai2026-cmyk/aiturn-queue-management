@@ -195,6 +195,12 @@ export interface WhatsappWindowLog {
   id: string;
   phone: string | null;
   startedAt: string;
+  initiatedBy?: string | null;
+}
+
+export interface WhatsappWindowCounts {
+  customer: number;
+  business: number;
 }
 
 function whatsappPhoneKey(phone: string | null, fallback: string) {
@@ -207,8 +213,8 @@ function whatsappPhoneKey(phone: string | null, fallback: string) {
 export function countWhatsappWindows(
   logs: WhatsappWindowLog[],
   monthStartMs: number,
-): number {
-  const byPhone = new Map<string, number[]>();
+): WhatsappWindowCounts {
+  const byPhone = new Map<string, { started: number; initiatedBy: string | null }[]>();
   const seen = new Set<string>();
 
   for (const log of logs) {
@@ -218,22 +224,40 @@ export function countWhatsappWindows(
     if (!Number.isFinite(started)) continue;
     const key = whatsappPhoneKey(log.phone, `log:${log.id}`);
     const starts = byPhone.get(key) ?? [];
-    starts.push(started);
+    starts.push({ started, initiatedBy: log.initiatedBy ?? null });
     byPhone.set(key, starts);
   }
 
-  let windows = 0;
+  const counts: WhatsappWindowCounts = { customer: 0, business: 0 };
   for (const starts of byPhone.values()) {
-    starts.sort((left, right) => left - right);
+    starts.sort((left, right) => left.started - right.started);
     let openedAt = Number.NEGATIVE_INFINITY;
-    for (const started of starts) {
-      if (started < openedAt + WHATSAPP_WINDOW_MS) continue;
-      openedAt = started;
-      if (started >= monthStartMs) windows += 1;
+    for (const item of starts) {
+      if (item.started < openedAt + WHATSAPP_WINDOW_MS) continue;
+      openedAt = item.started;
+      if (item.started < monthStartMs) continue;
+      if (item.initiatedBy?.trim().toLowerCase() === 'business') {
+        counts.business += 1;
+      } else {
+        counts.customer += 1;
+      }
     }
   }
 
-  return windows;
+  return counts;
+}
+
+export function whatsappChargeIls(
+  customerWindows: number,
+  businessWindows: number,
+  tariff: PlanTariff,
+): number {
+  const customer = Number.isFinite(customerWindows) ? Math.max(0, customerWindows) : 0;
+  const business = Number.isFinite(businessWindows) ? Math.max(0, businessWindows) : 0;
+  return (
+    customer * (tariff.whatsappCustomerAgorot / 100) * (1 + VAT_RATE) +
+    business * (tariff.whatsappBusinessAgorot / 100) * (1 + VAT_RATE)
+  );
 }
 
 export function monthChargeIls(input: {
@@ -241,6 +265,8 @@ export function monthChargeIls(input: {
   quotaGb: number;
   memberCount?: number;
   whatsappWindows?: number;
+  whatsappCustomerWindows?: number;
+  whatsappBusinessWindows?: number;
   plan?: SubscriptionPlan;
   tariff?: PlanTariff;
 }): number {
@@ -251,8 +277,11 @@ export function monthChargeIls(input: {
     !Number.isFinite(input.voiceSeconds) || input.voiceSeconds <= 0
       ? 0
       : (input.voiceSeconds / 60) * (tariff.voiceAgorotPerMinute / 100) * (1 + VAT_RATE);
-  const windows = Number.isFinite(input.whatsappWindows) ? Math.max(0, input.whatsappWindows ?? 0) : 0;
-  const whatsapp = windows * (tariff.whatsappCustomerAgorot / 100) * (1 + VAT_RATE);
+  const whatsapp = whatsappChargeIls(
+    input.whatsappCustomerWindows ?? input.whatsappWindows ?? 0,
+    input.whatsappBusinessWindows ?? 0,
+    tariff,
+  );
   const extraStorage = Math.max(0, input.quotaGb - tariff.includedStorageGb) * tariff.extraStorageGbIls;
   return tariff.monthlyIls + extraUsers * tariff.extraUserIls + voice + whatsapp + extraStorage;
 }

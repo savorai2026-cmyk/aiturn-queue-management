@@ -7,7 +7,6 @@ import {
 export const INCLUDED_STORAGE_GB = 5;
 export const EXTRA_STORAGE_GB_ILS = 5;
 export const MIN_STORAGE_QUOTA_GB = 5;
-export const MAX_STORAGE_QUOTA_GB = 50;
 
 const KIB = 1024;
 const MIB = 1024 ** 2;
@@ -21,7 +20,7 @@ export function normalizeStorageQuotaGb(value: unknown): number | null {
   const raw = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(raw)) return null;
   const gigabytes = Math.round(raw);
-  if (gigabytes < MIN_STORAGE_QUOTA_GB || gigabytes > MAX_STORAGE_QUOTA_GB) {
+  if (gigabytes < MIN_STORAGE_QUOTA_GB) {
     return null;
   }
   return gigabytes;

@@ -26,7 +26,6 @@ interface AddServiceModalProps {
 
 const INITIAL_VALUES: ServiceFormValues = {
   title: '',
-  service_code: '',
   description: '',
   duration_minutes: '30',
   buffer_time_minutes: '0',
@@ -40,7 +39,6 @@ function toFormValues(service?: Service | null): ServiceFormValues {
 
   return {
     title: service.title,
-    service_code: service.service_code ?? '',
     description: service.description ?? '',
     duration_minutes: String(service.duration_minutes),
     buffer_time_minutes: String(service.buffer_time_minutes ?? 0),
@@ -90,7 +88,6 @@ function toServiceInsert(
   return {
     business_code: businessCode,
     title: values.title.trim(),
-    service_code: values.service_code.trim() || null,
     description: values.description.trim() || null,
     duration_minutes: Number(values.duration_minutes),
     buffer_time_minutes: Number(values.buffer_time_minutes),
@@ -103,7 +100,6 @@ function toServiceInsert(
 function toServiceUpdate(values: ServiceFormValues): ServiceUpdate {
   return {
     title: values.title.trim(),
-    service_code: values.service_code.trim() || null,
     description: values.description.trim() || null,
     duration_minutes: Number(values.duration_minutes),
     buffer_time_minutes: Number(values.buffer_time_minutes),
@@ -117,7 +113,7 @@ function getServiceErrorMessage(error: unknown, isEdit: boolean): string {
   const message = getErrorMessage(error).toLowerCase();
 
   if (message.includes('duplicate') || message.includes('unique')) {
-    return 'קוד השירות כבר קיים בעסק.';
+    return 'כבר קיים שירות עם אותם פרטים.';
   }
 
   if (
@@ -234,19 +230,6 @@ export default function AddServiceModal({
                 className={styles.input}
                 maxLength={120}
                 required
-              />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label htmlFor="service-code">קוד שירות</label>
-              <input
-                id="service-code"
-                name="service_code"
-                value={formData.service_code}
-                onChange={handleChange}
-                className={styles.input}
-                dir="ltr"
-                maxLength={50}
               />
             </div>
 

@@ -10,6 +10,7 @@ import AppointmentsPage from './features/appointments/AppointmentsPage';
 import { useAuth } from './features/auth/AuthContextState';
 import { AuthProvider } from './features/auth/AuthProvider';
 import Login from './features/auth/Login';
+import MfaChallenge from './features/auth/MfaChallenge';
 import { isAuthCallbackPending } from './features/auth/authRedirect';
 import BusinessOnboarding from './features/business/BusinessOnboarding';
 import { BusinessProvider } from './features/business/BusinessContext';
@@ -144,12 +145,16 @@ function AuthenticatedApp({ userEmail, onLogout }: AuthenticatedAppProps) {
             <UsagePage
               key={activeBusiness.businessCode}
               businessCode={activeBusiness.businessCode}
-              onOpenStorageSettings={() => {
-                openBusinessSettings('cloud-storage');
-              }}
-              onOpenPlanSettings={() => {
-                openBusinessSettings('subscription-plan');
-              }}
+              onOpenStorageSettings={
+                activeBusiness.role === 'owner'
+                  ? () => openBusinessSettings('cloud-storage')
+                  : undefined
+              }
+              onOpenPlanSettings={
+                activeBusiness.role === 'owner'
+                  ? () => openBusinessSettings('subscription-plan')
+                  : undefined
+              }
             />
           </main>
         )}
@@ -160,7 +165,7 @@ function AuthenticatedApp({ userEmail, onLogout }: AuthenticatedAppProps) {
 }
 
 function AppContent() {
-  const { session, isLoading, isPasswordRecovery, signOut } = useAuth();
+  const { session, isLoading, isPasswordRecovery, needsMfa, signOut } = useAuth();
 
   if (isLoading) {
     return (
@@ -172,6 +177,10 @@ function AppContent() {
         }
       />
     );
+  }
+
+  if (session && needsMfa) {
+    return <MfaChallenge />;
   }
 
   if (!session || isPasswordRecovery) {

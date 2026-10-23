@@ -14,6 +14,7 @@ import {
   GoogleIcon,
 } from '../../shared/components/icons';
 import { getPasswordResetErrorMessage } from '../../shared/errors';
+import { passwordRuleError } from '../settings/passwordRules';
 import styles from './Login.module.css';
 
 type AuthMode = 'login' | 'signup';
@@ -53,8 +54,9 @@ export default function Login() {
     event.preventDefault();
     clearMessages();
 
-    if (password.length < 6) {
-      setErrorMessage('הסיסמה החדשה חייבת להכיל לפחות 6 תווים.');
+    const recoveryRuleError = passwordRuleError(password);
+    if (recoveryRuleError) {
+      setErrorMessage(recoveryRuleError);
       return;
     }
 
@@ -104,8 +106,9 @@ export default function Login() {
       return;
     }
 
-    if (password.length < 6) {
-      setErrorMessage('הסיסמה חייבת להכיל לפחות 6 תווים.');
+    const signupRuleError = mode === 'signup' ? passwordRuleError(password) : null;
+    if (signupRuleError) {
+      setErrorMessage(signupRuleError);
       return;
     }
 
@@ -200,7 +203,10 @@ export default function Login() {
 
         {isPasswordRecovery ? (
           <form onSubmit={handleRecoverySubmit} className={styles.form}>
-            <p className={styles.hint}>בחרו סיסמה חדשה לחשבון, ואז ייפתח הדשבורד.</p>
+            <p className={styles.hint}>
+              בחרו סיסמה חדשה לחשבון, ואז ייפתח הדשבורד. לפחות 8 תווים, אות אנגלית גדולה
+              וקטנה, ספרה ותו מיוחד.
+            </p>
             <PasswordField
               label="סיסמה חדשה"
               autoComplete="new-password"
@@ -272,6 +278,12 @@ export default function Login() {
                 onChange={setPassword}
                 onToggle={() => setShowPassword((visible) => !visible)}
               />
+            ) : null}
+
+            {!isLogin ? (
+              <p className={styles.hint}>
+                לפחות 8 תווים, אות אנגלית גדולה וקטנה, ספרה ותו מיוחד.
+              </p>
             ) : null}
 
             {isLogin && step === 'password' ? (

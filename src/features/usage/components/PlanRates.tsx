@@ -7,7 +7,6 @@ import {
   voiceAgorotIncludingVat,
   type SubscriptionPlan,
 } from '../planPricing';
-import { MAX_STORAGE_QUOTA_GB } from '../../settings/storageQuota';
 import styles from './PlanRates.module.css';
 
 const PENDING = 'עדיין בפיתוח';
@@ -41,7 +40,7 @@ export default function PlanRates({
       <Rate
         title="אחסון מעבר למכסה"
         price={`${terms.extraStorageGbIls} ₪ לג׳יגה לחודש`}
-        detail={`${terms.includedStorageGb} ג׳יגה כלולים. המקסימום ${MAX_STORAGE_QUOTA_GB} ג׳יגה.`}
+        detail={`${terms.includedStorageGb} ג׳יגה כלולים. אפשר להוסיף ג׳יגה בלי תקרה.`}
       />
       <Rate title="וואטסאפ, פניית לקוח" price={`${terms.whatsappCustomerAgorot} אגורות ל־24 שעות לפני מע״מ`} detail={`כולל מע״מ: ${agorotIncludingVat(terms.whatsappCustomerAgorot).toLocaleString('he-IL')} אגורות. כשהלקוח פונה ראשון.`} />
       <Rate title="וואטסאפ, פניית העסק" price={`${terms.whatsappBusinessAgorot} אגורות ל־24 שעות לפני מע״מ`} detail={`כולל מע״מ: ${agorotIncludingVat(terms.whatsappBusinessAgorot).toLocaleString('he-IL')} אגורות. כשהעסק פונה ראשון.`} />

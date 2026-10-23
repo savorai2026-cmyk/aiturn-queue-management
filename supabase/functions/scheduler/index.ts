@@ -1,4 +1,7 @@
-const MUTATIONS = new Set(['book', 'cancel', 'reschedule', 'events', 'appointments']);
+import { createClient } from 'npm:@supabase/supabase-js@2';
+
+const MUTATIONS = new Set(['book', 'cancel', 'reschedule']);
+const MEMBER_ROLES = new Set(['owner', 'admin', 'staff']);
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -175,6 +178,62 @@ Deno.serve(async (request) => {
 
   const action = typeof body.action === 'string' ? body.action : '';
   const payload = asRecord(body.payload);
+  const businessCode = queryValue(payload, 'business_code');
+  if (!businessCode) {
+    return jsonResponse({ success: false, error: 'Missing business_code' }, 400);
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return jsonResponse({ error: 'Supabase is not configured' }, 500);
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authorization } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    return jsonResponse({ error: 'Not authenticated' }, 401);
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from('business_members')
+    .select('role')
+    .eq('business_code', businessCode)
+    .eq('user_id', userData.user.id)
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (membershipError) {
+    return jsonResponse({ error: membershipError.message }, 400);
+  }
+
+  if (!membership || !MEMBER_ROLES.has(membership.role)) {
+    return jsonResponse({ success: false, error: 'Not allowed' }, 403);
+  }
+
+  if (MUTATIONS.has(action)) {
+    const { data: writable, error: writableError } = await supabase.rpc(
+      'business_writes_allowed',
+      { p_business_code: businessCode },
+    );
+    if (writableError) {
+      return jsonResponse({ error: writableError.message }, 400);
+    }
+    if (writable !== true) {
+      return jsonResponse(
+        {
+          success: false,
+          error: 'המערכת חסומה לעסק הזה. יש לעדכן כרטיס אשראי או לפנות לתמיכה.',
+        },
+        403,
+      );
+    }
+  }
+
   const upstream = buildUpstream(schedulerBaseUrl, action, payload);
 
   if ('error' in upstream) {

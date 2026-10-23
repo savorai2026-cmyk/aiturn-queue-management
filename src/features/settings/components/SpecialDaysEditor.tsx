@@ -8,11 +8,9 @@ import { HourMinuteField } from '../../../shared/components/HourMinuteField';
 import type {
   SpecialDayDraft,
   WorkingDayDraft,
-  WorkingHourException,
 } from '../../appointments/workingHours';
 import {
   createBlankSpecialDay,
-  createSpecialDayFromWeekly,
   suggestNextShift,
 } from '../../appointments/workingHours';
 import { addDaysToDateKey, toDateKey } from '../../appointments/time';
@@ -21,6 +19,7 @@ import styles from './SpecialDaysEditor.module.css';
 interface SpecialDaysEditorProps {
   weeklyDays: WorkingDayDraft[];
   days: SpecialDayDraft[];
+  hiddenPastCount?: number;
   onChange: (days: SpecialDayDraft[]) => void;
 }
 
@@ -33,6 +32,39 @@ function formatHebrewDate(dateKey: string) {
     month: '2-digit',
     year: 'numeric',
   }).format(new Date(year, month - 1, day));
+}
+
+function inclusiveDayCount(start: string, end: string) {
+  if (!start || !end || end < start) return 0;
+  let count = 1;
+  let current = start;
+  while (current < end && count < 400) {
+    current = addDaysToDateKey(current, 1);
+    count += 1;
+  }
+  return current === end ? count : 0;
+}
+
+function sameShifts(
+  left: Array<{ start: string; end: string }>,
+  right: Array<{ start: string; end: string }>,
+) {
+  return (
+    left.length === right.length &&
+    left.every(
+      (shift, index) =>
+        shift.start.slice(0, 5) === right[index].start.slice(0, 5) &&
+        shift.end.slice(0, 5) === right[index].end.slice(0, 5),
+    )
+  );
+}
+
+function nextRangeAfter(day: SpecialDayDraft): { date: string; endDate: string } {
+  const start = day.date || toDateKey(new Date());
+  const end = day.endDate && day.endDate >= start ? day.endDate : start;
+  const span = Math.max(inclusiveDayCount(start, end) - 1, 0);
+  const date = addDaysToDateKey(end, 1);
+  return { date, endDate: addDaysToDateKey(date, span) };
 }
 
 const SHIFT_PRESETS: Array<{
@@ -59,9 +91,10 @@ const SHIFT_PRESETS: Array<{
 export default function SpecialDaysEditor({
   weeklyDays,
   days,
+  hiddenPastCount = 0,
   onChange,
 }: SpecialDaysEditorProps) {
-  const updateDay = (id: string, patch: Partial<WorkingHourException>) => {
+  const updateDay = (id: string, patch: Partial<SpecialDayDraft>) => {
     onChange(
       days.map((day) => (day.id === id ? { ...day, ...patch } : day)),
     );
@@ -90,100 +123,142 @@ export default function SpecialDaysEditor({
       <div className={styles.panelHead}>
         <h4>
           ימים מיוחדים
-          <HelpTip text="כל שורה דורסת את השבוע הרגיל רק בתאריך שנבחר. אפשר לסגור יום, לקצר אותו, או לפצל לבוקר וערב עם הפסקה בצהריים." />
+          <HelpTip text="כל כרטיס דורס את השבוע הרגיל מהתאריך הראשון עד התאריך האחרון, כולל שניהם. ליום בודד בוחרים את אותו תאריך בשני השדות. סגור אומר שאין זימון בכל הטווח. ימים שכבר עברו לא מוצגים כאן, והם נשארים ביומן." />
         </h4>
         <button
           type="button"
           className={styles.addBtn}
           onClick={() => onChange([...days, createBlankSpecialDay(weeklyDays)])}
         >
-          הוסף יום
+          הוסף טווח
         </button>
       </div>
 
+      {hiddenPastCount > 0 ? (
+        <p className={styles.keptNote}>
+          ימים שכבר עברו לא מוצגים כאן. הם נשארים שמורים ביומן.
+        </p>
+      ) : null}
+
       {days.length === 0 ? (
         <p className={styles.empty}>
-          עדיין אין ימים מיוחדים. הוסיפו תאריך כדי לסגור אותו או להגדיר שעות
-          חריגות.
+          {hiddenPastCount > 0
+            ? 'אין ימים מיוחדים קרובים. אפשר להוסיף טווח חדש.'
+            : 'עדיין אין ימים מיוחדים. הוסיפו תאריך או טווח כדי לסגור אותם או להגדיר שעות חריגות.'}
         </p>
       ) : (
         <div className={styles.list}>
-          {days.map((day) => (
+          {days.map((day) => {
+            const endDate = day.endDate || day.date;
+            const dayCount = inclusiveDayCount(day.date, endDate);
+            const isRange = Boolean(day.date && endDate && endDate !== day.date);
+
+            return (
             <article key={day.id} className={styles.card}>
               <div className={styles.cardTop}>
-                <DateField
-                  aria-label="תאריך מיוחד"
-                  value={day.date}
-                  onChange={(date) => updateDay(day.id, { date })}
-                />
-                <label className={styles.toggle}>
-                  <input
-                    type="checkbox"
-                    checked={!day.is_closed}
-                    onChange={(event) =>
-                      updateDay(
-                        day.id,
-                        event.target.checked
-                          ? createSpecialDayFromWeekly(weeklyDays, day.date)
-                          : { is_closed: true, shifts: [] },
-                      )
+                <div className={styles.datePair}>
+                  <div className={styles.dateField}>
+                    <span>מתאריך</span>
+                    <DateField
+                      aria-label="מתאריך"
+                      value={day.date}
+                      onChange={(date) =>
+                        updateDay(day.id, {
+                          date,
+                          endDate:
+                            endDate && date && endDate < date ? date : endDate,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className={styles.dateField}>
+                    <span>עד תאריך</span>
+                    <DateField
+                      aria-label="עד תאריך"
+                      min={day.date || undefined}
+                      value={endDate}
+                      onChange={(nextEnd) =>
+                        updateDay(day.id, {
+                          endDate: nextEnd,
+                          date:
+                            day.date && nextEnd && nextEnd < day.date
+                              ? nextEnd
+                              : day.date,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+                <div className={styles.cardActions}>
+                  <button
+                    type="button"
+                    className={styles.addShift}
+                    onClick={() =>
+                      onChange([
+                        ...days,
+                        {
+                          ...day,
+                          ...nextRangeAfter(day),
+                          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                          shifts: day.shifts.map((shift) => ({ ...shift })),
+                        },
+                      ])
                     }
-                  />
-                  <span>{day.is_closed ? 'סגור' : 'שעות מיוחדות'}</span>
-                </label>
-                <button
-                  type="button"
-                  className={styles.addShift}
-                  onClick={() =>
-                    onChange([
-                      ...days,
-                      {
-                        ...day,
-                        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                        date: day.date
-                          ? addDaysToDateKey(day.date, 1)
-                          : toDateKey(new Date()),
-                      },
-                    ])
-                  }
-                >
-                  <CopyIcon />
-                  שכפל ליום הבא
-                </button>
-                <IconButton
-                  label="מחק יום מיוחד"
-                  variant="danger"
-                  onClick={() =>
-                    onChange(days.filter((candidate) => candidate.id !== day.id))
-                  }
-                >
-                  <TrashIcon />
-                </IconButton>
+                  >
+                    <CopyIcon />
+                    {isRange ? 'שכפל את הטווח' : 'שכפל ליום הבא'}
+                  </button>
+                  <IconButton
+                    label="מחק יום מיוחד"
+                    variant="danger"
+                    onClick={() =>
+                      onChange(days.filter((candidate) => candidate.id !== day.id))
+                    }
+                  >
+                    <TrashIcon />
+                  </IconButton>
+                </div>
               </div>
 
               {day.date ? (
-                <p className={styles.dateHint}>{formatHebrewDate(day.date)}</p>
+                <p className={styles.dateHint}>
+                  {isRange
+                    ? `${formatHebrewDate(day.date)} עד ${formatHebrewDate(endDate)} · ${dayCount} ימים`
+                    : formatHebrewDate(day.date)}
+                </p>
               ) : null}
 
               <div className={styles.presets}>
-                {SHIFT_PRESETS.map((preset) => (
-                  <button
-                    key={preset.label}
-                    type="button"
-                    className={styles.preset}
-                    onClick={() =>
-                      updateDay(day.id, {
-                        is_closed: preset.isClosed,
-                        shifts: preset.shifts,
-                      })
-                    }
-                  >
-                    {preset.label}
-                  </button>
-                ))}
+                {SHIFT_PRESETS.map((preset) => {
+                  const active = preset.isClosed
+                    ? day.is_closed
+                    : !day.is_closed && sameShifts(day.shifts, preset.shifts);
+                  return (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      aria-pressed={active}
+                      className={active ? `${styles.preset} ${styles.presetActive}` : styles.preset}
+                      onClick={() =>
+                        updateDay(day.id, {
+                          is_closed: preset.isClosed,
+                          shifts: preset.shifts.map((shift) => ({ ...shift })),
+                        })
+                      }
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
               </div>
 
-              {!day.is_closed && (
+              {day.is_closed ? (
+                <p className={styles.closedNote}>
+                  {isRange
+                    ? 'הימים בטווח הזה סגורים. לא ניתן לקבוע בהם תור.'
+                    : 'היום הזה סגור. לא ניתן לקבוע בו תור.'}
+                </p>
+              ) : (
                 <div className={styles.shifts}>
                   {day.shifts.map((shift, index) => (
                     <div key={`${day.id}-${index}`} className={styles.shiftRow}>
@@ -245,7 +320,8 @@ export default function SpecialDaysEditor({
                 />
               </label>
             </article>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

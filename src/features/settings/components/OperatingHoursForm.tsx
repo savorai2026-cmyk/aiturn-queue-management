@@ -10,7 +10,9 @@ import {
   toWorkingDayDrafts,
   toWorkingHoursPayload,
   validateWorkingDayDrafts,
-  validateWorkingHourExceptions,
+  expandSpecialDayDrafts,
+  isUpcomingSpecialDay,
+  validateSpecialDayDrafts,
   type SpecialDayDraft,
   type WorkingDayDraft,
 } from '../../appointments/workingHours';
@@ -31,6 +33,32 @@ import styles from './OperatingHoursForm.module.css';
 interface OperatingHoursFormProps {
   business: BusinessSettings;
   onSaved: () => Promise<void>;
+}
+
+function SaveHoursButton({
+  isSaving,
+  onClick,
+}: {
+  isSaving: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={styles.saveBtn}
+      onClick={onClick}
+      disabled={isSaving}
+    >
+      {isSaving ? (
+        'שומר...'
+      ) : (
+        <>
+          <SaveIcon />
+          שמור שעות פעילות
+        </>
+      )}
+    </button>
+  );
 }
 
 function formatHebrewDate(dateKey: string) {
@@ -66,6 +94,14 @@ export default function OperatingHoursForm({
     text: string;
     type: 'success' | 'error';
   } | null>(null);
+
+  const todayKey = toDateKey(new Date());
+  const upcomingSpecialDays = specialDays.filter((day) =>
+    isUpcomingSpecialDay(day, todayKey),
+  );
+  const pastSpecialDays = specialDays.filter(
+    (day) => !isUpcomingSpecialDay(day, todayKey),
+  );
 
   const bookingMaxDate = useMemo(() => {
     const parsed = Number(bookingDays);
@@ -125,7 +161,7 @@ export default function OperatingHoursForm({
       return;
     }
 
-    const specialError = validateWorkingHourExceptions(specialDays);
+    const specialError = validateSpecialDayDrafts(specialDays);
     if (specialError) {
       setMessage({ text: specialError, type: 'error' });
       return;
@@ -151,7 +187,7 @@ export default function OperatingHoursForm({
       await updateOperatingHours(business.business_code, {
         working_hours: toWorkingHoursPayload(
           days,
-          specialDays,
+          expandSpecialDayDrafts(specialDays),
         ) as BusinessSettings['working_hours'],
         max_adv_booking_days: parsedBookingDays,
       });
@@ -169,6 +205,44 @@ export default function OperatingHoursForm({
       setIsSaving(false);
     }
   };
+
+  const save = () => void handleSave();
+
+  const status = message ? (
+    <p className={styles[message.type]} role="status">
+      {message.text}
+    </p>
+  ) : null;
+
+  const renderShiftActions = (day: WorkingDayDraft) => (
+    <div className={styles.shiftActions}>
+      <button
+        type="button"
+        className={styles.addShift}
+        onClick={() =>
+          updateDay(day.key, {
+            shifts: [...day.shifts, suggestNextShift(day.shifts)],
+          })
+        }
+      >
+        הוסף מקטע
+      </button>
+      <button
+        type="button"
+        className={styles.shiftPreset}
+        onClick={() =>
+          updateDay(day.key, {
+            shifts: [
+              { start: '09:00', end: '13:00' },
+              { start: '16:00', end: '20:00' },
+            ],
+          })
+        }
+      >
+        בוקר וערב
+      </button>
+    </div>
+  );
 
   return (
     <div className={styles.container}>
@@ -214,13 +288,6 @@ export default function OperatingHoursForm({
       </section>
 
       <section className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <h3>
-            ימי ושעות פעילות
-            <HelpTip text="סמנו באילו ימים העסק פתוח. לכל יום אפשר להגדיר כמה מקטעי שעות, למשל בוקר וערב עם הפסקת צהריים קבועה. ימים סגורים יופיעו ביומן כלא זמינים לגרירה ולזימון." />
-          </h3>
-        </div>
-
         {!business.working_hours && (
           <p className={styles.notice}>
             עדיין לא הוגדרו שעות פעילות. מוצגת תבנית התחלתית (ראשון–חמישי
@@ -228,7 +295,18 @@ export default function OperatingHoursForm({
           </p>
         )}
 
-        <div className={styles.days}>
+        <div className={styles.hoursBlock}>
+          <div className={styles.tableToolbar}>
+            <h3 className={styles.tableTitle}>
+              ימי ושעות פעילות
+              <HelpTip text="סמנו באילו ימים העסק פתוח. לכל יום אפשר להגדיר כמה מקטעי שעות, למשל בוקר וערב עם הפסקת צהריים קבועה. ימים סגורים יופיעו ביומן כלא זמינים לגרירה ולזימון." />
+            </h3>
+            <div className={styles.tableSave}>
+              {status}
+              <SaveHoursButton isSaving={isSaving} onClick={save} />
+            </div>
+          </div>
+          <div className={styles.days}>
           <div className={styles.daysHead}>
             <span>יום</span>
             <span>פתוח</span>
@@ -276,56 +354,34 @@ export default function OperatingHoursForm({
                         value={shift.end}
                         onChange={(end) => updateShift(day.key, index, { end })}
                       />
-                      {day.shifts.length > 1 ? (
-                        <IconButton
-                          label={`מחק מקטע ${index + 1} ביום ${day.label}`}
-                          variant="danger"
-                          onClick={() =>
-                            updateDay(day.key, {
-                              shifts: day.shifts.filter(
-                                (_, shiftIndex) => shiftIndex !== index,
-                              ),
-                            })
-                          }
-                        >
-                          <TrashIcon />
-                        </IconButton>
-                      ) : null}
+                      <span className={styles.trashSlot}>
+                        {day.shifts.length > 1 ? (
+                          <IconButton
+                            label={`מחק מקטע ${index + 1} ביום ${day.label}`}
+                            variant="danger"
+                            onClick={() =>
+                              updateDay(day.key, {
+                                shifts: day.shifts.filter(
+                                  (_, shiftIndex) => shiftIndex !== index,
+                                ),
+                              })
+                            }
+                          >
+                            <TrashIcon />
+                          </IconButton>
+                        ) : null}
+                      </span>
+                      {index === 0 ? renderShiftActions(day) : null}
                     </div>
                   ))}
-                  <div className={styles.shiftActions}>
-                    <button
-                      type="button"
-                      className={styles.addShift}
-                      onClick={() =>
-                        updateDay(day.key, {
-                          shifts: [...day.shifts, suggestNextShift(day.shifts)],
-                        })
-                      }
-                    >
-                      הוסף מקטע
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.shiftPreset}
-                      onClick={() =>
-                        updateDay(day.key, {
-                          shifts: [
-                            { start: '09:00', end: '13:00' },
-                            { start: '16:00', end: '20:00' },
-                          ],
-                        })
-                      }
-                    >
-                      בוקר וערב
-                    </button>
-                  </div>
+                  {day.shifts.length === 0 ? renderShiftActions(day) : null}
                 </div>
               ) : (
                 <span className={styles.closedHint}>סגור ביום זה</span>
               )}
             </div>
           ))}
+          </div>
         </div>
 
         <div className={styles.copyRow}>
@@ -351,39 +407,26 @@ export default function OperatingHoursForm({
             <CalendarIcon />
             ימים מיוחדים
           </button>
-          <HelpTip text="מגדיר סגירה או שעות חריגות לתאריך ספציפי, בלי לשנות את השבוע הרגיל. מתאים לחצי יום, ערב חג, או בוקר וערב עם הפסקה בצהריים." />
+          <HelpTip text="סוגר תאריך או טווח תאריכים, או מחליף בהם את שעות השבוע הרגיל. מתאים לחופשה, חצי יום, או בוקר וערב עם הפסקה." />
         </div>
 
         {showSpecialDays ? (
           <SpecialDaysEditor
             weeklyDays={days}
-            days={specialDays}
-            onChange={setSpecialDays}
+            days={upcomingSpecialDays}
+            hiddenPastCount={pastSpecialDays.length}
+            onChange={(next) => setSpecialDays([...pastSpecialDays, ...next])}
           />
         ) : null}
       </section>
 
-      {message && (
-        <p className={styles[message.type]} role="status">
-          {message.text}
+      <div className={styles.formFoot}>
+        {status}
+        <SaveHoursButton isSaving={isSaving} onClick={save} />
+        <p className={styles.todayHint}>
+          היום: {formatHebrewDate(toDateKey(new Date()))}
         </p>
-      )}
-
-      <button
-        type="button"
-        className={styles.saveBtn}
-        onClick={() => void handleSave()}
-        disabled={isSaving}
-      >
-        {isSaving ? 'שומר...' : (
-          <>
-            <SaveIcon />
-            שמור שעות פעילות
-          </>
-        )}
-      </button>
-
-      <p className={styles.todayHint}>היום: {formatHebrewDate(toDateKey(new Date()))}</p>
+      </div>
     </div>
   );
 }
