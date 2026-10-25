@@ -33,6 +33,7 @@
   bottom: 0;
   left: 0;
   z-index: 0;
+  overflow: hidden;
   border-radius: 0 0 16px 16px;
   background: linear-gradient(
     180deg,
@@ -41,6 +42,17 @@
     rgba(255, 255, 255, 0.1) 100%
   );
   pointer-events: none;
+}
+
+.navIndicator::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 6px;
+  background: #99f6e4;
+  box-shadow: 0 0 10px rgba(153, 246, 228, 0.85);
 }
 
 .navIndicatorReady {

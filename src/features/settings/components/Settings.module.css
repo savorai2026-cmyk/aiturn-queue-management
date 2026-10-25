@@ -67,22 +67,20 @@ button.tabBtn:not(:disabled),
 button.tabBtn:not(:disabled):hover,
 button.tabBtn:not(:disabled):focus,
 button.tabBtn:not(:disabled):active,
+button.tabBtn:not(:disabled):hover:active,
+button.tabBtn:not(:disabled):active:focus,
 button.tabBtn[aria-current='page']:not(:disabled),
 button.tabBtn[aria-current='page']:not(:disabled):hover,
+button.tabBtn[aria-current='page']:not(:disabled):focus,
 button.tabBtn[aria-current='page']:not(:disabled):active,
+button.tabBtn[aria-current='page']:not(:disabled):hover:active,
 button.tabBtn[aria-current='page']:not(:disabled):active:focus {
-  transform: none;
-  box-shadow: none;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .tabBtn:hover {
   color: var(--color-navy-800);
-}
-
-.tabBtn:hover:not(:disabled),
-.tabBtn:active:not(:disabled) {
-  transform: none;
-  box-shadow: none;
 }
 
 .activeTab {

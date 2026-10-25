@@ -3,6 +3,7 @@
   align-items: stretch;
   gap: 8px;
   min-width: 0;
+  overflow-anchor: none;
 }
 
 .calendarContainer {
@@ -132,6 +133,7 @@
   height: auto;
   font-family: inherit;
   color: var(--color-text);
+  overflow-anchor: none;
 }
 
 :global(.fc .fc-toolbar) {
@@ -179,6 +181,8 @@
 }
 
 :global(.fc .fc-col-header-cell-cushion) {
+  position: relative;
+  z-index: 5;
   padding: 8px 5px;
   color: inherit;
   cursor: pointer;
@@ -208,28 +212,28 @@
 }
 
 :global(.fc .fc-col-header-cell.is-selected-day) {
-  background: #d8f3ef;
-  color: var(--color-navy-900);
-  box-shadow: inset 0 -4px 0 var(--color-teal-600);
+  color: #ffffff;
 }
 
 :global(.fc .fc-col-header-cell.is-selected-day .fc-col-header-cell-cushion) {
-  color: var(--color-navy-900);
+  color: #ffffff;
   font-weight: 800;
 }
 
 :global(.fc .fc-col-header-cell.fc-day-today.is-selected-day) {
-  background: #d8f3ef;
+  background: #fef3c7;
   color: var(--color-navy-900);
-  box-shadow:
-    inset 0 3px 0 #d97706,
-    inset 0 -4px 0 var(--color-teal-600);
+  box-shadow: inset 0 -3px 0 #d97706;
+}
+
+:global(.fc .fc-col-header-cell.fc-day-today.is-selected-day .fc-col-header-cell-cushion) {
+  color: var(--color-navy-900);
 }
 
 :global(.fc-timegrid-col.is-selected-day),
 :global(.fc-daygrid-day.is-selected-day) {
-  background-color: rgba(20, 184, 166, 0.12) !important;
-  box-shadow: inset 0 0 0 2px rgba(20, 184, 166, 0.28);
+  background-color: transparent !important;
+  box-shadow: none;
 }
 
 :global(.fc-timegrid-event),
@@ -244,14 +248,14 @@
 
 :global(.fc-event.event-selected) {
   box-shadow:
-    0 0 0 2px #ffffff,
-    0 0 0 4px var(--color-navy-800) !important;
+    inset 0 0 0 1px #ffffff,
+    inset 0 0 0 3px var(--color-navy-800) !important;
 }
 
 :global(.fc-event.event-focused) {
   box-shadow:
-    0 0 0 2px #ffffff,
-    0 0 0 5px var(--color-teal-500) !important;
+    inset 0 0 0 1px #ffffff,
+    inset 0 0 0 3px var(--color-teal-500) !important;
   z-index: 5;
 }
 
@@ -375,6 +379,68 @@
   box-shadow: var(--shadow-button-press) !important;
 }
 
+:global(.fc .fc-button-group:has(.fc-dayGridMonth-button)) {
+  position: relative;
+}
+
+:global(.fc.fc-direction-rtl .fc-button-group > .fc-button.fc-dayGridMonth-button) {
+  border-radius: 0 6px 6px 0 !important;
+}
+
+:global(.fc.fc-direction-rtl .fc-button-group > .fc-button.fc-timeGridWeek-button) {
+  border-radius: 0 !important;
+}
+
+:global(.fc.fc-direction-rtl .fc-button-group > .fc-button.fc-timeGridDay-button) {
+  border-radius: 6px 0 0 6px !important;
+}
+
+:global(.fc .fc-button.fc-dayGridMonth-button),
+:global(.fc .fc-button.fc-timeGridWeek-button),
+:global(.fc .fc-button.fc-timeGridDay-button) {
+  padding-bottom: 8px;
+}
+
+:global(.fc .fc-dayGridMonth-button),
+:global(.fc .fc-timeGridWeek-button),
+:global(.fc .fc-timeGridDay-button),
+:global(.fc .fc-dayGridMonth-button:hover),
+:global(.fc .fc-dayGridMonth-button:focus),
+:global(.fc .fc-dayGridMonth-button:active),
+:global(.fc .fc-timeGridWeek-button:hover),
+:global(.fc .fc-timeGridWeek-button:focus),
+:global(.fc .fc-timeGridWeek-button:active),
+:global(.fc .fc-timeGridDay-button:hover),
+:global(.fc .fc-timeGridDay-button:focus),
+:global(.fc .fc-timeGridDay-button:active),
+:global(.fc .fc-button-primary:not(:disabled).fc-dayGridMonth-button),
+:global(.fc .fc-button-primary:not(:disabled).fc-timeGridWeek-button),
+:global(.fc .fc-button-primary:not(:disabled).fc-timeGridDay-button),
+:global(.fc .fc-button-primary:not(:disabled).fc-dayGridMonth-button:hover),
+:global(.fc .fc-button-primary:not(:disabled).fc-timeGridWeek-button:hover),
+:global(.fc .fc-button-primary:not(:disabled).fc-timeGridDay-button:hover),
+:global(.fc .fc-button-primary:not(:disabled).fc-dayGridMonth-button:active),
+:global(.fc .fc-button-primary:not(:disabled).fc-timeGridWeek-button:active),
+:global(.fc .fc-button-primary:not(:disabled).fc-timeGridDay-button:active),
+:global(.fc .fc-button-primary:not(:disabled).fc-dayGridMonth-button.fc-button-active),
+:global(.fc .fc-button-primary:not(:disabled).fc-timeGridWeek-button.fc-button-active),
+:global(.fc .fc-button-primary:not(:disabled).fc-timeGridDay-button.fc-button-active),
+:global(.fc .fc-button-primary:not(:disabled).fc-dayGridMonth-button.fc-button-active:hover),
+:global(.fc .fc-button-primary:not(:disabled).fc-timeGridWeek-button.fc-button-active:hover),
+:global(.fc .fc-button-primary:not(:disabled).fc-timeGridDay-button.fc-button-active:hover),
+:global(.fc .fc-button-primary:not(:disabled).fc-dayGridMonth-button.fc-button-active:active),
+:global(.fc .fc-button-primary:not(:disabled).fc-timeGridWeek-button.fc-button-active:active),
+:global(.fc .fc-button-primary:not(:disabled).fc-timeGridDay-button.fc-button-active:active) {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+:global(.fc .fc-button-primary:not(:disabled).fc-dayGridMonth-button.fc-button-active),
+:global(.fc .fc-button-primary:not(:disabled).fc-timeGridWeek-button.fc-button-active),
+:global(.fc .fc-button-primary:not(:disabled).fc-timeGridDay-button.fc-button-active) {
+  background-color: var(--color-navy-800);
+}
+
 :global(.fc-newAppointmentBtn-button) {
   display: inline-flex !important;
   align-items: center;
@@ -431,9 +497,12 @@
   background-color: rgba(217, 119, 6, 0.08) !important;
 }
 
-:global(.fc .fc-timegrid-col.fc-day-today.is-selected-day),
+:global(.fc .fc-timegrid-col.fc-day-today.is-selected-day) {
+  background-color: rgba(217, 119, 6, 0.08) !important;
+}
+
 :global(.fc .fc-daygrid-day.fc-day-today.is-selected-day) {
-  background-color: rgba(20, 184, 166, 0.14) !important;
+  background-color: rgba(217, 119, 6, 0.12) !important;
 }
 
 :global(.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number) {
@@ -468,9 +537,55 @@
 
 :global(.fc .fc-timegrid-col.is-selected-day.is-closed-day),
 :global(.fc .fc-daygrid-day.is-selected-day.is-closed-day) {
-  background-color: rgba(20, 184, 166, 0.16) !important;
+  background-color: #e8eef2 !important;
   background-image: var(--closed-day-hatch) !important;
-  box-shadow: inset 0 0 0 2px rgba(20, 184, 166, 0.35);
+  box-shadow: none;
+}
+
+:global(.fc .fc-daygrid-day-events) {
+  z-index: 2;
+}
+
+.dayGlide,
+.dayLaneGlide,
+.dayHeaderGlide,
+.viewGlide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.dayGlide,
+.dayLaneGlide {
+  background: rgba(20, 184, 166, 0.14);
+  box-shadow: inset 0 0 0 2px rgba(20, 184, 166, 0.38);
+}
+
+.dayHeaderGlide,
+.viewGlide {
+  z-index: 4;
+  border-radius: 999px;
+  background: var(--color-teal-600);
+}
+
+.viewGlide {
+  background: #99f6e4;
+  box-shadow: 0 0 8px rgba(153, 246, 228, 0.7);
+}
+
+.dayGlideReady {
+  transition:
+    transform 340ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 340ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 340ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dayGlideReady {
+    transition: none;
+  }
 }
 
 .dayHeaderInner {
@@ -541,14 +656,12 @@
   text-decoration: none;
 }
 
-:global(.fc .fc-col-header-cell.fc-day-today) .specialNote,
-:global(.fc .fc-col-header-cell.is-selected-day) .specialNote {
+:global(.fc .fc-col-header-cell.fc-day-today) .specialNote {
   background: rgba(7, 63, 103, 0.1);
   color: var(--color-navy-900);
 }
 
-:global(.fc .fc-col-header-cell.fc-day-today) .holidayNote,
-:global(.fc .fc-col-header-cell.is-selected-day) .holidayNote {
+:global(.fc .fc-col-header-cell.fc-day-today) .holidayNote {
   background: #fef3c7;
   color: #92400e;
 }

@@ -32,6 +32,14 @@ body, html, #root {
   min-width: 320px;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
+html:has(.is-page-flow) {
+  overflow-y: scroll;
+}
+
 #root {
   min-height: 100vh;
 }

@@ -209,6 +209,21 @@ export default function CalendarView({
   const viewTypeRef = useRef<string>(
     storedLocation?.view ?? (isMobile ? 'timeGridDay' : 'timeGridWeek'),
   );
+  const glideOriginRef = useRef(
+    new Map<
+      string,
+      {
+        left: number;
+        top: number;
+        right: number;
+        bottom: number;
+        width: number;
+        height: number;
+        view: string;
+      }
+    >(),
+  );
+  const toolbarAnchorRef = useRef<number | null>(null);
   const bookingRangeEndRef = useRef<string | null>(null);
   const [calendarViewType, setCalendarViewType] = useState<string>(
     storedLocation?.view ?? (isMobile ? 'timeGridDay' : 'timeGridWeek'),
@@ -264,6 +279,194 @@ export default function CalendarView({
       );
     });
   }, [exceptions, parsedHours, selectedDate]);
+
+  const placeDaySelection = useCallback(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    const placeGlide = (
+      host: HTMLElement | null | undefined,
+      target: HTMLElement | null,
+      className: string,
+      alongBottom: boolean,
+    ) => {
+      root.querySelectorAll<HTMLElement>(`.${className}`).forEach((node) => {
+        if (!host || node.parentElement !== host) node.remove();
+      });
+      if (!host || !target) return;
+
+      let glide = host.querySelector<HTMLElement>(`:scope > .${className}`);
+      const created = !glide;
+      if (!glide) {
+        glide = document.createElement('div');
+        glide.className = className;
+        glide.setAttribute('aria-hidden', 'true');
+        host.insertBefore(glide, host.firstChild);
+      }
+
+      const hostStyle = window.getComputedStyle(host);
+      const borderLeft = Number.parseFloat(hostStyle.borderLeftWidth) || 0;
+      const borderTop = Number.parseFloat(hostStyle.borderTopWidth) || 0;
+      const hostBox = host.getBoundingClientRect();
+      const box = target.getBoundingClientRect();
+      const x = box.left - hostBox.left - borderLeft;
+      const y = alongBottom
+        ? box.bottom - hostBox.top - borderTop - 4
+        : box.top - hostBox.top - borderTop;
+      const width = `${box.width}px`;
+      const height = alongBottom ? '4px' : `${box.height}px`;
+      const transform = `translate(${x}px, ${y}px)`;
+      const previous = glideOriginRef.current.get(className);
+      const sameView = previous?.view === viewTypeRef.current;
+      glide.dataset.endWidth = width;
+      glide.dataset.endHeight = height;
+      glide.dataset.endTransform = transform;
+      if (glide.dataset.glideHold === '1') {
+        /* Destination is already stored for the flight that is about to start. */
+      } else if (created && previous && sameView && previous.width > 0) {
+        const startX = previous.left - hostBox.left - borderLeft;
+        const startY = alongBottom
+          ? previous.bottom - hostBox.top - borderTop - 4
+          : previous.top - hostBox.top - borderTop;
+        glide.dataset.glideHold = '1';
+        glide.classList.remove(styles.dayGlideReady);
+        glide.style.width = `${previous.width}px`;
+        glide.style.height = alongBottom ? '4px' : `${previous.height}px`;
+        glide.style.transform = `translate(${startX}px, ${startY}px)`;
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
+            if (!glide.isConnected) return;
+            glide.dataset.glideHold = '';
+            glide.classList.add(styles.dayGlideReady);
+            glide.style.width = glide.dataset.endWidth || width;
+            glide.style.height = glide.dataset.endHeight || height;
+            glide.style.transform = glide.dataset.endTransform || transform;
+          });
+        });
+      } else {
+        glide.style.width = width;
+        glide.style.height = height;
+        glide.style.transform = transform;
+        if (created) {
+          if (alongBottom) glide.style.visibility = 'hidden';
+          window.requestAnimationFrame(() => {
+            if (!glide.isConnected) return;
+            if (alongBottom) {
+              placeDaySelection();
+              glide.style.visibility = '';
+            }
+            glide.classList.add(styles.dayGlideReady);
+          });
+        }
+      }
+      glideOriginRef.current.set(className, {
+        left: box.left,
+        top: box.top,
+        right: box.right,
+        bottom: box.bottom,
+        width: box.width,
+        height: box.height,
+        view: viewTypeRef.current,
+      });
+    };
+
+    const dateKey = selectedDate ? CSS.escape(selectedDate) : '';
+    const timeColumn = dateKey
+      ? root.querySelector<HTMLElement>(`.fc-timegrid-col[data-date="${dateKey}"]`)
+      : null;
+    const dayCell = dateKey
+      ? root.querySelector<HTMLElement>(`.fc-daygrid-day[data-date="${dateKey}"]`)
+      : null;
+    const column = timeColumn ?? dayCell;
+    placeGlide(
+      column?.closest<HTMLElement>('.fc-timegrid-cols, .fc-daygrid-body'),
+      column,
+      styles.dayGlide,
+      false,
+    );
+    placeGlide(
+      timeColumn ? dayCell?.closest<HTMLElement>('.fc-daygrid-body') : null,
+      timeColumn ? dayCell : null,
+      styles.dayLaneGlide,
+      false,
+    );
+
+    const header = dateKey
+      ? root.querySelector<HTMLElement>(`.fc-col-header-cell[data-date="${dateKey}"]`)
+      : null;
+    const headerHost = header
+      ?.closest<HTMLElement>('.fc-scrollgrid-section-header')
+      ?.querySelector<HTMLElement>(':scope > td');
+    placeGlide(headerHost, header, styles.dayHeaderGlide, true);
+
+    const viewButton = root.querySelector<HTMLElement>(
+      '.fc-dayGridMonth-button.fc-button-active, .fc-timeGridWeek-button.fc-button-active, .fc-timeGridDay-button.fc-button-active',
+    );
+    placeGlide(
+      viewButton?.closest<HTMLElement>('.fc-button-group'),
+      viewButton,
+      styles.viewGlide,
+      true,
+    );
+  }, [selectedDate]);
+
+  useLayoutEffect(() => {
+    placeDaySelection();
+  }, [placeDaySelection, events, isMobile]);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const button = target.closest(
+        '.fc-dayGridMonth-button, .fc-timeGridWeek-button, .fc-timeGridDay-button',
+      );
+      if (!button) return;
+      event.preventDefault();
+      const toolbar = root.querySelector('.fc-header-toolbar');
+      toolbarAnchorRef.current = toolbar?.getBoundingClientRect().top ?? null;
+    };
+    root.addEventListener('mousedown', onMouseDown, true);
+    return () => root.removeEventListener('mousedown', onMouseDown, true);
+  }, []);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => placeDaySelection());
+    const watch = () => {
+      observer.disconnect();
+      observer.observe(root);
+      root
+        .querySelectorAll<HTMLElement>(
+          '.fc-scrollgrid-section-header, .fc-timegrid-cols, .fc-daygrid-body, .fc-button-group',
+        )
+        .forEach((node) => observer.observe(node));
+    };
+    watch();
+    const mutations = new MutationObserver((records) => {
+      const onlyGlides = records.every((record) =>
+        [...record.addedNodes, ...record.removedNodes].every(
+          (node) =>
+            node instanceof HTMLElement &&
+            (node.classList.contains(styles.dayGlide) ||
+              node.classList.contains(styles.dayLaneGlide) ||
+              node.classList.contains(styles.dayHeaderGlide) ||
+              node.classList.contains(styles.viewGlide)),
+        ),
+      );
+      if (onlyGlides) return;
+      watch();
+      placeDaySelection();
+    });
+    mutations.observe(root, { childList: true, subtree: true });
+    return () => {
+      observer.disconnect();
+      mutations.disconnect();
+    };
+  }, [placeDaySelection]);
 
   useEffect(() => {
     applyDayMarks();
@@ -915,11 +1118,23 @@ export default function CalendarView({
           },
         }}
         datesSet={(info) => {
-          applyDayMarks();
-          syncTodayButton();
           const nextViewType = info.view.type;
-          const currentStartKey = toDateKey(info.view.currentStart);
+          const viewChanged = viewTypeRef.current !== nextViewType;
           viewTypeRef.current = nextViewType;
+          applyDayMarks();
+          placeDaySelection();
+          if (viewChanged) {
+            const anchor = toolbarAnchorRef.current;
+            const toolbar = rootRef.current?.querySelector('.fc-header-toolbar');
+            if (anchor != null && toolbar) {
+              window.requestAnimationFrame(() => {
+                const shift = toolbar.getBoundingClientRect().top - anchor;
+                if (Math.abs(shift) > 1) window.scrollBy(0, shift);
+              });
+            }
+          }
+          syncTodayButton();
+          const currentStartKey = toDateKey(info.view.currentStart);
           setCalendarViewType((current) =>
             current === nextViewType ? current : nextViewType,
           );
