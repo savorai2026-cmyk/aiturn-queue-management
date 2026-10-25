@@ -128,6 +128,17 @@ function specialNoteForDate(
   return note || null;
 }
 
+function dateWhenLeavingMonth(monthStart: Date, monthEnd: Date, selectedDate: string | null) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (today >= monthStart && today < monthEnd) return today;
+  if (selectedDate) {
+    const selected = toLocalDateFromKey(selectedDate);
+    if (selected >= monthStart && selected < monthEnd) return selected;
+  }
+  return today;
+}
+
 function getSlotDuration(slotDurationMinutes: number | null) {
   const minutes =
     slotDurationMinutes && slotDurationMinutes > 0 ? slotDurationMinutes : 30;
@@ -428,9 +439,32 @@ export default function CalendarView({
       const toolbar = root.querySelector('.fc-header-toolbar');
       toolbarAnchorRef.current = toolbar?.getBoundingClientRect().top ?? null;
     };
+    const onClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const button = target.closest<HTMLElement>(
+        '.fc-timeGridWeek-button, .fc-timeGridDay-button',
+      );
+      if (!button) return;
+      const api = calendarRef.current?.getApi();
+      if (!api || api.view.type !== 'dayGridMonth') return;
+      event.preventDefault();
+      event.stopPropagation();
+      const nextView = button.classList.contains('fc-timeGridWeek-button')
+        ? 'timeGridWeek'
+        : 'timeGridDay';
+      api.changeView(
+        nextView,
+        dateWhenLeavingMonth(api.view.currentStart, api.view.currentEnd, selectedDate),
+      );
+    };
     root.addEventListener('mousedown', onMouseDown, true);
-    return () => root.removeEventListener('mousedown', onMouseDown, true);
-  }, []);
+    root.addEventListener('click', onClick, true);
+    return () => {
+      root.removeEventListener('mousedown', onMouseDown, true);
+      root.removeEventListener('click', onClick, true);
+    };
+  }, [selectedDate]);
 
   useEffect(() => {
     const root = rootRef.current;
