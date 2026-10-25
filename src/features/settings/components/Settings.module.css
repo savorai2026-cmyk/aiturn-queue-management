@@ -16,12 +16,31 @@
 }
 
 .tabs {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 16px;
   margin-bottom: 20px;
   border-bottom: 1px solid var(--color-line);
+}
+
+.tabIndicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-teal-500);
+  box-shadow: 0 0 8px rgba(13, 148, 136, 0.45);
+  pointer-events: none;
+}
+
+.tabIndicatorReady {
+  transition:
+    transform 340ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 340ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .tabDivider {
@@ -41,7 +60,19 @@
   padding: 10px 4px;
   margin-bottom: -1px;
   border-bottom: 2px solid transparent;
-  transition: all 0.2s ease;
+  transition: color 180ms ease;
+}
+
+button.tabBtn:not(:disabled),
+button.tabBtn:not(:disabled):hover,
+button.tabBtn:not(:disabled):focus,
+button.tabBtn:not(:disabled):active,
+button.tabBtn[aria-current='page']:not(:disabled),
+button.tabBtn[aria-current='page']:not(:disabled):hover,
+button.tabBtn[aria-current='page']:not(:disabled):active,
+button.tabBtn[aria-current='page']:not(:disabled):active:focus {
+  transform: none;
+  box-shadow: none;
 }
 
 .tabBtn:hover {
@@ -56,7 +87,12 @@
 
 .activeTab {
   color: var(--color-navy-900);
-  border-bottom: 2px solid var(--color-teal-500);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabIndicatorReady {
+    transition: none;
+  }
 }
 
 .contentCard {
@@ -275,70 +311,6 @@
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   padding: 14px 16px;
-}
-
-.planOption {
-  display: grid;
-  gap: 8px;
-  align-content: start;
-  padding: 14px;
-  border: 1px solid var(--color-line);
-  border-radius: 12px;
-  background: #ffffff;
-  color: inherit;
-  font: inherit;
-  text-align: right;
-  cursor: pointer;
-}
-
-.planOption[data-selected='true'] {
-  border-color: var(--color-teal-600);
-  background: #f3fbfa;
-  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.14);
-}
-
-.planHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.planName {
-  color: var(--color-navy-900);
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.planBadge {
-  color: var(--color-teal-600);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.planPrice {
-  color: var(--color-navy-900);
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.planPrice span {
-  display: block;
-  margin-top: 2px;
-  color: var(--color-text-muted);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.planOption ul {
-  display: grid;
-  gap: 4px;
-  margin: 0;
-  padding: 0 1.15em 0 0;
-  color: var(--color-text);
-  font-size: 13px;
-  line-height: 1.45;
 }
 
 .toggle {

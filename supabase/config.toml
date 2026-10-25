@@ -28,3 +28,6 @@ verify_jwt = false
 
 [functions.manage-business-users]
 verify_jwt = true
+
+[functions.support-request]
+verify_jwt = true

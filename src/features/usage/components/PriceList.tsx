@@ -1,7 +1,7 @@
 import { StorageUsageBar } from '../../settings/components/StorageUsageMeter';
+import { displayStorageQuotaGb } from '../../settings/storageQuota';
+import PlanCard from './PlanCard';
 import {
-  daysLimitText,
-  monthsLimitText,
   agorotIncludingVat,
   extraUserCount,
   formatPlanIls,
@@ -160,11 +160,7 @@ export default function PriceList({
           />
           <ChargeLine
             title="אחסון"
-            detail={
-              extraStorageGb === 0
-                ? `תשלום נוסף על ${terms.includedStorageGb} ג׳יגה כלולים`
-                : `תשלום נוסף על ${terms.includedStorageGb} ג׳יגה כלולים, ${extraStorageGb.toLocaleString('he-IL')} ג׳יגה נוספות`
-            }
+            detail={storageChargeDetail(terms.includedStorageGb, extraStorageGb)}
             amount={formatPlanIls(storageIls)}
           />
         </div>
@@ -180,49 +176,23 @@ export default function PriceList({
             {subscriptionPlan == null
               ? 'מחשב את המנוי...'
               : onOpenPlanSettings
-                ? `העסק על המנוי ${planLabel(plan)}. שני המנויים כאן, ואפשר לעבור למורחב בהגדרות העסק.`
+                ? `העסק על המנוי ${planLabel(plan)}. המנוי השני נפתח בהגדרות העסק.`
                 : `העסק על המנוי ${planLabel(plan)}.`}
           </p>
         </div>
         <div className={styles.plans}>
-          <article className={styles.planCard} data-current={plan === 'regular'}>
-            <h3>רגיל</h3>
-            <p className={styles.price}>{regularTariff.monthlyIls} ₪ לחודש, כולל מע״מ</p>
-            <p>
-              עד {regularTariff.includedUsers} משתמשים, וכל משתמש נוסף {regularTariff.extraUserIls} ₪ לחודש.
-              {regularTariff.includedStorageGb} ג׳יגה כלולים, וכל ג׳יגה נוספת {regularTariff.extraStorageGbIls} ₪.
-              הקלטת קול {daysLimitText(regularTariff.recordingMaxDays)}.
-              היסטוריית תורים {monthsLimitText(regularTariff.historyMaxMonths)}.
-              תמלול, סיכום והתכתבות וואטסאפ {monthsLimitText(regularTariff.correspondenceMaxMonths)}.
-            </p>
-          </article>
-          {onOpenPlanSettings ? (
-            <button
-              type="button"
-              className={styles.planCard}
-              data-current={plan === 'expanded'}
-              onClick={onOpenPlanSettings}
-            >
-              <h3>מורחב</h3>
-              <p className={styles.price}>{expandedTariff.monthlyIls} ₪ לחודש, כולל מע״מ</p>
-              <p>
-                עד {expandedTariff.includedUsers} משתמשים, וכל משתמש נוסף {expandedTariff.extraUserIls} ₪ לחודש.
-                {expandedTariff.includedStorageGb} ג׳יגה כלולים, וכל ג׳יגה נוספת {expandedTariff.extraStorageGbIls} ₪.
-                הקלטה, היסטוריית תורים, תמלול, סיכום והתכתבות וואטסאפ {monthsLimitText(expandedTariff.correspondenceMaxMonths)}.
-              </p>
-              <p>לבחירת המנוי בהגדרות העסק</p>
-            </button>
-          ) : (
-            <article className={styles.planCard} data-current={plan === 'expanded'}>
-              <h3>מורחב</h3>
-              <p className={styles.price}>{expandedTariff.monthlyIls} ₪ לחודש, כולל מע״מ</p>
-              <p>
-                עד {expandedTariff.includedUsers} משתמשים, וכל משתמש נוסף {expandedTariff.extraUserIls} ₪ לחודש.
-                {expandedTariff.includedStorageGb} ג׳יגה כלולים, וכל ג׳יגה נוספת {expandedTariff.extraStorageGbIls} ₪.
-                הקלטה, היסטוריית תורים, תמלול, סיכום והתכתבות וואטסאפ {monthsLimitText(expandedTariff.correspondenceMaxMonths)}.
-              </p>
-            </article>
-          )}
+          <PlanCard
+            plan="regular"
+            terms={regularTariff}
+            selected={plan === 'regular'}
+            onSelect={onOpenPlanSettings}
+          />
+          <PlanCard
+            plan="expanded"
+            terms={expandedTariff}
+            selected={plan === 'expanded'}
+            onSelect={onOpenPlanSettings}
+          />
         </div>
         <div className={styles.meterHead}>
           <span>
@@ -286,7 +256,7 @@ export default function PriceList({
         </div>
         <StorageUsageBar
           usedBytes={usedBytes}
-          quotaGb={quotaGb}
+          quotaGb={displayStorageQuotaGb(quotaGb, terms.includedStorageGb)}
           plan={plan}
           rates={{
             includedGb: terms.includedStorageGb,
@@ -337,6 +307,13 @@ export default function PriceList({
       />
     </div>
   );
+}
+
+function storageChargeDetail(includedGb: number, extraGb: number): string {
+  const included = `${includedGb.toLocaleString('he-IL')} ג׳יגה כלולים במנוי`;
+  if (extraGb <= 0) return included;
+  if (extraGb === 1) return `${included}, וג׳יגה נוספת אחת בתשלום`;
+  return `${included}, ו־${extraGb.toLocaleString('he-IL')} ג׳יגה נוספות בתשלום`;
 }
 
 function formatAgorot(value: number): string {

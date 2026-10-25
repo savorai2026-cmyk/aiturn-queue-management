@@ -4,6 +4,8 @@ import {
   formatStorageAmount,
   formatStoragePercent,
   formatStoragePrice,
+  alignStorageQuotaGb,
+  displayStorageQuotaGb,
   normalizeStorageQuotaGb,
   storageAlertLevel,
   storageQuotaBytes,
@@ -17,6 +19,14 @@ describe('storage quota', () => {
     expect(normalizeStorageQuotaGb(4)).toBeNull();
     expect(normalizeStorageQuotaGb(50)).toBe(50);
     expect(normalizeStorageQuotaGb(120)).toBe(120);
+  });
+
+  it('keeps purchased gigabytes when the included amount changes', () => {
+    expect(alignStorageQuotaGb(5, 5, 7)).toBe(7);
+    expect(alignStorageQuotaGb(8, 5, 7)).toBe(10);
+    expect(alignStorageQuotaGb(7, 7, 5)).toBe(5);
+    expect(alignStorageQuotaGb(10, 7, 5)).toBe(8);
+    expect(displayStorageQuotaGb(5, 7)).toBe(7);
   });
 
   it('prices only the gigabytes above the included five', () => {

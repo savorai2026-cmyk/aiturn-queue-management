@@ -26,6 +26,19 @@ export function normalizeStorageQuotaGb(value: unknown): number | null {
   return gigabytes;
 }
 
+export function alignStorageQuotaGb(
+  quotaGb: number,
+  previousIncludedGb: number,
+  nextIncludedGb: number,
+): number {
+  const paidGb = Math.max(0, quotaGb - previousIncludedGb);
+  return nextIncludedGb + paidGb;
+}
+
+export function displayStorageQuotaGb(quotaGb: number, includedGb: number): number {
+  return Math.max(quotaGb, includedGb);
+}
+
 export function storageQuotaBytes(gigabytes: number): number {
   return gigabytes * GIB;
 }

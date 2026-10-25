@@ -309,6 +309,15 @@ export function CostIcon() {
   );
 }
 
+export function MailIcon() {
+  return (
+    <Svg icon="mail">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 7 9-7" />
+    </Svg>
+  );
+}
+
 export function LogsIcon() {
   return (
     <Svg icon="logs">

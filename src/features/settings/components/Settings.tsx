@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useSlidingIndicator } from '../../../shared/useSlidingIndicator';
 import { deleteService, rewriteAgentPrompt, updateBusinessSettings } from '../settings.api';
 import StorageUsageMeter from './StorageUsageMeter';
 import { getAgentPromptRewriteErrorMessage, getErrorMessage } from '../../../shared/errors';
@@ -19,16 +20,18 @@ import {
   DEFAULT_HISTORY_MONTHS,
   DEFAULT_RECORDING_RETENTION_DAYS,
   daysLimitText,
+  includedStorageGb,
   monthsLimitText,
   normalizeHistoryMonths,
   parseSubscriptionPlan,
-  planLabel,
-  type PlanTariff,
   type SubscriptionPlan,
 } from '../../usage/planPricing';
+import PlanCard from '../../usage/components/PlanCard';
 import { usePlanTariffs } from '../../usage/tariffs.api';
 import {
   INCLUDED_STORAGE_GB,
+  alignStorageQuotaGb,
+  displayStorageQuotaGb,
   normalizeStorageQuotaGb,
 } from '../storageQuota';
 import type {
@@ -116,6 +119,60 @@ interface SettingsProps {
   onBusinessUpdated: () => Promise<void>;
 }
 
+function SettingsTabs({
+  activeTab,
+  isOwner,
+  onChange,
+}: {
+  activeTab: SettingsTab;
+  isOwner: boolean;
+  onChange: (tab: SettingsTab) => void;
+}) {
+  const { containerRef, box, ready } = useSlidingIndicator(
+    `${activeTab}:${isOwner ? 'owner' : 'member'}`,
+  );
+  const tab = (id: SettingsTab, label: string) => (
+    <button
+      type="button"
+      className={`${styles.tabBtn} ${activeTab === id ? styles.activeTab : ''}`}
+      aria-current={activeTab === id ? 'page' : undefined}
+      onClick={() => onChange(id)}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div className={styles.tabs} ref={containerRef}>
+      {box ? (
+        <span
+          className={`${styles.tabIndicator} ${ready ? styles.tabIndicatorReady : ''}`}
+          style={{
+            width: box.width,
+            transform: `translate(${box.x}px, ${box.y}px)`,
+          }}
+          aria-hidden="true"
+        />
+      ) : null}
+      {tab('business', 'פרטי העסק')}
+      {isOwner ? (
+        <>
+          <span className={styles.tabDivider} aria-hidden="true" />
+          {tab('config', 'הגדרות העסק')}
+        </>
+      ) : null}
+      <span className={styles.tabDivider} aria-hidden="true" />
+      {tab('hours', 'שעות פעילות')}
+      <span className={styles.tabDivider} aria-hidden="true" />
+      {tab('services', 'סוגי תורים / שירותים')}
+      <span className={styles.tabDivider} aria-hidden="true" />
+      {tab('statuses', 'הגדרת סטטוסים')}
+      <span className={styles.tabDivider} aria-hidden="true" />
+      {tab('payment', 'אמצעי תשלום')}
+    </div>
+  );
+}
+
 export default function Settings({
   businessCode,
   onBusinessUpdated,
@@ -187,53 +244,11 @@ export default function Settings({
         <h2 className={styles.title}>הגדרות מערכת</h2>
       </div>
 
-      <div className={styles.tabs}>
-        <button
-          className={`${styles.tabBtn} ${activeTab === 'business' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('business')}
-        >
-          פרטי העסק
-        </button>
-        {isOwner ? (
-          <>
-            <span className={styles.tabDivider} aria-hidden="true" />
-            <button
-              className={`${styles.tabBtn} ${activeTab === 'config' ? styles.activeTab : ''}`}
-              onClick={() => setActiveTab('config')}
-            >
-              הגדרות העסק
-            </button>
-          </>
-        ) : null}
-        <span className={styles.tabDivider} aria-hidden="true" />
-        <button
-          className={`${styles.tabBtn} ${activeTab === 'hours' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('hours')}
-        >
-          שעות פעילות
-        </button>
-        <span className={styles.tabDivider} aria-hidden="true" />
-        <button
-          className={`${styles.tabBtn} ${activeTab === 'services' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('services')}
-        >
-          סוגי תורים / שירותים
-        </button>
-        <span className={styles.tabDivider} aria-hidden="true" />
-        <button
-          className={`${styles.tabBtn} ${activeTab === 'statuses' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('statuses')}
-        >
-          הגדרת סטטוסים
-        </button>
-        <span className={styles.tabDivider} aria-hidden="true" />
-        <button
-          className={`${styles.tabBtn} ${activeTab === 'payment' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('payment')}
-        >
-          אמצעי תשלום
-        </button>
-      </div>
+      <SettingsTabs
+        activeTab={activeTab}
+        isOwner={Boolean(isOwner)}
+        onChange={setActiveTab}
+      />
 
       <div className={styles.contentCard}>
         {activeTab === 'business' ? (
@@ -347,8 +362,10 @@ function toEditableConfig(
         business.whatsapp_retention_months,
         parseSubscriptionPlan(business.subscription_plan),
       ) ?? DEFAULT_HISTORY_MONTHS,
-    storage_quota_gb:
+    storage_quota_gb: displayStorageQuotaGb(
       normalizeStorageQuotaGb(business.storage_quota_gb) ?? INCLUDED_STORAGE_GB,
+      includedStorageGb(parseSubscriptionPlan(business.subscription_plan)),
+    ),
     is_active: business.is_active !== false,
   };
 }
@@ -656,7 +673,11 @@ function BusinessConfigForm({
         return;
       }
 
-      const quotaGb = normalizeStorageQuotaGb(formData.storage_quota_gb);
+      const storedQuotaGb = normalizeStorageQuotaGb(formData.storage_quota_gb);
+      const quotaGb =
+        storedQuotaGb == null
+          ? null
+          : displayStorageQuotaGb(storedQuotaGb, terms.includedStorageGb);
       if (quotaGb == null) {
         setMessage({
           text: 'מכסת האחסון חייבת להיות מספר שלם של לפחות 5 ג׳יגה.',
@@ -732,8 +753,16 @@ function BusinessConfigForm({
   const regularTerms = tariffs.resolve('regular');
   const expandedTerms = tariffs.resolve('expanded');
 
+  const quotaGb = displayStorageQuotaGb(
+    normalizeStorageQuotaGb(formData.storage_quota_gb) ?? INCLUDED_STORAGE_GB,
+    terms.includedStorageGb,
+  );
+
   const applyPlan = (subscriptionPlan: SubscriptionPlan) => {
     const nextTerms = tariffs.resolve(subscriptionPlan);
+    const previousIncludedGb = tariffs.resolve(
+      parseSubscriptionPlan(formData.subscription_plan),
+    ).includedStorageGb;
     setFormData((previous) => {
       const correspondenceMonths = Math.min(
         previous.whatsapp_retention_months,
@@ -742,6 +771,11 @@ function BusinessConfigForm({
       return {
         ...previous,
         subscription_plan: subscriptionPlan,
+        storage_quota_gb: alignStorageQuotaGb(
+          previous.storage_quota_gb,
+          previousIncludedGb,
+          nextTerms.includedStorageGb,
+        ),
         recordings_retention_days: Math.min(
           previous.recordings_retention_days,
           nextTerms.recordingMaxDays,
@@ -907,10 +941,7 @@ function BusinessConfigForm({
               includedGb: terms.includedStorageGb,
               extraGbIls: terms.extraStorageGbIls,
             }}
-            quotaGb={
-              normalizeStorageQuotaGb(formData.storage_quota_gb) ??
-              INCLUDED_STORAGE_GB
-            }
+            quotaGb={quotaGb}
           />
           {isVisible('storage_quota_gb') && (
             <SettingsRow
@@ -922,7 +953,7 @@ function BusinessConfigForm({
                 id="business-storage-quota"
                 type="number"
                 name="storage_quota_gb"
-                min="5"
+                min={terms.includedStorageGb}
                 step="1"
                 dir="ltr"
                 value={formData.storage_quota_gb}
@@ -930,7 +961,18 @@ function BusinessConfigForm({
                   const { value } = event.target;
                   setFormData((previous) => ({
                     ...previous,
-                    storage_quota_gb: value === '' ? INCLUDED_STORAGE_GB : Number(value),
+                    storage_quota_gb:
+                      value === '' ? terms.includedStorageGb : Number(value),
+                  }));
+                }}
+                onBlur={() => {
+                  setFormData((previous) => ({
+                    ...previous,
+                    storage_quota_gb: displayStorageQuotaGb(
+                      normalizeStorageQuotaGb(previous.storage_quota_gb) ??
+                        terms.includedStorageGb,
+                      terms.includedStorageGb,
+                    ),
                   }));
                 }}
                 className={styles.compactInput}
@@ -947,13 +989,13 @@ function BusinessConfigForm({
           description="הסכום הקבוע לחודש, ומה משתנה במחיר לפי המנוי שנבחר."
         >
           <div className={styles.planBoard}>
-            <PlanChoice
+            <PlanCard
               plan="regular"
               terms={regularTerms}
               selected={selectedPlan === 'regular'}
               onSelect={() => applyPlan('regular')}
             />
-            <PlanChoice
+            <PlanCard
               plan="expanded"
               terms={expandedTerms}
               selected={selectedPlan === 'expanded'}
@@ -1572,54 +1614,3 @@ function StatusesTable({
   );
 }
 
-function PlanChoice({
-  plan,
-  terms,
-  selected,
-  onSelect,
-}: {
-  plan: SubscriptionPlan;
-  terms: PlanTariff;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  const amount = (value: number) => value.toLocaleString('he-IL');
-  return (
-    <button
-      type="button"
-      className={styles.planOption}
-      data-selected={selected}
-      aria-pressed={selected}
-      onClick={onSelect}
-    >
-      <span className={styles.planHead}>
-        <span className={styles.planName}>{planLabel(plan)}</span>
-        {selected ? <span className={styles.planBadge}>נבחר</span> : null}
-      </span>
-      <span className={styles.planPrice}>
-        {amount(terms.monthlyIls)} ₪ לחודש
-        <span>כולל מע״מ</span>
-      </span>
-      <ul>
-        <li>
-          עד {amount(terms.includedUsers)} משתמשים. כל משתמש נוסף {amount(terms.extraUserIls)} ₪ לחודש.
-        </li>
-        <li>
-          {amount(terms.includedStorageGb)} ג׳יגה כלולים. כל ג׳יגה נוספת {amount(terms.extraStorageGbIls)} ₪ לחודש.
-        </li>
-        <li>שיחת סוכן קולי: {amount(terms.voiceAgorotPerMinute)} אגורות לדקה, לפני מע״מ.</li>
-        <li>
-          וואטסאפ, פניית לקוח: {amount(terms.whatsappCustomerAgorot)} אגורות ל־24 שעות, לפני מע״מ.
-        </li>
-        <li>
-          וואטסאפ, פניית העסק: {amount(terms.whatsappBusinessAgorot)} אגורות ל־24 שעות, לפני מע״מ.
-        </li>
-        <li>הקלטת קול {daysLimitText(terms.recordingMaxDays)}.</li>
-        <li>היסטוריית תורים {monthsLimitText(terms.historyMaxMonths)}.</li>
-        <li>
-          תמלול, סיכום והתכתבות וואטסאפ {monthsLimitText(terms.correspondenceMaxMonths)}.
-        </li>
-      </ul>
-    </button>
-  );
-}

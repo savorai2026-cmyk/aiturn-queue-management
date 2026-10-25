@@ -1,14 +1,9 @@
+import { useLayoutEffect, useRef, useState } from 'react';
 import logo from '../../assets/logo.png';
 import type { AppTab } from '../navigation';
 import type { BusinessMembership } from '../../features/business/BusinessContextState';
-import {
-  CalendarIcon,
-  CostIcon,
-  GearIcon,
-  LogoutIcon,
-  LogsIcon,
-  UsersIcon,
-} from '../../shared/components/icons';
+import SupportRequestModal from '../../features/support/SupportRequestModal';
+import { LogoutIcon, MailIcon } from '../../shared/components/icons';
 import styles from './TopBar.module.css';
 
 interface TopBarProps {
@@ -25,13 +20,12 @@ interface TopBarProps {
 const NAV_ITEMS: Array<{
   tab: AppTab;
   label: string;
-  icon: typeof CalendarIcon;
 }> = [
-  { tab: 'settings', label: 'הגדרות', icon: GearIcon },
-  { tab: 'calendar', label: 'יומן חי', icon: CalendarIcon },
-  { tab: 'clients', label: 'ניהול לקוחות', icon: UsersIcon },
-  { tab: 'logs', label: 'לוגים', icon: LogsIcon },
-  { tab: 'usage', label: 'עלות', icon: CostIcon },
+  { tab: 'settings', label: 'הגדרות' },
+  { tab: 'calendar', label: 'יומן חי' },
+  { tab: 'clients', label: 'ניהול לקוחות' },
+  { tab: 'logs', label: 'לוגים' },
+  { tab: 'usage', label: 'עלות' },
 ];
 
 export default function TopBar({
@@ -44,25 +38,71 @@ export default function TopBar({
   activeBusinessCode,
   onBusinessChange,
 }: TopBarProps) {
+  const [supportOpen, setSupportOpen] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+  const [indicator, setIndicator] = useState<{ x: number; width: number } | null>(null);
+  const [indicatorReady, setIndicatorReady] = useState(false);
+
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+
+    let cancelled = false;
+    const place = () => {
+      if (cancelled) return;
+      const current = nav.querySelector<HTMLElement>('[aria-current="page"]');
+      if (!current) return;
+      const navBox = nav.getBoundingClientRect();
+      const box = current.getBoundingClientRect();
+      setIndicator({
+        x: box.left - navBox.left,
+        width: box.width,
+      });
+    };
+
+    place();
+    const frame = window.requestAnimationFrame(() => {
+      if (!cancelled) setIndicatorReady(true);
+    });
+    window.addEventListener('resize', place);
+    void document.fonts?.ready.then(place);
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', place);
+    };
+  }, [activeTab]);
+
   return (
+    <>
     <header className={styles.topBar}>
       <div className={styles.rightSection}>
         <img src={logo} alt="QGent" className={styles.logo} />
       </div>
 
-      <div className={styles.navGroup}>
-        {NAV_ITEMS.map(({ tab, label, icon: Icon }) => (
-          <button
-            key={tab}
-            className={`${styles.navBtn} ${activeTab === tab ? styles.activeNavBtn : ''}`}
-            aria-current={activeTab === tab ? 'page' : undefined}
-            onClick={() => onTabChange(tab)}
-          >
-            <Icon />
-            {label}
-          </button>
+      <nav ref={navRef} className={styles.navGroup} aria-label="תפריט ראשי">
+        {indicator ? (
+          <span
+            className={`${styles.navIndicator} ${indicatorReady ? styles.navIndicatorReady : ''}`}
+            style={{ width: indicator.width, transform: `translateX(${indicator.x}px)` }}
+            aria-hidden="true"
+          />
+        ) : null}
+        {NAV_ITEMS.map(({ tab, label }, index) => (
+          <div key={tab} className={styles.navSlot}>
+            {index > 0 ? <span className={styles.navDivider} aria-hidden="true" /> : null}
+            <button
+              type="button"
+              className={`${styles.navBtn} ${activeTab === tab ? styles.activeNavBtn : ''}`}
+              aria-current={activeTab === tab ? 'page' : undefined}
+              onClick={() => onTabChange(tab)}
+            >
+              <span className={styles.navLabel}>{label}</span>
+            </button>
+          </div>
         ))}
-      </div>
+      </nav>
 
       <div className={styles.leftSection}>
         {businesses.length > 1 && (
@@ -82,11 +122,27 @@ export default function TopBar({
         <span className={styles.greeting}>
           שלום, {businessName || userEmail?.split('@')[0] || 'משתמש'}
         </span>
+        <button
+          type="button"
+          className={styles.mailBtn}
+          aria-label="פנייה למערכת"
+          onClick={() => setSupportOpen(true)}
+        >
+          <MailIcon />
+        </button>
         <button className={styles.logoutBtn} onClick={onLogout}>
           <LogoutIcon />
           יציאה
         </button>
       </div>
     </header>
+    {supportOpen ? (
+      <SupportRequestModal
+        businessCode={activeBusinessCode}
+        businessName={businessName}
+        onClose={() => setSupportOpen(false)}
+      />
+    ) : null}
+    </>
   );
 }
