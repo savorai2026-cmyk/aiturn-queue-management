@@ -17,6 +17,14 @@ interface MembershipRow {
 export async function getBusinessMemberships(
   userId: string,
 ): Promise<BusinessMembership[]> {
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) {
+    throw new Error(sessionError.message);
+  }
+  if (!sessionData.session) {
+    throw new Error('missing session');
+  }
+
   const { data, error } = await supabase
     .from('business_members')
     .select(`

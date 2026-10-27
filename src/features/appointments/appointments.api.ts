@@ -17,6 +17,7 @@ export async function getAppointmentClients(
     .from('clients')
     .select('id, full_name, mobile_phone')
     .eq('business_code', businessCode)
+    .is('deleted_at', null)
     .order('full_name', { ascending: true });
 
   if (error) {

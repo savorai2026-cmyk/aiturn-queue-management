@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   formatClientCell,
   filterAndSortClients,
   toClientDetailRows,
 } from '../clients.mappers';
-import { deleteClient } from '../clients.api';
+import { countClientUpcomingAppointments, deleteClient, sendCancellationNotices, cancellationNoticeError } from '../clients.api';
 import {
   BOOKING_POLICY_OPTIONS,
   LANGUAGE_OPTIONS,
@@ -37,6 +37,7 @@ import IconButton, {
   TrashIcon,
 } from '../../../shared/components/IconButton';
 import { getErrorMessage } from '../../../shared/errors';
+import ConfirmDeleteModal from '../../settings/components/ConfirmDeleteModal';
 import AddClientModal from './AddClientModal';
 import styles from './ClientManagement.module.css';
 
@@ -45,6 +46,27 @@ interface ClientManagementProps {
 }
 
 const CLIENT_PAGE_SIZE = 100;
+
+function upcomingAppointmentsWarning(count: number | null, ready: boolean) {
+  if (!ready) {
+    return 'בודקים אם יש תורים עתידיים...';
+  }
+
+  if (count === null) {
+    return 'התורים הקיימים שלו יימחקו מהיומן. היסטוריית התורים תישאר, והלקוח יקבל הודעה על הביטול.';
+  }
+
+  if (count === 0) {
+    return 'אין לו תורים עתידיים. היסטוריית התורים תישאר.';
+  }
+
+  const appointments =
+    count === 1
+      ? 'תור קיים אחד יימחק מהיומן'
+      : `${count.toLocaleString('he-IL')} תורים קיימים יימחקו מהיומן`;
+
+  return `${appointments}. היסטוריית התורים תישאר, והלקוח יקבל הודעה על הביטול.`;
+}
 
 function ClientPager({
   className,
@@ -102,6 +124,10 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<Client | null>(null);
+  const [upcomingCount, setUpcomingCount] = useState<number | null>(null);
+  const [countReady, setCountReady] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<ColumnSort | null>(null);
   const [filtersVisible, setFiltersVisible] = useState(false);
@@ -153,31 +179,62 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (client: Client) => {
-    const label = client.full_name || client.mobile_phone || 'הלקוח';
-    if (
-      !window.confirm(
-        `למחוק את הלקוח "${label}"? גם התורים שלו יימחקו.`,
-      )
-    ) {
-      return;
-    }
+  useEffect(() => {
+    if (!pendingDelete) return;
+
+    let cancelled = false;
+    setUpcomingCount(null);
+    setCountReady(false);
+    setActionError('');
+
+    void countClientUpcomingAppointments(businessCode, pendingDelete.id)
+      .then((count) => {
+        if (cancelled) return;
+        setUpcomingCount(count);
+        setCountReady(true);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error('שגיאה בספירת תורים:', getErrorMessage(error));
+        setUpcomingCount(null);
+        setCountReady(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [businessCode, pendingDelete]);
+
+  const closeDeleteModal = () => {
+    if (isDeleting) return;
+    setPendingDelete(null);
+    setActionError('');
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
 
     setActionError('');
+    setIsDeleting(true);
     try {
-      await deleteClient(businessCode, client.id);
-      if (selectedClientId === client.id) {
+      const notice = await sendCancellationNotices(businessCode, pendingDelete.id);
+      const noticeError = cancellationNoticeError(notice);
+      if (noticeError) {
+        setActionError(noticeError);
+        return;
+      }
+
+      await deleteClient(businessCode, pendingDelete.id);
+      if (selectedClientId === pendingDelete.id) {
         setSelectedClientId(null);
       }
+      setPendingDelete(null);
       refresh();
     } catch (error) {
-      const message = getErrorMessage(error).toLowerCase();
       console.error('שגיאה במחיקת לקוח:', getErrorMessage(error));
-      setActionError(
-        message.includes('foreign key') || message.includes('violat')
-          ? 'לא ניתן למחוק לקוח שיש לו תורים במערכת.'
-          : getErrorMessage(error) || 'לא ניתן למחוק את הלקוח.',
-      );
+      setActionError(getErrorMessage(error) || 'לא ניתן למחוק את הלקוח.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -230,12 +287,6 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
         </div>
       </div>
 
-      {actionError && (
-        <p className={styles.actionError} role="alert">
-          {actionError}
-        </p>
-      )}
-
       {visibleClients.length > CLIENT_PAGE_SIZE ? (
         <ClientPager
           className={styles.pagerTop}
@@ -284,7 +335,7 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
                       variant="danger"
                       onClick={(event) => {
                         event.stopPropagation();
-                        void handleDelete(client);
+                        setPendingDelete(client);
                       }}
                     >
                       <TrashIcon />
@@ -330,6 +381,28 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
           }}
         />
       )}
+
+      {pendingDelete ? (
+        <ConfirmDeleteModal
+          title="מחיקת לקוח"
+          message={
+            <>
+              למחוק את הלקוח{' '}
+              <strong>
+                {pendingDelete.full_name || pendingDelete.mobile_phone || 'הלקוח'}
+              </strong>
+              ? {upcomingAppointmentsWarning(upcomingCount, countReady)}
+            </>
+          }
+          confirmLabel="מחק לקוח"
+          isBusy={isDeleting}
+          busyLabel="שולח עדכון..."
+          confirmDisabled={!countReady}
+          errorMessage={actionError}
+          onConfirm={() => void confirmDelete()}
+          onCancel={closeDeleteModal}
+        />
+      ) : null}
 
       {isDetailsOpen && selectedClient && (
         <RecordDetailsModal

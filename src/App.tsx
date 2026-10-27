@@ -70,10 +70,13 @@ function AuthenticatedApp({ userEmail, onLogout }: AuthenticatedAppProps) {
     return (
       <div className="centered-screen">
         <div className="load-error-card">
-          <div>{error}</div>
-          <button type="button" onClick={() => void refreshBusinesses()}>
-            נסה שוב
-          </button>
+        <div>{error}</div>
+        <button type="button" onClick={() => void refreshBusinesses()}>
+          נסה שוב
+        </button>
+        <button type="button" onClick={onLogout}>
+          יציאה והתחברות מחדש
+        </button>
         </div>
       </div>
     );

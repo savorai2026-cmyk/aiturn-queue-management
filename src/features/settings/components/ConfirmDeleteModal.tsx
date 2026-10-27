@@ -7,6 +7,8 @@ interface ConfirmDeleteModalProps {
   message: ReactNode;
   confirmLabel?: string;
   isBusy?: boolean;
+  busyLabel?: string;
+  confirmDisabled?: boolean;
   errorMessage?: string;
   onConfirm: () => void;
   onCancel: () => void;
@@ -17,6 +19,8 @@ export default function ConfirmDeleteModal({
   message,
   confirmLabel = 'מחק',
   isBusy = false,
+  busyLabel = 'מוחק...',
+  confirmDisabled = false,
   errorMessage = '',
   onConfirm,
   onCancel,
@@ -72,9 +76,9 @@ export default function ConfirmDeleteModal({
             type="button"
             className={styles.btnDanger}
             onClick={onConfirm}
-            disabled={isBusy}
+            disabled={isBusy || confirmDisabled}
           >
-            {isBusy ? 'מוחק...' : confirmLabel}
+            {isBusy ? busyLabel : confirmLabel}
           </button>
         </div>
       </section>

@@ -22,6 +22,20 @@ interface BusinessProviderProps {
 
 const getStoredBusinessKey = (userId: string) => `activeBusiness:${userId}`;
 
+function businessLoadError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalized = message.toLowerCase();
+  if (
+    normalized.includes('missing session') ||
+    normalized.includes('jwt') ||
+    normalized.includes('refresh token') ||
+    normalized.includes('session')
+  ) {
+    return 'פג תוקף ההתחברות. צא והיכנס מחדש.';
+  }
+  return 'לא ניתן לטעון את פרטי העסק. נסה לרענן את העמוד.';
+}
+
 function selectAvailableBusiness(
   memberships: BusinessMembership[],
   userId: string,
@@ -74,7 +88,7 @@ export function BusinessProvider({ userId, children }: BusinessProviderProps) {
     } catch (requestError) {
       console.error('שגיאה בטעינת העסקים:', requestError);
       setMemberships([]);
-      setError('לא ניתן לטעון את פרטי העסק. נסה לרענן את העמוד.');
+      setError(businessLoadError(requestError));
     } finally {
       setIsLoading(false);
     }
@@ -95,7 +109,7 @@ export function BusinessProvider({ userId, children }: BusinessProviderProps) {
 
         console.error('שגיאה בטעינת העסקים:', requestError);
         setMemberships([]);
-        setError('לא ניתן לטעון את פרטי העסק. נסה לרענן את העמוד.');
+        setError(businessLoadError(requestError));
         setIsLoading(false);
       });
 

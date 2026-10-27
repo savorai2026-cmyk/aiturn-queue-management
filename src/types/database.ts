@@ -432,6 +432,7 @@ export type Database = {
           business_code: string
           city: string | null
           created_at: string
+          deleted_at: string | null
           email: string | null
           entrance: string | null
           floor: string | null
@@ -462,6 +463,7 @@ export type Database = {
           business_code: string
           city?: string | null
           created_at?: string
+          deleted_at?: string | null
           email?: string | null
           entrance?: string | null
           floor?: string | null
@@ -492,6 +494,7 @@ export type Database = {
           business_code?: string
           city?: string | null
           created_at?: string
+          deleted_at?: string | null
           email?: string | null
           entrance?: string | null
           floor?: string | null
@@ -978,6 +981,22 @@ export type Database = {
           end_time: string
           start_time: string
         }[]
+      }
+      count_client_upcoming_appointments: {
+        Args: { p_business_code: string; p_client_id: number }
+        Returns: number
+      }
+      client_cancellation_notice_result: {
+        Args: { p_business_code: string; p_client_id: number }
+        Returns: Json
+      }
+      queue_client_cancellation_notices: {
+        Args: { p_business_code: string; p_client_id: number }
+        Returns: number
+      }
+      delete_client: {
+        Args: { p_business_code: string; p_client_id: number }
+        Returns: number
       }
       delete_catalog_service: {
         Args: { p_business_code: string; p_service_id: number }

@@ -36,6 +36,7 @@ const CLIENT: Client = {
   booking_policy: 'instant',
   payment_requirement: 'none',
   created_at: '2026-08-14T10:00:00Z',
+  deleted_at: null,
   updated_at: '2026-08-14T10:00:00Z',
 };
 
