@@ -5,6 +5,7 @@ import {
   getActivePaymentMethod,
   getLatestBillingSession,
   startBillingEnrollment,
+  syncBillingSession,
 } from './billing.api';
 import {
   formatCardLast4,
@@ -48,6 +49,7 @@ export default function SavePaymentMethodModal({
   const [flow, setFlow] = useState<FlowState>('ready');
   const [errorMessage, setErrorMessage] = useState('');
   const [startUrl, setStartUrl] = useState<string | null>(null);
+  const [trackedSessionId, setTrackedSessionId] = useState<string | null>(null);
   const [savedLast4, setSavedLast4] = useState<string | null>(null);
   const popupRef = useRef<Window | null>(null);
   const startedAtRef = useRef(0);
@@ -82,9 +84,17 @@ export default function SavePaymentMethodModal({
       if (handled) return;
 
       try {
+        if (trackedSessionId) {
+          try {
+            await syncBillingSession(businessCode, trackedSessionId);
+          } catch (syncError) {
+            console.error('שגיאה בסנכרון שמירת הכרטיס:', syncError);
+          }
+        }
+
         const [method, session] = await Promise.all([
           getActivePaymentMethod(businessCode),
-          getLatestBillingSession(businessCode),
+          getLatestBillingSession(businessCode, trackedSessionId),
         ]);
 
         if (cancelled || handled) return;
@@ -92,31 +102,57 @@ export default function SavePaymentMethodModal({
         const savedAt = method
           ? new Date(method.tokenizedAt ?? method.updatedAt).getTime()
           : 0;
+        const sessionMatches =
+          trackedSessionId != null
+            ? session?.uniqueid === trackedSessionId
+            : Boolean(
+                session &&
+                  new Date(session.createdAt).getTime() >=
+                    startedAtRef.current - 5000,
+              );
+        const methodSaved =
+          method != null &&
+          isActivePaymentMethod(method) &&
+          method.id !== paymentMethod?.id &&
+          savedAt >= startedAtRef.current - 15000;
 
         if (
-          method &&
-          isActivePaymentMethod(method) &&
-          savedAt >= startedAtRef.current - 15000
+          (sessionMatches && session?.status === 'succeeded') ||
+          methodSaved
         ) {
           handled = true;
           popupRef.current?.close();
-          setSavedLast4(formatCardLast4(method.last4));
+          setSavedLast4(formatCardLast4(method?.last4));
           setFlow('saved');
           await onSaved();
           return;
         }
 
         if (
+          sessionMatches &&
           session &&
-          new Date(session.createdAt).getTime() >= startedAtRef.current - 5000 &&
           isTerminalBillingSession(session.status) &&
           session.status !== 'succeeded'
         ) {
+          handled = true;
+          popupRef.current?.close();
           setFlow('failed');
           setErrorMessage(
             session.errorText ||
               `שמירת הכרטיס ${getBillingSessionLabel(session.status)}.`,
           );
+          return;
+        }
+
+        if (
+          popupRef.current?.closed &&
+          sessionMatches &&
+          session?.status === 'pending' &&
+          session.errorText
+        ) {
+          handled = true;
+          setFlow('failed');
+          setErrorMessage(session.errorText);
         }
       } catch (error) {
         if (!cancelled) {
@@ -134,22 +170,24 @@ export default function SavePaymentMethodModal({
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [businessCode, flow, onSaved]);
+  }, [businessCode, flow, onSaved, paymentMethod?.id, trackedSessionId]);
 
   const handleStart = async (paymentType: 'validate' | 'regular') => {
     setErrorMessage('');
+    setTrackedSessionId(null);
     setFlow('starting');
+    startedAtRef.current = Date.now();
 
     const popup = openBillingWindow();
     popupRef.current = popup;
 
     try {
-      const url = await startBillingEnrollment(businessCode, paymentType);
-      startedAtRef.current = Date.now();
-      setStartUrl(url);
+      const started = await startBillingEnrollment(businessCode, paymentType);
+      setStartUrl(started.url);
+      setTrackedSessionId(started.uniqueId || null);
 
       if (popup && !popup.closed) {
-        popup.location.replace(url);
+        popup.location.replace(started.url);
       }
 
       setFlow('waiting');

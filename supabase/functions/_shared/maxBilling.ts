@@ -139,7 +139,7 @@ export function createSessionRequest(input: {
     CallbackUrl: input.callbackUrl,
     FailureCallBackUrl: input.failureCallbackUrl,
     FailureRedirectUrl: input.failureRedirectUrl,
-    NumberOfFailures: 1,
+    NumberOfFailures: 3,
     PaymentType: input.paymentType,
     CreateInvoice: false,
     ShowCart: false,
@@ -167,10 +167,30 @@ export function createSessionRequest(input: {
   };
 }
 
+export function unwrapMaxBody(body: unknown): Record<string, unknown> | null {
+  const record = asRecord(body);
+  if (!record) return null;
+  const nested = asRecord(record.Data) ?? asRecord(record.data);
+  if (!nested) return record;
+  return { ...record, ...nested };
+}
+
+export function callbackFromStatus(body: unknown) {
+  const statusBody = unwrapMaxBody(body);
+  if (!statusBody) return null;
+
+  const parsed = parseCallbackJson(
+    statusBody.CallBackJSON ?? statusBody.CallbackJSON ?? statusBody.callBackJSON,
+  );
+  if (parsed && Object.keys(parsed).length > 0) return parsed;
+  if (readToken(statusBody.Token)) return statusBody;
+  return null;
+}
+
 export function readCreatedSession(body: unknown):
   | { sessionId: string; sessionUrl: string }
   | { error: string } {
-  const record = asRecord(body);
+  const record = unwrapMaxBody(body);
   if (!record) return { error: 'מקס לא החזירה תשובה תקינה.' };
   if (!isGatewayOk(record)) {
     return {
@@ -195,10 +215,7 @@ export function decideCardSave(input: {
   const token = readToken(callback.Token);
   const last4 = last4FromCardNum(callback.CardNum);
   const expiry = expiryDigits(callback.ExpDate_MMYY);
-  const reference =
-    typeof callback.ReferenceNumber === 'string'
-      ? callback.ReferenceNumber.trim()
-      : '';
+  const reference = readReference(callback.ReferenceNumber);
 
   if (input.transactionSuccess && token) {
     return {
@@ -228,8 +245,144 @@ export function decideCardSave(input: {
     last4,
     expiry,
     referenceNumber: reference || null,
-    errorText: 'מקס דחתה את שמירת הכרטיס.',
+    errorText: declineText(callback),
   };
+}
+
+function readReference(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(Math.trunc(value));
+  }
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function sessionIdOf(body: Record<string, unknown>) {
+  const value = body.SessionId ?? body.SessionID;
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function declineText(callback: Record<string, unknown>) {
+  return (
+    safeGatewayMessage(callback.ReturnMessage) || 'מקס דחתה את שמירת הכרטיס.'
+  );
+}
+
+function isDeclineCode(callback: Record<string, unknown>) {
+  const code = callback.ReturnCode;
+  return code != null && code !== '' && Number(code) !== 0;
+}
+
+function isFinishedPayload(callback: Record<string, unknown>) {
+  if (readToken(callback.Token)) return true;
+  if (last4FromCardNum(callback.CardNum)) return true;
+  if (readReference(callback.ReferenceNumber)) return true;
+  if (
+    typeof callback.ApprovalNumber === 'string' &&
+    callback.ApprovalNumber.trim()
+  ) {
+    return true;
+  }
+  if (safeGatewayMessage(callback.ReturnMessage)) return true;
+  const code = callback.ReturnCode;
+  return code != null && code !== '' && Number(code) !== 0;
+}
+
+export type SessionInterpretation =
+  | {
+      action: 'save';
+      token: string;
+      last4: string | null;
+      expiry: string | null;
+      referenceNumber: string | null;
+    }
+  | { action: 'retry' }
+  | { action: 'decline'; errorText: string }
+  | { action: 'ignore' };
+
+export function interpretSessionStatus(input: {
+  statusBody: unknown;
+  postedBody: Record<string, unknown> | null;
+  uniqueId: string;
+  providerSessionId: string;
+}): SessionInterpretation {
+  const statusBody = unwrapMaxBody(input.statusBody);
+  if (!statusBody || !isGatewayOk(statusBody)) return { action: 'retry' };
+  if (sessionIdOf(statusBody) !== input.providerSessionId) {
+    return { action: 'ignore' };
+  }
+
+  const fromStatus = callbackFromStatus(statusBody);
+  const statusPayload =
+    fromStatus &&
+    callbackMatchesSession({
+      callback: fromStatus,
+      uniqueId: input.uniqueId,
+      providerSessionId: input.providerSessionId,
+    })
+      ? fromStatus
+      : null;
+  const postedSessionId = input.postedBody
+    ? sessionIdOf(input.postedBody)
+    : '';
+  const posted =
+    input.postedBody &&
+    postedSessionId === input.providerSessionId &&
+    callbackMatchesSession({
+      callback: input.postedBody,
+      uniqueId: input.uniqueId,
+      providerSessionId: input.providerSessionId,
+    })
+      ? input.postedBody
+      : null;
+
+  const success = statusBody.TransactionSuccess === true;
+  const verifiedToken =
+    statusPayload && readToken(statusPayload.Token) && !isDeclineCode(statusPayload)
+      ? statusPayload
+      : null;
+  const postedToken =
+    success && posted && readToken(posted.Token) && !isDeclineCode(posted)
+      ? posted
+      : null;
+  const tokenPayload = verifiedToken ?? postedToken;
+
+  if (tokenPayload) {
+    const decision = decideCardSave({
+      transactionSuccess: true,
+      callback: tokenPayload,
+    });
+    if (decision.outcome === 'saved' && decision.token) {
+      return {
+        action: 'save',
+        token: decision.token,
+        last4: decision.last4,
+        expiry: decision.expiry,
+        referenceNumber: decision.referenceNumber,
+      };
+    }
+  }
+
+  if (success) {
+    const finished = [statusPayload, posted].find(
+      (payload) => payload && isFinishedPayload(payload),
+    );
+    if (finished) {
+      return {
+        action: 'decline',
+        errorText: 'מקס אישרה את הפעולה, אבל לא החזירה טוקן לחיוב חוזר.',
+      };
+    }
+    return { action: 'retry' };
+  }
+
+  const declinePayload = [posted, statusPayload].find(
+    (payload) => payload && isFinishedPayload(payload) && !readToken(payload.Token),
+  );
+  if (declinePayload) {
+    return { action: 'decline', errorText: declineText(declinePayload) };
+  }
+
+  return { action: 'retry' };
 }
 
 export function callbackMatchesSession(input: {

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  callbackFromStatus,
   callbackMatchesSession,
   commitTokenChargeRequest,
   createSessionRequest,
   decideCardSave,
+  interpretSessionStatus,
   parseTestChargeAmount,
   readChargeResult,
   readCreatedSession,
@@ -27,7 +29,7 @@ describe('max billing', () => {
     expect(body.FocusType).toBe('CreditCardOnly');
     expect(body.ShowCart).toBe(false);
     expect(body.CreateInvoice).toBe(false);
-    expect(body.NumberOfFailures).toBe(1);
+    expect(body.NumberOfFailures).toBe(3);
     expect(body.CartItems[0]?.Amount).toBe(1);
     expect(JSON.stringify(body.CartItems)).not.toContain('secret-key');
     expect(body).not.toHaveProperty('CardNumber');
@@ -107,6 +109,172 @@ describe('max billing', () => {
       expect(result.last4).toBe('9001');
       expect(result.approvalNumber).toBe('0543140');
       expect(JSON.stringify(result)).not.toContain('4580000000009001');
+    }
+  });
+
+  it('reads the hosted page url from the Data wrapper Max returns', () => {
+    const created = readCreatedSession({
+      Data: {
+        HasError: false,
+        ReturnCode: 0,
+        SessionId: 'session-1',
+        SessionUrl: 'https://pci.zcredit.co.il/webcheckout/session-1',
+      },
+    });
+
+    expect(created).toEqual({
+      sessionId: 'session-1',
+      sessionUrl: 'https://pci.zcredit.co.il/webcheckout/session-1',
+    });
+  });
+
+  it('reads a Max error nested in Data and a token returned beside CallBackJSON', () => {
+    expect(
+      readCreatedSession({
+        Data: { HasError: true, ReturnMessage: 'bad key' },
+      }).error,
+    ).toBe('bad key');
+
+    const callback = callbackFromStatus({
+      HasError: false,
+      TransactionSuccess: true,
+      Token: 'b12163d2-d1a2-4cf9-b71c-1151825b450a',
+      CardNum: '9001',
+      UniqueID: '11111111-1111-4111-8111-111111111111',
+    });
+
+    expect(callback?.Token).toBe('b12163d2-d1a2-4cf9-b71c-1151825b450a');
+    expect(
+      callbackFromStatus({
+        Data: {
+          CallBackJSON: JSON.stringify({
+            Token: 'b12163d2-d1a2-4cf9-b71c-1151825b450a',
+          }),
+        },
+      })?.Token,
+    ).toBe('b12163d2-d1a2-4cf9-b71c-1151825b450a');
+  });
+
+  it('saves the posted callback after GetSessionStatus confirms it', () => {
+    const uniqueId = '11111111-1111-4111-8111-111111111111';
+    const providerSessionId = '333a569cf6a95e294d55d36fc33172';
+    const decision = interpretSessionStatus({
+      uniqueId,
+      providerSessionId,
+      statusBody: {
+        HasError: false,
+        ReturnCode: 0,
+        SessionId: providerSessionId,
+        CallBackJSON: '',
+        TransactionSuccess: true,
+      },
+      postedBody: {
+        SessionId: providerSessionId,
+        UniqueID: uniqueId,
+        Token: 'b12163d2-d1a2-4cf9-b71c-1151825b450a',
+        CardNum: '9001',
+        ExpDate_MMYY: '07/26',
+        ReferenceNumber: '12345679',
+        HolderId: '123456780',
+      },
+    });
+
+    expect(decision.action).toBe('save');
+    if (decision.action === 'save') {
+      expect(decision.token).toBe('b12163d2-d1a2-4cf9-b71c-1151825b450a');
+      expect(decision.last4).toBe('9001');
+    }
+  });
+
+  it('keeps a decline pending until the hosted page itself finishes', () => {
+    const decision = interpretSessionStatus({
+      uniqueId: '11111111-1111-4111-8111-111111111111',
+      providerSessionId: '333a569cf6a95e294d55d36fc33172',
+      statusBody: {
+        HasError: false,
+        ReturnCode: 0,
+        SessionId: '333a569cf6a95e294d55d36fc33172',
+        CallBackJSON: '',
+        TransactionSuccess: false,
+      },
+      postedBody: {
+        SessionId: '333a569cf6a95e294d55d36fc33172',
+        UniqueID: '11111111-1111-4111-8111-111111111111',
+        CardNum: '9001',
+        ReturnCode: 4,
+        ReturnMessage: 'העסקה לא אושרה',
+      },
+    });
+
+    expect(decision).toEqual({
+      action: 'decline',
+      errorText: 'העסקה לא אושרה',
+    });
+  });
+
+  it('waits when Max has not finished the transaction', () => {
+    expect(
+      interpretSessionStatus({
+        uniqueId: '11111111-1111-4111-8111-111111111111',
+        providerSessionId: '333a569cf6a95e294d55d36fc33172',
+        statusBody: {
+          HasError: false,
+          ReturnCode: 0,
+          SessionId: '333a569cf6a95e294d55d36fc33172',
+          CallBackJSON: '',
+          TransactionSuccess: false,
+        },
+        postedBody: null,
+      }).action,
+    ).toBe('retry');
+  });
+
+  it('reads a token from CallBackJSON while polling session status', () => {
+    const decision = interpretSessionStatus({
+      uniqueId: '11111111-1111-4111-8111-111111111111',
+      providerSessionId: '333a569cf6a95e294d55d36fc33172',
+      postedBody: null,
+      statusBody: {
+        HasError: false,
+        ReturnCode: 0,
+        SessionId: '333a569cf6a95e294d55d36fc33172',
+        TransactionSuccess: true,
+        CallBackJSON: JSON.stringify({
+          Token: 'b12163d2-d1a2-4cf9-b71c-1151825b450a',
+          CardNum: '9001',
+          UniqueID: '11111111-1111-4111-8111-111111111111',
+        }),
+      },
+    });
+
+    expect(decision.action).toBe('save');
+  });
+
+  it('saves a validate token returned in CallBackJSON before TransactionSuccess', () => {
+    const decision = interpretSessionStatus({
+      uniqueId: '11111111-1111-4111-8111-111111111111',
+      providerSessionId: '333a569cf6a95e294d55d36fc33172',
+      postedBody: {
+        SessionId: '333a569cf6a95e294d55d36fc33172',
+        Token: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      },
+      statusBody: {
+        HasError: false,
+        ReturnCode: 0,
+        SessionId: '333a569cf6a95e294d55d36fc33172',
+        TransactionSuccess: false,
+        CallBackJSON: JSON.stringify({
+          Token: 'b12163d2-d1a2-4cf9-b71c-1151825b450a',
+          CardNum: '9001',
+          J: 2,
+          UniqueID: '11111111-1111-4111-8111-111111111111',
+        }),
+      },
+    });
+
+    expect(decision.action).toBe('save');
+    if (decision.action === 'save') {
+      expect(decision.token).toBe('b12163d2-d1a2-4cf9-b71c-1151825b450a');
     }
   });
 

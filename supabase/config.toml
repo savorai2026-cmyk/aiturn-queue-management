@@ -17,6 +17,9 @@ verify_jwt = false
 [functions.billing-return]
 verify_jwt = false
 
+[functions.billing-sync]
+verify_jwt = true
+
 [functions.billing-charge]
 verify_jwt = true
 

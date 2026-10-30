@@ -38,6 +38,7 @@ interface BillingSessionRow {
 
 interface BillingStartBody {
   url?: string;
+  uniqueid?: string;
   error?: string;
 }
 
@@ -128,13 +129,20 @@ export async function getBusinessAccess(
 
 export async function getLatestBillingSession(
   businessCode: string,
+  uniqueId?: string | null,
 ): Promise<BillingSessionSummary | null> {
-  const { data, error } = await supabase
+  let query = supabase
     .from('billing_sessions')
     .select(BILLING_SESSION_COLUMNS)
-    .eq('business_code', businessCode)
-    .order('created_at', { ascending: false })
-    .limit(1);
+    .eq('business_code', businessCode);
+
+  if (uniqueId) {
+    query = query.eq('uniqueid', uniqueId);
+  } else {
+    query = query.order('created_at', { ascending: false });
+  }
+
+  const { data, error } = await query.limit(1);
 
   if (error) {
     throw new Error(error.message);
@@ -172,7 +180,20 @@ export async function startBillingEnrollment(
     throw new Error(body.error || 'לא ניתן לפתוח את דף שמירת הכרטיס.');
   }
 
-  return body.url;
+  return {
+    url: body.url,
+    uniqueId: typeof body.uniqueid === 'string' ? body.uniqueid : '',
+  };
+}
+
+export async function syncBillingSession(businessCode: string, uniqueId: string) {
+  const { error } = await supabase.functions.invoke('billing-sync', {
+    body: { business_code: businessCode, uniqueid: uniqueId },
+  });
+
+  if (error) {
+    throw new Error(getErrorMessage(error));
+  }
 }
 
 export async function chargeSavedCard(businessCode: string, amountIls: number) {

@@ -120,5 +120,5 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: updateError.message }, 400);
   }
 
-  return jsonResponse({ url: created.sessionUrl });
+  return jsonResponse({ url: created.sessionUrl, uniqueid: uniqueId });
 });

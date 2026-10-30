@@ -1,4 +1,5 @@
 import { adminClient, htmlResponse, jsonResponse } from '../_shared/billingHttp.ts';
+import { finalizeCardSave } from '../_shared/finalizeCardSave.ts';
 import { billingReturnHtml, isUuid } from '../_shared/maxBilling.ts';
 
 Deno.serve(async (request) => {
@@ -14,9 +15,16 @@ Deno.serve(async (request) => {
       ? outcome
       : 'missing';
 
-  if (kind === 'cancel' && isUuid(uniqueId)) {
+  if (isUuid(uniqueId) && kind !== 'missing') {
     const admin = adminClient();
-    if (admin) {
+    const key = Deno.env.get('ZCREDIT_WEBCHECKOUT_KEY')?.trim() ?? '';
+    if (admin && key) {
+      await finalizeCardSave(admin, {
+        uniqueId,
+        key,
+        terminal: kind === 'success' ? null : kind,
+      });
+    } else if (admin && kind === 'cancel') {
       await admin
         .from('billing_sessions')
         .update({
