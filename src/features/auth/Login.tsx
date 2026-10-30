@@ -15,6 +15,12 @@ import {
 } from '../../shared/components/icons';
 import { getPasswordResetErrorMessage } from '../../shared/errors';
 import { passwordRuleError } from '../settings/passwordRules';
+import TermsConsent from './TermsConsent';
+import {
+  TERMS_ACCEPTANCE_REQUIRED_MESSAGE,
+  forgetPendingTermsAcceptance,
+  rememberPendingTermsAcceptance,
+} from './termsOfUse';
 import styles from './Login.module.css';
 
 type AuthMode = 'login' | 'signup';
@@ -29,6 +35,8 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [termsError, setTermsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -106,6 +114,12 @@ export default function Login() {
       return;
     }
 
+    if (mode === 'signup' && !acceptedTerms) {
+      setTermsError(true);
+      setErrorMessage(TERMS_ACCEPTANCE_REQUIRED_MESSAGE);
+      return;
+    }
+
     const signupRuleError = mode === 'signup' ? passwordRuleError(password) : null;
     if (signupRuleError) {
       setErrorMessage(signupRuleError);
@@ -123,6 +137,7 @@ export default function Login() {
       const result = await signUpWithEmail({
         email: trimmedEmail,
         password,
+        termsAcceptedAt: new Date().toISOString(),
       });
       setSuccessMessage(
         result.requiresEmailConfirmation
@@ -144,9 +159,20 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     clearMessages();
 
+    if (mode === 'signup' && !acceptedTerms) {
+      setTermsError(true);
+      setErrorMessage(TERMS_ACCEPTANCE_REQUIRED_MESSAGE);
+      return;
+    }
+
+    if (mode === 'signup') {
+      rememberPendingTermsAcceptance();
+    }
+
     try {
       await signInWithGoogle();
     } catch (error) {
+      forgetPendingTermsAcceptance();
       console.error('שגיאת התחברות Google:', error);
       setErrorMessage('לא ניתן להתחבר באמצעות Google.');
     }
@@ -157,6 +183,9 @@ export default function Login() {
     setStep('email');
     setPassword('');
     setShowPassword(false);
+    setAcceptedTerms(false);
+    setTermsError(false);
+    forgetPendingTermsAcceptance();
     clearMessages();
   };
 
@@ -281,9 +310,27 @@ export default function Login() {
             ) : null}
 
             {!isLogin ? (
-              <p className={styles.hint}>
-                לפחות 8 תווים, אות אנגלית גדולה וקטנה, ספרה ותו מיוחד.
-              </p>
+              <>
+                <p className={styles.hint}>
+                  לפחות 8 תווים, אות אנגלית גדולה וקטנה, ספרה ותו מיוחד.
+                </p>
+                <TermsConsent
+                  checked={acceptedTerms}
+                  invalid={termsError}
+                  onChange={(checked) => {
+                    setAcceptedTerms(checked);
+                    if (!checked) return;
+                    setTermsError(false);
+                    setErrorMessage((current) =>
+                      current === TERMS_ACCEPTANCE_REQUIRED_MESSAGE ? '' : current,
+                    );
+                  }}
+                  onInvalid={() => {
+                    setTermsError(true);
+                    setErrorMessage(TERMS_ACCEPTANCE_REQUIRED_MESSAGE);
+                  }}
+                />
+              </>
             ) : null}
 
             {isLogin && step === 'password' ? (

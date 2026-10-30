@@ -11,6 +11,8 @@ import { useAuth } from './features/auth/AuthContextState';
 import { AuthProvider } from './features/auth/AuthProvider';
 import Login from './features/auth/Login';
 import MfaChallenge from './features/auth/MfaChallenge';
+import TermsAcceptance from './features/auth/TermsAcceptance';
+import { needsTermsAcceptance } from './features/auth/termsOfUse';
 import { isAuthCallbackPending } from './features/auth/authRedirect';
 import BusinessOnboarding from './features/business/BusinessOnboarding';
 import { BusinessProvider } from './features/business/BusinessContext';
@@ -188,6 +190,10 @@ function AppContent() {
 
   if (!session || isPasswordRecovery) {
     return <Login />;
+  }
+
+  if (needsTermsAcceptance(session.user)) {
+    return <TermsAcceptance />;
   }
 
   return (

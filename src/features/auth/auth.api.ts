@@ -1,5 +1,6 @@
 import { supabase } from '../../supabaseClient';
 import { getAuthEmailRedirectTo } from './authRedirect';
+import { termsAcceptanceMetadata } from './termsOfUse';
 
 interface Credentials {
   email: string;
@@ -14,11 +15,16 @@ export async function signInWithEmail(credentials: Credentials) {
   }
 }
 
-export async function signUpWithEmail(credentials: Credentials) {
+export async function signUpWithEmail(
+  credentials: Credentials & { termsAcceptedAt: string },
+) {
+  const { email, password, termsAcceptedAt } = credentials;
   const { data, error } = await supabase.auth.signUp({
-    ...credentials,
+    email,
+    password,
     options: {
       emailRedirectTo: getAuthEmailRedirectTo(),
+      data: termsAcceptanceMetadata(termsAcceptedAt),
     },
   });
 
@@ -59,6 +65,16 @@ export async function requestPasswordReset(email: string) {
 
 export async function updatePassword(password: string) {
   const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function recordTermsAcceptance(acceptedAt: string) {
+  const { error } = await supabase.auth.updateUser({
+    data: termsAcceptanceMetadata(acceptedAt),
+  });
 
   if (error) {
     throw new Error(error.message);
