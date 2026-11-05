@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from 'react';
 import { useSlidingIndicator } from '../../../shared/useSlidingIndicator';
+import { MissingAgentVoiceColumnError } from '../agentVoiceColumn';
+import {
+  cancellationPolicyDraft,
+  cancellationPolicyPayload,
+} from '../cancellationPolicy';
 import { deleteService, rewriteAgentPrompt, updateBusinessSettings } from '../settings.api';
 import StorageUsageMeter from './StorageUsageMeter';
 import { getAgentPromptRewriteErrorMessage, getErrorMessage } from '../../../shared/errors';
@@ -80,6 +85,7 @@ import ConfirmDeleteModal from './ConfirmDeleteModal';
 import BusinessAccountPanel from './BusinessAccountPanel';
 import TwoFactorPanel from './TwoFactorPanel';
 import OperatingHoursForm from './OperatingHoursForm';
+import AgentVoicePicker from './AgentVoicePicker';
 import RewriteAgentPromptModal from './RewriteAgentPromptModal';
 import StatusModal from './StatusModal';
 import TimezoneSelect from './TimezoneSelect';
@@ -240,10 +246,6 @@ export default function Settings({
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <h2 className={styles.title}>הגדרות מערכת</h2>
-      </div>
-
       <SettingsTabs
         activeTab={activeTab}
         isOwner={Boolean(isOwner)}
@@ -340,6 +342,8 @@ function toEditableConfig(
     slot_duration_minutes: business.slot_duration_minutes,
     deposit_percent: parseDepositPercent(business.deposit_percent),
     agent_prompt: business.agent_prompt,
+    agent_voice_id: business.agent_voice_id,
+    cancellation_policy: business.cancellation_policy,
     save_recordings: business.save_recordings !== false,
     subscription_plan: parseSubscriptionPlan(business.subscription_plan),
     recordings_retention_days:
@@ -531,24 +535,46 @@ function SettingsGroup({
   title,
   description,
   action,
+  defaultCollapsed = false,
   children,
 }: {
   id?: string;
   title: string;
   description?: string;
   action?: ReactNode;
+  defaultCollapsed?: boolean;
   children: ReactNode;
 }) {
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+
   return (
-    <section id={id} className={styles.settingsGroup}>
-      <header className={styles.settingsGroupHeader}>
-        <div className={styles.settingsGroupHeading}>
-          <h3>{title}</h3>
-          {action}
-        </div>
-        {description ? <p>{description}</p> : null}
+    <section
+      id={id}
+      className={`${styles.settingsGroup} ${collapsed ? styles.settingsGroupCollapsed : ''}`}
+    >
+      <header
+        className={`${styles.settingsGroupHeader} ${!collapsed && action ? styles.settingsGroupHeaderWithAction : ''}`}
+      >
+        <button
+          type="button"
+          className={styles.headerHit}
+          aria-expanded={!collapsed}
+          onClick={() => setCollapsed((current) => !current)}
+        >
+          <span className={styles.groupToggle}>
+            <span
+              className={`${styles.groupChevron} ${collapsed ? styles.groupChevronCollapsed : ''}`}
+              aria-hidden="true"
+            />
+            <h3>{title}</h3>
+          </span>
+          {!collapsed && description ? <p>{description}</p> : null}
+        </button>
+        {!collapsed && action ? (
+          <div className={styles.headerAction}>{action}</div>
+        ) : null}
       </header>
-      <div className={styles.settingsRows}>{children}</div>
+      {collapsed ? null : <div className={styles.settingsRows}>{children}</div>}
     </section>
   );
 }
@@ -602,6 +628,9 @@ function BusinessConfigForm({
   onSaved: () => Promise<void>;
 }) {
   const [formData, setFormData] = useState(() => toEditableConfig(business));
+  const [policyDraft, setPolicyDraft] = useState(() =>
+    cancellationPolicyDraft(business.cancellation_policy),
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [rewriteOpen, setRewriteOpen] = useState(false);
@@ -686,11 +715,18 @@ function BusinessConfigForm({
         return;
       }
 
+      const policy = cancellationPolicyPayload(policyDraft);
+      if ('error' in policy) {
+        setMessage({ text: policy.error, type: 'error' });
+        return;
+      }
+
       await updateBusinessSettings(business.business_code, {
         timezone: formData.timezone,
         slot_duration_minutes: formData.slot_duration_minutes,
         deposit_percent: depositPercent,
         agent_prompt: formData.agent_prompt?.trim() || null,
+        agent_voice_id: formData.agent_voice_id?.trim() || null,
         save_recordings: formData.save_recordings,
         subscription_plan: subscriptionPlan,
         recordings_retention_days: retentionDays,
@@ -699,17 +735,20 @@ function BusinessConfigForm({
         whatsapp_retention_months: whatsappMonths,
         storage_quota_gb: quotaGb,
         is_active: formData.is_active,
+        cancellation_policy: policy.value,
       });
       setFormData((previous) => ({
         ...previous,
         deposit_percent: depositPercent,
         agent_prompt: formData.agent_prompt?.trim() || null,
+        agent_voice_id: formData.agent_voice_id?.trim() || null,
         subscription_plan: subscriptionPlan,
         recordings_retention_days: retentionDays,
         history_retention_months: historyMonths,
         voice_log_retention_months: whatsappMonths,
         whatsapp_retention_months: whatsappMonths,
         storage_quota_gb: quotaGb,
+        cancellation_policy: policy.value,
       }));
       await onSaved();
       setMessage({
@@ -718,6 +757,14 @@ function BusinessConfigForm({
       });
     } catch (error) {
       console.error('שגיאה בשמירת הגדרות עסק:', error);
+      if (error instanceof MissingAgentVoiceColumnError) {
+        await onSaved();
+        setMessage({
+          text: 'שאר ההגדרות נשמרו. בחירת הקול לא נשמרה כי העמודה עדיין לא קיימת במסד.',
+          type: 'error',
+        });
+        return;
+      }
       setMessage({
         text: 'לא ניתן לשמור את ההגדרות.',
         type: 'error',
@@ -792,17 +839,100 @@ function BusinessConfigForm({
 
   return (
     <div>
-      <div className={styles.sectionToolbar}>
-        <DisplayToolbar
-          fields={BUSINESS_CONFIG_FIELDS}
-          visibleKeys={visibleFields}
-          onToggle={onToggleField}
-          onViewDetails={() => setIsDetailsOpen(true)}
-          canViewDetails
-        />
+      <div className={styles.stickyBar}>
+        <div className={styles.sectionToolbar}>
+          <DisplayToolbar
+            fields={BUSINESS_CONFIG_FIELDS}
+            visibleKeys={visibleFields}
+            onToggle={onToggleField}
+            onViewDetails={() => setIsDetailsOpen(true)}
+            canViewDetails
+          />
+          <button
+            type="button"
+            className={`${styles.btnPrimary} ${styles.toolbarSave}`}
+            onClick={() => void handleSave()}
+            disabled={isSaving}
+          >
+            {isSaving ? 'שומר...' : (
+              <>
+                <SaveIcon />
+                שמור הגדרות עסק
+              </>
+            )}
+          </button>
+        </div>
+
+        {message && (
+          <p className={styles[message.type]} role="status">
+            {message.text}
+          </p>
+        )}
       </div>
 
       <SettingsStack>
+        <SettingsGroup
+          title="סוכן"
+          description={
+            isVisible('agent_prompt')
+              ? 'הטקסט הזה הוא חלק מהפרומפט של הסוכן, כדי שידע את מי הוא מייצג, מה העסק עושה ומה הוא לא עושה.'
+              : 'הקול שבו הסוכן מדבר בשיחה.'
+          }
+          action={
+            isVisible('agent_prompt') ? (
+              <button
+                type="button"
+                className={styles.aiButton}
+                onClick={() => void handleRewrite()}
+                disabled={isRewriting || !(formData.agent_prompt || '').trim()}
+              >
+                {isRewriting ? 'מנסח...' : 'ניסוח בעזרת AI'}
+              </button>
+            ) : undefined
+          }
+        >
+          {isVisible('agent_prompt') && (
+            <SettingsRow
+              label="תיאור מקצועי"
+              htmlFor="business-agent-prompt"
+              help="חלק מהפרומפט של הסוכן: מי העסק, במה הוא עוסק, ובמה הוא לא עוסק."
+              stacked
+            >
+              <textarea
+                id="business-agent-prompt"
+                name="agent_prompt"
+                value={formData.agent_prompt || ''}
+                onChange={(event) =>
+                  setFormData((previous) => ({
+                    ...previous,
+                    agent_prompt: event.target.value,
+                  }))
+                }
+                className={styles.textarea}
+                rows={6}
+                placeholder="לדוגמה: מרפאת שיניים כללית. מטפלים בסתימות, עקירות וטיפולי שורש. לא עוסקים ביישור שיניים (אורתודונטיה) ולא בכירורגיית פה ולסת."
+              />
+            </SettingsRow>
+          )}
+          <SettingsRow
+            label="קול הסוכן"
+            htmlFor="business-agent-voice"
+            help="הקול שבו הסוכן מדבר בשיחה. הדגימה להאזנה, והבחירה נשמרת עם שאר ההגדרות."
+            stacked
+          >
+            <AgentVoicePicker
+              businessCode={business.business_code}
+              voiceId={formData.agent_voice_id}
+              onChange={(agentVoiceId) =>
+                setFormData((previous) => ({
+                  ...previous,
+                  agent_voice_id: agentVoiceId,
+                }))
+              }
+            />
+          </SettingsRow>
+        </SettingsGroup>
+
         {(isVisible('timezone') || isVisible('slot_duration_minutes')) && (
           <SettingsGroup
             title="יומן"
@@ -856,47 +986,9 @@ function BusinessConfigForm({
           </SettingsGroup>
         )}
 
-        {isVisible('agent_prompt') && (
-          <SettingsGroup
-            title="סוכן"
-            description="הטקסט הזה הוא חלק מהפרומפט של הסוכן, כדי שידע את מי הוא מייצג, מה העסק עושה ומה הוא לא עושה."
-            action={
-              <button
-                type="button"
-                className={styles.aiButton}
-                onClick={() => void handleRewrite()}
-                disabled={isRewriting || !(formData.agent_prompt || '').trim()}
-              >
-                {isRewriting ? 'מנסח...' : 'ניסוח בעזרת AI'}
-              </button>
-            }
-          >
-            <SettingsRow
-              label="תיאור מקצועי"
-              htmlFor="business-agent-prompt"
-              help="חלק מהפרומפט של הסוכן: מי העסק, במה הוא עוסק, ובמה הוא לא עוסק."
-              stacked
-            >
-              <textarea
-                id="business-agent-prompt"
-                name="agent_prompt"
-                value={formData.agent_prompt || ''}
-                onChange={(event) =>
-                  setFormData((previous) => ({
-                    ...previous,
-                    agent_prompt: event.target.value,
-                  }))
-                }
-                className={styles.textarea}
-                rows={6}
-                placeholder="לדוגמה: מרפאת שיניים כללית. מטפלים בסתימות, עקירות וטיפולי שורש. לא עוסקים ביישור שיניים (אורתודונטיה) ולא בכירורגיית פה ולסת."
-              />
-            </SettingsRow>
-          </SettingsGroup>
-        )}
-
         {isVisible('deposit_percent') && (
           <SettingsGroup
+            defaultCollapsed
             title="תשלום המקדמה"
             description="האחוז כאן חל על כל הלקוחות שדרישת התשלום שלהם היא מקדמה. בחירה של 5% קובעת 5% לכולם. אצל לקוח מסוים אפשר לבחור אחרת: בלי מקדמה, או לדרוש מקדמה גם אם לשאר הלקוחות אין. תשלום מלא בכרטיס תמיד 100%."
           >
@@ -930,7 +1022,164 @@ function BusinessConfigForm({
         )}
 
         <SettingsGroup
+          title="לקוחות שנוטים לבטל"
+          description="לקוח שביטל מספיק פעמים לא נקבע כתור רגיל. התור נשמר כממתין לאסמכתא עד שהוא שולח בוואטסאפ קבלה על אותו סכום ואותו שם מוטב."
+        >
+          <SettingsRow
+            label="הכלל פעיל"
+            htmlFor="business-cancellation-enabled"
+            help="כשכבוי, כל לקוח נקבע כרגיל בלי בדיקת ביטולים קודמים."
+          >
+            <label className={styles.toggle}>
+              <input
+                id="business-cancellation-enabled"
+                type="checkbox"
+                checked={policyDraft.enabled}
+                onChange={(event) =>
+                  setPolicyDraft((previous) => ({
+                    ...previous,
+                    enabled: event.target.checked,
+                  }))
+                }
+              />
+              <span>{policyDraft.enabled ? 'פעיל' : 'כבוי'}</span>
+            </label>
+          </SettingsRow>
+          {policyDraft.enabled && (
+            <>
+              <SettingsRow
+                label="מספר ביטולים"
+                htmlFor="business-cancellation-count"
+                help="כמה ביטולים בחלון הזמן מסמנים את הלקוח כחשוד."
+              >
+                <input
+                  id="business-cancellation-count"
+                  type="number"
+                  min="1"
+                  step="1"
+                  dir="ltr"
+                  className={styles.compactInput}
+                  value={policyDraft.cancellations}
+                  onChange={(event) =>
+                    setPolicyDraft((previous) => ({
+                      ...previous,
+                      cancellations: event.target.value,
+                    }))
+                  }
+                />
+              </SettingsRow>
+              <SettingsRow
+                label="בתוך כמה ימים"
+                htmlFor="business-cancellation-days"
+                help="נספרים רק ביטולים מהימים האחרונים."
+              >
+                <input
+                  id="business-cancellation-days"
+                  type="number"
+                  min="1"
+                  step="1"
+                  dir="ltr"
+                  className={styles.compactInput}
+                  value={policyDraft.withinDays}
+                  onChange={(event) =>
+                    setPolicyDraft((previous) => ({
+                      ...previous,
+                      withinDays: event.target.value,
+                    }))
+                  }
+                />
+                <span className={styles.controlSuffix}>ימים</span>
+              </SettingsRow>
+              <SettingsRow
+                label="רק ביטול קרוב לתור"
+                htmlFor="business-cancellation-near"
+                help="אם ממלאים שעות, נספר רק ביטול שנעשה בטווח הזה לפני תחילת התור. ריק סופר כל ביטול בחלון הימים."
+              >
+                <input
+                  id="business-cancellation-near"
+                  type="number"
+                  min="1"
+                  step="1"
+                  dir="ltr"
+                  className={styles.compactInput}
+                  value={policyDraft.nearHours}
+                  placeholder="הכל"
+                  onChange={(event) =>
+                    setPolicyDraft((previous) => ({
+                      ...previous,
+                      nearHours: event.target.value,
+                    }))
+                  }
+                />
+                <span className={styles.controlSuffix}>שעות</span>
+              </SettingsRow>
+              <SettingsRow
+                label="המתנה לאסמכתא"
+                htmlFor="business-cancellation-hold"
+                help="אחרי השעות האלה, תור בלי אסמכתא מתבטל והשעה מתפנה."
+              >
+                <input
+                  id="business-cancellation-hold"
+                  type="number"
+                  min="1"
+                  step="1"
+                  dir="ltr"
+                  className={styles.compactInput}
+                  value={policyDraft.holdHours}
+                  onChange={(event) =>
+                    setPolicyDraft((previous) => ({
+                      ...previous,
+                      holdHours: event.target.value,
+                    }))
+                  }
+                />
+                <span className={styles.controlSuffix}>שעות</span>
+              </SettingsRow>
+              <SettingsRow
+                label="שם המוטב"
+                htmlFor="business-cancellation-payee"
+                help="השם שצריך להופיע על הקבלה."
+                stacked
+              >
+                <input
+                  id="business-cancellation-payee"
+                  type="text"
+                  className={styles.input}
+                  value={policyDraft.payeeName}
+                  onChange={(event) =>
+                    setPolicyDraft((previous) => ({
+                      ...previous,
+                      payeeName: event.target.value,
+                    }))
+                  }
+                />
+              </SettingsRow>
+              <SettingsRow
+                label="איך לשלם"
+                htmlFor="business-cancellation-text"
+                help="ההסבר שהסוכן שולח ללקוח: לאן להעביר ומה לצרף."
+                stacked
+              >
+                <textarea
+                  id="business-cancellation-text"
+                  className={styles.textarea}
+                  rows={3}
+                  value={policyDraft.paymentText}
+                  onChange={(event) =>
+                    setPolicyDraft((previous) => ({
+                      ...previous,
+                      paymentText: event.target.value,
+                    }))
+                  }
+                />
+              </SettingsRow>
+            </>
+          )}
+        </SettingsGroup>
+
+        <SettingsGroup
           id="cloud-storage"
+          defaultCollapsed
           title="אחסון בענן"
           description={`${terms.includedStorageGb} ג׳יגה כלולים במנוי. כל ג׳יגה נוספת עולה ${terms.extraStorageGbIls} ₪ לחודש, בלי תקרת מכסה.`}
         >
@@ -983,29 +1232,8 @@ function BusinessConfigForm({
           )}
         </SettingsGroup>
 
-        <SettingsGroup
-          id="subscription-plan"
-          title="מנוי"
-          description="הסכום הקבוע לחודש, ומה משתנה במחיר לפי המנוי שנבחר."
-        >
-          <div className={styles.planBoard}>
-            <PlanCard
-              plan="regular"
-              terms={regularTerms}
-              selected={selectedPlan === 'regular'}
-              onSelect={() => applyPlan('regular')}
-            />
-            <PlanCard
-              plan="expanded"
-              terms={expandedTerms}
-              selected={selectedPlan === 'expanded'}
-              onSelect={() => applyPlan('expanded')}
-            />
-          </div>
-        </SettingsGroup>
-
         {(isVisible('save_recordings') || isVisible('recordings_retention_days')) && (
-          <SettingsGroup title="הקלטות">
+          <SettingsGroup defaultCollapsed title="הקלטות">
             {isVisible('save_recordings') && (
               <SettingsRow
                 label="שמירת הקלטות"
@@ -1143,27 +1371,28 @@ function BusinessConfigForm({
             </SettingsRow>
           </SettingsGroup>
         )}
+
+        <SettingsGroup
+          id="subscription-plan"
+          title="מנוי"
+          description="הסכום הקבוע לחודש, ומה משתנה במחיר לפי המנוי שנבחר."
+        >
+          <div className={styles.planBoard}>
+            <PlanCard
+              plan="regular"
+              terms={regularTerms}
+              selected={selectedPlan === 'regular'}
+              onSelect={() => applyPlan('regular')}
+            />
+            <PlanCard
+              plan="expanded"
+              terms={expandedTerms}
+              selected={selectedPlan === 'expanded'}
+              onSelect={() => applyPlan('expanded')}
+            />
+          </div>
+        </SettingsGroup>
       </SettingsStack>
-
-      {message && (
-        <p className={styles[message.type]} role="status">
-          {message.text}
-        </p>
-      )}
-
-      <button
-        type="button"
-        className={styles.btnPrimary}
-        onClick={() => void handleSave()}
-        disabled={isSaving}
-      >
-        {isSaving ? 'שומר...' : (
-          <>
-            <SaveIcon />
-            שמור הגדרות עסק
-          </>
-        )}
-      </button>
 
       {isDetailsOpen && (
         <RecordDetailsModal
@@ -1316,6 +1545,7 @@ function ServicesTable({
         />
       )}
 
+      <div className={styles.tableScroll}>
       <table className={`data-table ${styles.table}`}>
         <ColumnTableHead
           columns={activeColumns}
@@ -1415,6 +1645,7 @@ function ServicesTable({
           )}
         </tbody>
       </table>
+      </div>
 
       {modalMode && (modalMode === 'add' || selectedService) && (
         <AddServiceModal
@@ -1518,6 +1749,7 @@ function StatusesTable({
         ) : null}
       </div>
 
+      <div className={styles.tableScroll}>
       <table className={`data-table ${styles.table}`}>
         <ColumnTableHead
           columns={activeColumns}
@@ -1590,6 +1822,7 @@ function StatusesTable({
           )}
         </tbody>
       </table>
+      </div>
 
       {isEditOpen && selectedStatus && (
         <StatusModal

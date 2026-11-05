@@ -83,6 +83,7 @@ export interface CalendarEventProps {
   serviceTitle: string;
   clientName: string;
   tooltip: string;
+  holdLabel?: string;
 }
 
 export interface BookAppointmentPayload {

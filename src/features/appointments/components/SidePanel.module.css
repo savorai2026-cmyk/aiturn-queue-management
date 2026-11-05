@@ -223,3 +223,13 @@
     transform: rotate(360deg);
   }
 }
+
+@media (max-width: 1100px) {
+  .container {
+    max-height: none;
+  }
+
+  .content {
+    padding: 14px;
+  }
+}

@@ -2,8 +2,15 @@
   --color-navy-900: #073f67;
   --color-navy-800: #0a527f;
   --color-navy-700: #12648f;
+  --color-teal-700: #0f766e;
   --color-teal-600: #0d9488;
   --color-teal-500: #14b8a6;
+  --color-teal-100: #e7f6f4;
+  --color-today-mark: #99f6e4;
+  --color-today-wash: color-mix(in srgb, var(--color-teal-600) 9%, var(--color-surface));
+  --color-closed-fill: color-mix(in srgb, var(--color-navy-900) 7%, var(--color-surface-muted));
+  --color-closed-stripe: color-mix(in srgb, var(--color-navy-900) 9%, transparent);
+  --color-unavailable: color-mix(in srgb, var(--color-navy-800) 5%, var(--color-surface));
   --color-canvas: #edf6f8;
   --color-surface: #ffffff;
   --color-surface-muted: #f7fafb;
@@ -28,8 +35,10 @@
 body, html, #root {
   margin: 0;
   padding: 0;
+  max-width: 100%;
   min-height: 100%;
-  min-width: 320px;
+  min-width: 0;
+  overflow-x: clip;
 }
 
 html {
@@ -211,19 +220,26 @@ textarea:focus-visible {
 .layout-container {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 100%;
   height: 100vh;
   min-height: 100vh;
+  min-width: 0;
   overflow: hidden;
 }
 
 .layout-container.is-page-flow {
   height: auto;
-  overflow: visible;
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 .main-content {
   display: flex;
   flex: 1;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 22px;
   gap: 22px;
   overflow: hidden;
@@ -391,28 +407,35 @@ textarea:focus-visible {
   font-weight: 700;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .layout-container {
     height: auto;
     min-height: 100vh;
-    overflow: visible;
+    overflow-x: clip;
+    overflow-y: visible;
   }
 
   .main-content {
     flex-direction: column;
-    overflow: visible;
+    overflow-x: clip;
+    overflow-y: visible;
   }
 
   .calendar-area {
-    min-height: 620px;
-    overflow: visible;
+    min-height: 0;
+    max-width: 100%;
+    overflow-x: clip;
+    overflow-y: visible;
   }
 
   .feature-area {
-    overflow: visible;
+    max-width: 100%;
+    overflow-x: clip;
+    overflow-y: visible;
   }
 
-  .side-panel-wrapper {
+  .side-panel-wrapper,
+  .layout-container.is-page-flow .side-panel-wrapper {
     width: 100%;
     flex-basis: auto;
     max-width: none;
@@ -421,16 +444,38 @@ textarea:focus-visible {
     max-height: none;
     position: static;
   }
+
+  .layout-container.is-page-flow .main-content,
+  .layout-container.is-page-flow .calendar-area {
+    max-width: 100%;
+    overflow-x: clip;
+    overflow-y: visible;
+  }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 720px) {
   .main-content {
     padding: 12px;
     gap: 12px;
   }
 
   .calendar-area {
-    min-height: 560px;
     padding: 12px;
+  }
+}
+
+@media (max-width: 400px) {
+  .main-content {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .calendar-area {
+    padding: 10px;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 7px 8px;
   }
 }

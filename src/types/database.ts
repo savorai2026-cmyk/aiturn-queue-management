@@ -349,6 +349,8 @@ export type Database = {
           slot_duration_minutes: number | null
           timezone: string | null
           agent_prompt: string | null
+          agent_voice_id: string | null
+          cancellation_policy: Json | null
           save_recordings: boolean
           recordings_retention_days: number
           history_retention_months: number
@@ -377,6 +379,8 @@ export type Database = {
           slot_duration_minutes?: number | null
           timezone?: string | null
           agent_prompt?: string | null
+          agent_voice_id?: string | null
+          cancellation_policy?: Json | null
           save_recordings?: boolean
           recordings_retention_days?: number
           history_retention_months?: number
@@ -405,6 +409,8 @@ export type Database = {
           slot_duration_minutes?: number | null
           timezone?: string | null
           agent_prompt?: string | null
+          agent_voice_id?: string | null
+          cancellation_policy?: Json | null
           save_recordings?: boolean
           recordings_retention_days?: number
           history_retention_months?: number
@@ -937,6 +943,51 @@ export type Database = {
           price_model?: string | null
           price_source?: string | null
           unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      closure_demand: {
+        Row: {
+          id: string
+          business_code: string
+          range_date: string
+          range_start: string
+          range_end: string
+          client_id: number | null
+          client_phone: string
+          service_id: number | null
+          requested_start: string
+          state: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          business_code: string
+          range_date: string
+          range_start: string
+          range_end: string
+          client_id?: number | null
+          client_phone: string
+          service_id?: number | null
+          requested_start: string
+          state: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          business_code?: string
+          range_date?: string
+          range_start?: string
+          range_end?: string
+          client_id?: number | null
+          client_phone?: string
+          service_id?: number | null
+          requested_start?: string
+          state?: string
+          created_at?: string
           updated_at?: string
         }
         Relationships: []

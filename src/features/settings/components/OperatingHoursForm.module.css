@@ -189,7 +189,7 @@
 }
 
 .dayClosed {
-  background: #f8fafc;
+  background: var(--color-closed-fill);
 }
 
 .dayLabel {

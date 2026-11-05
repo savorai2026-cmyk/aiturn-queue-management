@@ -55,7 +55,7 @@ export default function TopBar({
       const navBox = nav.getBoundingClientRect();
       const box = current.getBoundingClientRect();
       setIndicator({
-        x: box.left - navBox.left,
+        x: box.left - navBox.left + nav.scrollLeft,
         width: box.width,
       });
     };
@@ -65,12 +65,14 @@ export default function TopBar({
       if (!cancelled) setIndicatorReady(true);
     });
     window.addEventListener('resize', place);
+    nav.addEventListener('scroll', place, { passive: true });
     void document.fonts?.ready.then(place);
 
     return () => {
       cancelled = true;
       window.cancelAnimationFrame(frame);
       window.removeEventListener('resize', place);
+      nav.removeEventListener('scroll', place);
     };
   }, [activeTab]);
 
@@ -130,9 +132,9 @@ export default function TopBar({
         >
           <MailIcon />
         </button>
-        <button className={styles.logoutBtn} onClick={onLogout}>
+        <button className={styles.logoutBtn} onClick={onLogout} aria-label="יציאה">
           <LogoutIcon />
-          יציאה
+          <span className={styles.logoutLabel}>יציאה</span>
         </button>
       </div>
     </header>

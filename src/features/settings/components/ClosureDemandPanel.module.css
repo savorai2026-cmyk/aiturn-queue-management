@@ -1,0 +1,50 @@
+.panel {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: #fbfdfd;
+}
+
+.panel h3 {
+  margin: 0;
+  color: var(--color-navy-900);
+  font-size: 14px;
+}
+
+.panel p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.error {
+  color: #b91c1c;
+}
+
+.list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.list strong {
+  color: var(--color-navy-900);
+}
+
+.list span {
+  color: var(--color-text-muted);
+}

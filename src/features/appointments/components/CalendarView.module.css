@@ -201,13 +201,13 @@
 }
 
 :global(.fc .fc-col-header-cell.fc-day-today) {
-  background: #fef3c7;
-  color: var(--color-navy-900);
-  box-shadow: inset 0 -3px 0 #d97706;
+  background: var(--color-navy-800);
+  color: #ffffff;
+  box-shadow: inset 0 -3px 0 var(--color-today-mark);
 }
 
 :global(.fc .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion) {
-  color: var(--color-navy-900);
+  color: #ffffff;
   font-weight: 800;
 }
 
@@ -221,13 +221,13 @@
 }
 
 :global(.fc .fc-col-header-cell.fc-day-today.is-selected-day) {
-  background: #fef3c7;
-  color: var(--color-navy-900);
-  box-shadow: inset 0 -3px 0 #d97706;
+  background: var(--color-navy-800);
+  color: #ffffff;
+  box-shadow: inset 0 -3px 0 var(--color-today-mark);
 }
 
 :global(.fc .fc-col-header-cell.fc-day-today.is-selected-day .fc-col-header-cell-cushion) {
-  color: var(--color-navy-900);
+  color: #ffffff;
 }
 
 :global(.fc-timegrid-col.is-selected-day),
@@ -273,9 +273,24 @@
 
 .eventTime,
 .eventService,
-.eventName {
+.eventName,
+.eventHold {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.eventHold {
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+:global(.fc-event.event-payment-hold) {
+  box-shadow: inset -4px 0 0 #f59e0b;
+}
+
+:global(.fc-event.event-payment-proof) {
+  box-shadow: inset -4px 0 0 #34d399;
 }
 
 .eventTime,
@@ -449,13 +464,20 @@
 }
 
 :global(.fc-newAppointmentBtn-button:not(:disabled):hover) {
-  background-color: #0f766e !important;
+  background-color: var(--color-teal-700) !important;
+}
+
+:global(.fc-bg-event.closed-day-fill),
+:global(.fc .fc-bg-event.closed-day-fill) {
+  background-color: var(--color-closed-fill) !important;
+  background-image: var(--closed-day-hatch) !important;
+  opacity: 1 !important;
 }
 
 :global(.fc-bg-event.special-day-fill),
 :global(.fc .fc-bg-event.special-day-fill) {
-  background-color: #e8eef2 !important;
-  background-image: var(--closed-day-hatch) !important;
+  background-color: var(--color-teal-100) !important;
+  background-image: none !important;
   opacity: 1 !important;
 }
 
@@ -489,55 +511,61 @@
   white-space: nowrap;
 }
 
-:global(.fc .fc-daygrid-day.fc-day-today) {
-  background-color: rgba(217, 119, 6, 0.12) !important;
-}
-
-:global(.fc .fc-timegrid-col.fc-day-today) {
-  background-color: rgba(217, 119, 6, 0.08) !important;
-}
-
+:global(.fc .fc-daygrid-day.fc-day-today),
+:global(.fc .fc-daygrid-day.fc-day-today.is-selected-day),
+:global(.fc .fc-timegrid-col.fc-day-today),
 :global(.fc .fc-timegrid-col.fc-day-today.is-selected-day) {
-  background-color: rgba(217, 119, 6, 0.08) !important;
-}
-
-:global(.fc .fc-daygrid-day.fc-day-today.is-selected-day) {
-  background-color: rgba(217, 119, 6, 0.12) !important;
+  background-color: var(--color-today-wash) !important;
 }
 
 :global(.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number) {
-  color: var(--color-navy-900);
+  color: var(--color-teal-700);
   font-weight: 800;
+}
+
+:global(.fc .fc-daygrid-day.fc-day-today) .monthDayNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.7em;
+  height: 1.7em;
+  border-radius: 999px;
+  background: var(--color-teal-700);
+  color: #ffffff;
 }
 
 :global(.fc) {
   --closed-day-hatch: repeating-linear-gradient(
     -45deg,
-    rgba(15, 48, 73, 0.04),
-    rgba(15, 48, 73, 0.04) 8px,
-    rgba(15, 48, 73, 0.08) 8px,
-    rgba(15, 48, 73, 0.08) 16px
+    transparent,
+    transparent 14px,
+    var(--color-closed-stripe) 14px,
+    var(--color-closed-stripe) 15px
   );
 }
 
-:global(.fc .fc-non-business),
+:global(.fc .fc-non-business) {
+  background-color: var(--color-unavailable) !important;
+  background-image: none !important;
+}
+
 :global(.fc .fc-day-disabled),
 :global(.fc .fc-timegrid-col.fc-day-disabled),
 :global(.fc .fc-timegrid-col.is-closed-day),
 :global(.fc .fc-daygrid-day.is-closed-day) {
-  background-color: #e8eef2 !important;
+  background-color: var(--color-closed-fill) !important;
   background-image: var(--closed-day-hatch) !important;
 }
 
 :global(.fc .fc-timegrid-col.fc-day-today.is-closed-day),
 :global(.fc .fc-daygrid-day.fc-day-today.is-closed-day) {
-  background-color: rgba(217, 119, 6, 0.1) !important;
+  background-color: color-mix(in srgb, var(--color-teal-600) 10%, var(--color-closed-fill)) !important;
   background-image: var(--closed-day-hatch) !important;
 }
 
 :global(.fc .fc-timegrid-col.is-selected-day.is-closed-day),
 :global(.fc .fc-daygrid-day.is-selected-day.is-closed-day) {
-  background-color: #e8eef2 !important;
+  background-color: var(--color-closed-fill) !important;
   background-image: var(--closed-day-hatch) !important;
   box-shadow: none;
 }
@@ -656,16 +684,6 @@
   text-decoration: none;
 }
 
-:global(.fc .fc-col-header-cell.fc-day-today) .specialNote {
-  background: rgba(7, 63, 103, 0.1);
-  color: var(--color-navy-900);
-}
-
-:global(.fc .fc-col-header-cell.fc-day-today) .holidayNote {
-  background: #fef3c7;
-  color: #92400e;
-}
-
 .monthHoliday {
   flex: 0 1 auto;
   min-width: 0;
@@ -719,10 +737,54 @@
   text-decoration: none !important;
 }
 
+@media (max-width: 1100px) {
+  .calendarContainer {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  :global(.fc .fc-timeGridWeek-view .fc-scrollgrid) {
+    min-width: 720px;
+  }
+
+  :global(.fc .fc-toolbar) {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  :global(.fc .fc-toolbar-chunk) {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+}
+
 @media (max-width: 767px) {
+  .calendarShell {
+    gap: 0;
+  }
+
+  .calendarContainer {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .dragEdge {
+    flex-basis: 0;
+    width: 0;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  .isDragging .dragEdge,
+  :global(body.featurn-is-event-dragging) .dragEdge {
     flex-basis: 28px;
+    width: 28px;
     margin-top: 7.4em;
+    overflow: visible;
   }
 
   :global(.fc .fc-toolbar) {
@@ -737,6 +799,12 @@
 
   :global(.fc .fc-toolbar-chunk) {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
+    gap: 6px;
+  }
+
+  :global(.fc .fc-button) {
+    font-size: 13px;
   }
 }

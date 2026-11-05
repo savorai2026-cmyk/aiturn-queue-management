@@ -28,6 +28,8 @@ import {
   SaveIcon,
 } from '../../../shared/components/icons';
 import SpecialDaysEditor from './SpecialDaysEditor';
+import TentativeRangesEditor from './TentativeRangesEditor';
+import ClosureDemandPanel from './ClosureDemandPanel';
 import styles from './OperatingHoursForm.module.css';
 
 interface OperatingHoursFormProps {
@@ -375,6 +377,11 @@ export default function OperatingHoursForm({
                     </div>
                   ))}
                   {day.shifts.length === 0 ? renderShiftActions(day) : null}
+                  <TentativeRangesEditor
+                    ranges={day.tentative ?? []}
+                    shifts={day.shifts}
+                    onChange={(tentative) => updateDay(day.key, { tentative })}
+                  />
                 </div>
               ) : (
                 <span className={styles.closedHint}>סגור ביום זה</span>
@@ -382,6 +389,7 @@ export default function OperatingHoursForm({
             </div>
           ))}
           </div>
+          <ClosureDemandPanel businessCode={business.business_code} />
         </div>
 
         <div className={styles.copyRow}>

@@ -4,17 +4,6 @@
   height: 100%;
 }
 
-.header {
-  margin-bottom: 20px;
-}
-
-.title {
-  color: var(--color-navy-900);
-  font-size: 21px;
-  font-weight: 700;
-  margin: 0;
-}
-
 .tabs {
   position: relative;
   display: flex;
@@ -177,7 +166,116 @@ button.tabBtn[aria-current='page']:not(:disabled):active:focus {
 .settingsStack {
   display: grid;
   gap: 14px;
+  width: 100%;
   max-width: 840px;
+}
+
+.stickyBar {
+  position: sticky;
+  top: 24px;
+  z-index: 5;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  background: var(--color-surface);
+}
+
+.stickyBar::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 100%;
+  height: 24px;
+  background: var(--color-surface);
+}
+
+.stickyBar .sectionToolbar {
+  margin-bottom: 0;
+}
+
+.stickyBar .success,
+.stickyBar .error {
+  margin: 8px 0 0;
+}
+
+.headerHit {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  width: 100%;
+  margin: 0;
+  padding: 14px 16px 12px;
+  border: 0;
+  background: #ffffff;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+button.headerHit:hover,
+button.headerHit:focus,
+button.headerHit:focus-visible,
+button.headerHit:active,
+button.headerHit:not(:disabled):hover,
+button.headerHit:not(:disabled):active {
+  background: #ffffff;
+  box-shadow: none;
+  transform: none;
+}
+
+.headerHit:hover h3,
+.headerHit:focus-visible h3,
+.headerHit:hover .groupChevron,
+.headerHit:focus-visible .groupChevron {
+  color: var(--color-navy-700);
+}
+
+.headerHit:hover p,
+.headerHit:focus-visible p {
+  color: var(--color-navy-800);
+}
+
+.groupToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.groupToggle h3 {
+  margin: 0;
+}
+
+.headerAction {
+  position: absolute;
+  z-index: 1;
+  top: 10px;
+  inset-inline-end: 12px;
+}
+
+.settingsGroupHeaderWithAction .groupToggle {
+  min-height: 36px;
+  padding-inline-end: 150px;
+}
+
+.groupChevron {
+  width: 0;
+  height: 0;
+  flex: 0 0 auto;
+  color: var(--color-navy-900);
+  border-style: solid;
+  border-width: 6px 5px 0;
+  border-color: currentColor transparent transparent;
+}
+
+.groupChevronCollapsed {
+  border-width: 5px 6px 5px 0;
+  border-color: transparent currentColor transparent transparent;
+}
+
+.settingsGroupCollapsed .settingsGroupHeader {
+  border-bottom: 0;
 }
 
 .settingsGroup {
@@ -189,8 +287,13 @@ button.tabBtn[aria-current='page']:not(:disabled):active:focus {
 }
 
 .settingsGroupHeader {
-  padding: 14px 16px 12px;
+  position: relative;
+  padding: 0;
   border-bottom: 1px solid var(--color-line);
+  background: #ffffff;
+}
+
+.settingsGroupHeader:hover {
   background: #ffffff;
 }
 
@@ -198,6 +301,7 @@ button.tabBtn[aria-current='page']:not(:disabled):active:focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
@@ -370,6 +474,14 @@ button.tabBtn[aria-current='page']:not(:disabled):active:focus {
   opacity: 0.55;
 }
 
+.btnPrimary.toolbarSave {
+  height: 36px;
+  margin-top: 0;
+  padding: 0 14px;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+}
+
 .aiButton {
   flex: 0 0 auto;
   padding: 7px 12px;
@@ -478,9 +590,47 @@ button.tabBtn[aria-current='page']:not(:disabled):active:focus {
   white-space: nowrap;
 }
 
-@media (max-width: 900px) {
+.tableScroll {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .container {
+    height: auto;
+    max-width: 100%;
+  }
+
   .contentCard {
-    overflow: visible;
+    max-width: 100%;
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+
+  .tabs {
+    flex-wrap: nowrap;
+    gap: 12px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tabBtn,
+  .tabDivider {
+    flex: 0 0 auto;
+  }
+
+  .tabBtn {
+    white-space: nowrap;
+  }
+
+  .tableScroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 

@@ -626,7 +626,7 @@ export default function CalendarView({
               display: 'background',
               editable: false,
               overlap: true,
-              classNames: ['special-day-fill'],
+              classNames: ['closed-day-fill'],
               extendedProps: { specialDayLabel: true },
             });
           } else if (exception && !exception.is_closed) {
@@ -1271,6 +1271,9 @@ export default function CalendarView({
               {isGroupContinuation ? null : (
                 <span className={styles.eventName}>{props.clientName}</span>
               )}
+              {!isGroupContinuation && props.holdLabel ? (
+                <span className={styles.eventHold}>{props.holdLabel}</span>
+              ) : null}
             </div>
           );
         }}

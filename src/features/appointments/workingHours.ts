@@ -20,9 +20,16 @@ export interface WorkingShift {
   end: string;
 }
 
+export interface TentativeRange {
+  start: string;
+  end: string;
+  min_insists: number;
+}
+
 export interface WorkingDay {
   is_closed?: boolean;
   shifts?: WorkingShift[];
+  tentative?: TentativeRange[];
 }
 
 export type WorkingHours = Partial<Record<WeekdayKey, WorkingDay>>;
@@ -32,6 +39,7 @@ export interface WorkingHourException {
   is_closed: boolean;
   shifts: WorkingShift[];
   note?: string;
+  tentative?: TentativeRange[];
 }
 
 export type WorkingHoursPayload = WorkingHours & {
@@ -53,6 +61,7 @@ export interface WorkingDayDraft {
   label: string;
   isOpen: boolean;
   shifts: WorkingShift[];
+  tentative: TentativeRange[];
 }
 
 export const WEEKDAY_KEYS: WeekdayKey[] = [
@@ -86,6 +95,41 @@ function readTime(value: unknown): string | null {
 
   const formatted = formatTimeHm(value);
   return /^\d{2}:\d{2}$/.test(formatted) ? formatted : null;
+}
+
+function parseMinInsists(value: unknown): number {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isInteger(parsed) && parsed >= 1 ? parsed : 1;
+}
+
+export function parseTentativeRanges(value: unknown): TentativeRange[] {
+  const raw = Array.isArray(value)
+    ? value
+    : value && typeof value === 'object'
+      ? [value]
+      : [];
+  const found = new Map<string, TentativeRange>();
+
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') {
+      continue;
+    }
+
+    const range = item as { start?: unknown; end?: unknown; min_insists?: unknown };
+    const start = readTime(range.start);
+    const end = readTime(range.end);
+    if (!start || !end || parseTimeToMinutes(end) <= parseTimeToMinutes(start)) {
+      continue;
+    }
+
+    found.set(`${start}-${end}`, {
+      start,
+      end,
+      min_insists: parseMinInsists(range.min_insists),
+    });
+  }
+
+  return [...found.values()];
 }
 
 function parseShift(value: unknown): WorkingShift | null {
@@ -130,8 +174,10 @@ function parseDay(value: unknown): WorkingDay {
     shifts?: unknown;
     start?: unknown;
     end?: unknown;
+    tentative?: unknown;
   };
   const shifts = parseShifts(day.shifts);
+  const tentative = parseTentativeRanges(day.tentative);
 
   if (shifts.length === 0) {
     const start = readTime(day.start);
@@ -144,6 +190,7 @@ function parseDay(value: unknown): WorkingDay {
   return {
     is_closed: day.is_closed === true || shifts.length === 0,
     shifts,
+    ...(tentative.length > 0 ? { tentative } : {}),
   };
 }
 
@@ -176,6 +223,7 @@ function parseException(value: unknown): WorkingHourException | null {
     start?: unknown;
     end?: unknown;
     note?: unknown;
+    tentative?: unknown;
   };
   const date = typeof item.date === 'string' ? item.date.trim() : '';
   if (!dateFromKey(date)) {
@@ -193,12 +241,14 @@ function parseException(value: unknown): WorkingHourException | null {
 
   const note =
     typeof item.note === 'string' ? item.note.trim().slice(0, 80) : '';
+  const tentative = parseTentativeRanges(item.tentative);
 
   return {
     date,
     is_closed: item.is_closed === true || shifts.length === 0,
     shifts,
     ...(note ? { note } : {}),
+    ...(tentative.length > 0 ? { tentative } : {}),
   };
 }
 
@@ -275,6 +325,7 @@ function defaultDraftFor(key: WeekdayKey): WorkingDayDraft {
     label: WEEKDAY_LABELS[key],
     isOpen: !isSaturday,
     shifts: defaultShiftsFor(key),
+    tentative: [],
   };
 }
 
@@ -297,6 +348,58 @@ export function suggestNextShift(shifts: WorkingShift[]): WorkingShift {
   };
 }
 
+export function suggestTentativeRange(shifts: WorkingShift[]): TentativeRange {
+  const shift = shifts[0] ?? { start: DEFAULT_OPEN_START, end: '12:00' };
+  const startMinutes = parseTimeToMinutes(shift.start);
+  const shiftEnd = parseTimeToMinutes(shift.end);
+  const endMinutes = Math.min(startMinutes + 120, shiftEnd);
+
+  return {
+    start: shift.start,
+    end: endMinutes > startMinutes ? minutesToHm(endMinutes) : shift.end,
+    min_insists: 1,
+  };
+}
+
+export function validateTentativeRanges(
+  ranges: TentativeRange[],
+  shifts: WorkingShift[],
+  context: string,
+): string | null {
+  const sorted = [...ranges].sort(
+    (left, right) =>
+      parseTimeToMinutes(left.start) - parseTimeToMinutes(right.start),
+  );
+
+  for (let index = 0; index < sorted.length; index += 1) {
+    const range = sorted[index];
+    if (!Number.isInteger(range.min_insists) || range.min_insists < 1) {
+      return `${context} מספר הלקוחות שצריכים להתעקש חייב להיות לפחות 1.`;
+    }
+    if (parseTimeToMinutes(range.end) <= parseTimeToMinutes(range.start)) {
+      return `${context} שעת הסיום של הסגירה הטנטטיבית חייבת להיות מאוחרת משעת ההתחלה.`;
+    }
+
+    const insideShift = shifts.some(
+      (shift) =>
+        parseTimeToMinutes(range.start) >= parseTimeToMinutes(shift.start) &&
+        parseTimeToMinutes(range.end) <= parseTimeToMinutes(shift.end),
+    );
+    if (!insideShift) {
+      return `${context} טווח הסגירה הטנטטיבית חייב להיות בתוך שעות הפעילות.`;
+    }
+
+    if (
+      index > 0 &&
+      parseTimeToMinutes(range.start) < parseTimeToMinutes(sorted[index - 1].end)
+    ) {
+      return `${context} טווחי הסגירה הטנטטיבית חופפים.`;
+    }
+  }
+
+  return null;
+}
+
 export function toWorkingDayDrafts(value: unknown): WorkingDayDraft[] {
   const hours = parseWorkingHours(value);
 
@@ -314,6 +417,7 @@ export function toWorkingDayDrafts(value: unknown): WorkingDayDraft[] {
       label: WEEKDAY_LABELS[key],
       isOpen: day.is_closed !== true && shifts.length > 0,
       shifts,
+      tentative: day.tentative ?? [],
     };
   });
 }
@@ -329,6 +433,11 @@ export function toWorkingHoursPayload(
         ? {
             is_closed: false,
             shifts: draft.shifts,
+            ...(draft.tentative.length > 0
+              ? {
+                  tentative: draft.tentative.map((range) => ({ ...range })),
+                }
+              : {}),
           }
         : {
             is_closed: true,
@@ -344,6 +453,11 @@ export function toWorkingHoursPayload(
       is_closed: item.is_closed,
       shifts: item.is_closed ? [] : item.shifts,
       ...(item.note?.trim() ? { note: item.note.trim().slice(0, 80) } : {}),
+      ...(!item.is_closed && item.tentative && item.tentative.length > 0
+        ? {
+            tentative: item.tentative.map((range) => ({ ...range })),
+          }
+        : {}),
     }))
     .sort((left, right) => left.date.localeCompare(right.date));
 
@@ -391,6 +505,15 @@ export function validateWorkingDayDrafts(drafts: WorkingDayDraft[]): string | nu
     if (error) {
       return error;
     }
+
+    const tentativeError = validateTentativeRanges(
+      draft.tentative,
+      draft.shifts,
+      `ביום ${draft.label}`,
+    );
+    if (tentativeError) {
+      return tentativeError;
+    }
   }
 
   return null;
@@ -417,6 +540,15 @@ export function validateWorkingHourExceptions(
     const error = validateShifts(item.shifts, 'ביום המיוחד');
     if (error) {
       return error;
+    }
+
+    const tentativeError = validateTentativeRanges(
+      item.tentative ?? [],
+      item.shifts,
+      'ביום המיוחד',
+    );
+    if (tentativeError) {
+      return tentativeError;
     }
   }
 
@@ -608,12 +740,17 @@ export function isUpcomingSpecialDay(
 
 const MAX_SPECIAL_RANGE_DAYS = 62;
 
-function exceptionShape(item: Pick<WorkingHourException, 'is_closed' | 'shifts' | 'note'>) {
+function exceptionShape(
+  item: Pick<WorkingHourException, 'is_closed' | 'shifts' | 'note' | 'tentative'>,
+) {
   const note = item.note?.trim() ?? '';
   const shifts = item.is_closed
     ? ''
     : item.shifts.map((shift) => `${shift.start}-${shift.end}`).join('|');
-  return `${item.is_closed ? 'closed' : 'open'}|${note}|${shifts}`;
+  const tentative = (item.tentative ?? [])
+    .map((range) => `${range.start}-${range.end}-${range.min_insists}`)
+    .join(',');
+  return `${item.is_closed ? 'closed' : 'open'}|${note}|${shifts}|${tentative}`;
 }
 
 export function expandSpecialDayDrafts(
@@ -635,6 +772,11 @@ export function expandSpecialDayDrafts(
         shifts: draft.is_closed ? [] : draft.shifts.map((shift) => ({ ...shift })),
         ...(draft.note?.trim()
           ? { note: draft.note.trim().slice(0, 80) }
+          : {}),
+        ...(!draft.is_closed && draft.tentative && draft.tentative.length > 0
+          ? {
+              tentative: draft.tentative.map((range) => ({ ...range })),
+            }
           : {}),
       });
       if (!dateFromKey(current) || current === last) {

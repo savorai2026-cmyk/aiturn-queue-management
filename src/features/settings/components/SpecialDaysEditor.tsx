@@ -13,6 +13,7 @@ import {
   createBlankSpecialDay,
   suggestNextShift,
 } from '../../appointments/workingHours';
+import TentativeRangesEditor from './TentativeRangesEditor';
 import { addDaysToDateKey, toDateKey } from '../../appointments/time';
 import styles from './SpecialDaysEditor.module.css';
 
@@ -201,6 +202,7 @@ export default function SpecialDaysEditor({
                           ...nextRangeAfter(day),
                           id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
                           shifts: day.shifts.map((shift) => ({ ...shift })),
+                          tentative: day.tentative?.map((range) => ({ ...range })),
                         },
                       ])
                     }
@@ -304,6 +306,11 @@ export default function SpecialDaysEditor({
                   >
                     הוסף משמרת
                   </button>
+                  <TentativeRangesEditor
+                    ranges={day.tentative ?? []}
+                    shifts={day.shifts}
+                    onChange={(tentative) => updateDay(day.id, { tentative })}
+                  />
                 </div>
               )}
 

@@ -322,6 +322,50 @@ describe('working hours', () => {
     ).toBe(true);
   });
 
+  it('keeps tentative ranges on a weekday and a special day', () => {
+    const drafts = toWorkingDayDrafts({
+      thursday: {
+        is_closed: false,
+        shifts: [{ start: '09:00', end: '18:00' }],
+        tentative: [{ start: '14:00', end: '16:00', min_insists: 2 }],
+      },
+    }).map((day) =>
+      day.key === 'thursday'
+        ? day
+        : { ...day, isOpen: day.key !== 'saturday' },
+    );
+    const payload = toWorkingHoursPayload(drafts, [
+      {
+        date: '2026-11-12',
+        is_closed: false,
+        shifts: [{ start: '09:00', end: '13:00' }],
+        tentative: [{ start: '11:00', end: '12:00', min_insists: 1 }],
+      },
+    ]);
+
+    expect(payload.thursday?.tentative).toEqual([
+      { start: '14:00', end: '16:00', min_insists: 2 },
+    ]);
+    expect(payload.exceptions?.[0]?.tentative).toEqual([
+      { start: '11:00', end: '12:00', min_insists: 1 },
+    ]);
+    expect(validateWorkingDayDrafts(drafts)).toBeNull();
+  });
+
+  it('rejects a tentative range outside working hours', () => {
+    const drafts = toWorkingDayDrafts(null).map((day) =>
+      day.key === 'monday'
+        ? {
+            ...day,
+            isOpen: true,
+            tentative: [{ start: '19:00', end: '20:00', min_insists: 1 }],
+          }
+        : day,
+    );
+
+    expect(validateWorkingDayDrafts(drafts)).toMatch(/בתוך שעות הפעילות/);
+  });
+
   it('rejects a special-day range longer than 62 days', () => {
     expect(
       validateSpecialDayDrafts([

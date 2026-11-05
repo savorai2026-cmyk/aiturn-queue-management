@@ -1,5 +1,6 @@
 import type { EventInput } from '@fullcalendar/core';
 import { assignGroupRoles } from './calendarGrouping';
+import { readPaymentHold } from './paymentHold';
 import {
   addMinutesToTime,
   formatTimeHm,
@@ -259,6 +260,10 @@ export function toCalendarEvents(
       clientName: event.details.patientName,
     });
 
+    const hold = readPaymentHold(
+      event.appointment.status,
+      event.appointment.metadata,
+    );
     const extendedProps: CalendarEventProps = {
       appointmentId: event.appointment.id,
       serviceId: event.serviceId,
@@ -269,7 +274,8 @@ export function toCalendarEvents(
       timeLabel: copy.timeLabel,
       serviceTitle: copy.serviceTitle,
       clientName: copy.clientName,
-      tooltip: copy.tooltip,
+      tooltip: hold ? `${copy.tooltip} · ${hold.label}` : copy.tooltip,
+      ...(hold ? { holdLabel: hold.label } : {}),
     };
 
     return {
@@ -279,7 +285,11 @@ export function toCalendarEvents(
       end: `${event.appointment.appointment_date}T${formatTimeHm(event.endTime)}`,
       backgroundColor: event.color,
       borderColor: event.color,
-      classNames: [`event-group-${groupRole}`],
+      classNames: [
+        `event-group-${groupRole}`,
+        ...(hold?.awaiting ? ['event-payment-hold'] : []),
+        ...(hold && !hold.awaiting ? ['event-payment-proof'] : []),
+      ],
       extendedProps,
     };
   });

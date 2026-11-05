@@ -23,6 +23,7 @@ import HelpTip from '../../../shared/components/HelpTip';
 import { DateField } from '../../../shared/components/DateField';
 import { HourMinuteField } from '../../../shared/components/HourMinuteField';
 import { PencilIcon, SaveIcon } from '../../../shared/components/icons';
+import PaymentHoldNotice from './PaymentHoldNotice';
 import styles from './SidePanel.module.css';
 
 const ILS_FORMATTER = new Intl.NumberFormat('he-IL', {
@@ -148,6 +149,7 @@ export const SidePanel = ({
       </div>
 
       <div className={styles.content}>
+        <PaymentHoldNotice appointment={appointment} />
         {isVisible('patientName') && (
         <div className={styles.field}>
           <span className={styles.fieldLabel}>שם מטופל</span>
