@@ -1,6 +1,6 @@
 import { supabase } from '../../supabaseClient';
 import {
-  LOG_PAGE_SIZE,
+  DEFAULT_LOG_PAGE_SIZE,
   RECORDINGS_BUCKET,
   findLogClient,
   findRecordingForLog,
@@ -121,8 +121,8 @@ function applyStartRange<Query extends { or: (filters: string) => Query }>(
   return query.or(`and(${started.join(',')}),and(${created.join(',')})`);
 }
 
-function emptyLogs(page: number): ConversationLogsResult {
-  return { logs: [], total: 0, page, pageSize: LOG_PAGE_SIZE };
+function emptyLogs(page: number, pageSize: number): ConversationLogsResult {
+  return { logs: [], total: 0, page, pageSize };
 }
 
 function logMatchFilter(clients: ClientMatch[]) {
@@ -177,15 +177,47 @@ async function clientsByMobile(businessCode: string, phone: string) {
   return (data ?? []) as ClientMatch[];
 }
 
-async function clientDirectory(businessCode: string) {
-  const { data, error } = await supabase
-    .from('clients')
-    .select('id, full_name, national_id, mobile_phone, whatsapp_number')
-    .eq('business_code', businessCode)
-    .limit(1000);
+async function clientsForDisplayedLogs(
+  businessCode: string,
+  rows: ConversationLogRow[],
+) {
+  const ids = [...new Set(
+    rows
+      .map((row) => Number(row.client_id))
+      .filter((id) => Number.isInteger(id) && id > 0),
+  )];
+  const phones = [...new Set(
+    rows
+      .filter((row) => !ids.includes(Number(row.client_id)))
+      .map((row) => phoneSearchNeedle(row.client_phone))
+      .filter((phone) => phone.length > 0),
+  )].slice(0, 30);
+  const found: ClientMatch[] = [];
 
-  if (error) throw new Error(error.message);
-  return (data ?? []) as ClientMatch[];
+  if (ids.length > 0) {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('id, full_name, national_id, mobile_phone, whatsapp_number')
+      .eq('business_code', businessCode)
+      .in('id', ids);
+    if (error) throw new Error(error.message);
+    found.push(...((data ?? []) as ClientMatch[]));
+  }
+
+  if (phones.length > 0) {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('id, full_name, national_id, mobile_phone, whatsapp_number')
+      .eq('business_code', businessCode)
+      .or(phones.map((phone) => `mobile_phone.ilike.%${phone}%,whatsapp_number.ilike.%${phone}%`).join(','))
+      .limit(phones.length * 3);
+    if (error) throw new Error(error.message);
+    found.push(...((data ?? []) as ClientMatch[]));
+  }
+
+  const byId = new Map<number, ClientMatch>();
+  for (const client of found) byId.set(client.id, client);
+  return [...byId.values()];
 }
 
 async function recordingsForLogs(businessCode: string, externalIds: string[]) {
@@ -206,10 +238,14 @@ export async function getConversationLogs(
   businessCode: string,
   page: number,
   lookup: LogLookup,
+  pageSize = DEFAULT_LOG_PAGE_SIZE,
 ): Promise<ConversationLogsResult> {
   const safePage = Number.isInteger(page) && page > 0 ? page : 0;
+  const size = Number.isInteger(pageSize) && pageSize > 0 && pageSize <= 100
+    ? pageSize
+    : DEFAULT_LOG_PAGE_SIZE;
   const clients = await matchingClients(businessCode, lookup);
-  if (clients && clients.length === 0) return emptyLogs(safePage);
+  if (clients && clients.length === 0) return emptyLogs(safePage, size);
 
   const phone = phoneSearchNeedle(lookup.phone);
   const mobileClients = phone && !clients
@@ -225,7 +261,7 @@ export async function getConversationLogs(
 
   if (clients) {
     const match = logMatchFilter(clients);
-    if (!match) return emptyLogs(safePage);
+    if (!match) return emptyLogs(safePage, size);
     query = query.or(match);
     if (phone) query = query.ilike('client_phone', `%${phone}%`);
   } else if (phone) {
@@ -237,8 +273,8 @@ export async function getConversationLogs(
 
   query = applyStartRange(query, lookup);
 
-  const from = safePage * LOG_PAGE_SIZE;
-  const { data, error, count } = await query.range(from, from + LOG_PAGE_SIZE - 1);
+  const from = safePage * size;
+  const { data, error, count } = await query.range(from, from + size - 1);
   if (error) throw new Error(error.message);
 
   const rows = (data ?? []) as ConversationLogRow[];
@@ -247,7 +283,7 @@ export async function getConversationLogs(
       businessCode,
       rows.map((row) => row.external_id),
     ),
-    clientDirectory(businessCode),
+    clientsForDisplayedLogs(businessCode, rows),
   ]);
   const identities = directory.map((client) => ({
     id: client.id,
@@ -269,7 +305,7 @@ export async function getConversationLogs(
     logs,
     total: count ?? rows.length,
     page: safePage,
-    pageSize: LOG_PAGE_SIZE,
+    pageSize: size,
   };
 
   try {

@@ -1,29 +1,32 @@
 import { useCallback } from 'react';
 import { useAsyncResource } from '../../shared/hooks/useAsyncResource';
 import { getConversationLogs } from './conversations.api';
-import { LOG_PAGE_SIZE } from './conversations.mappers';
+import { DEFAULT_LOG_PAGE_SIZE } from './conversations.mappers';
 import type { ConversationLogsResult, LogLookup } from './conversations.types';
 
 const EMPTY_LOGS: ConversationLogsResult = {
   logs: [],
   total: 0,
   page: 0,
-  pageSize: LOG_PAGE_SIZE,
+  pageSize: DEFAULT_LOG_PAGE_SIZE,
 };
 
 export function useConversationLogs(
   businessCode: string,
   page: number,
+  pageSize: number,
   lookup: LogLookup,
 ) {
   const load = useCallback(
-    () => getConversationLogs(businessCode, page, lookup),
-    [businessCode, lookup.clientName, lookup.from, lookup.nationalId, lookup.phone, lookup.to, page],
+    () => getConversationLogs(businessCode, page, lookup, pageSize),
+    [businessCode, lookup.clientName, lookup.from, lookup.nationalId, lookup.period, lookup.phone, lookup.to, page, pageSize],
   );
   const resource = useAsyncResource({
     resourceKey: [
       businessCode,
       page,
+      pageSize,
+      lookup.period,
       lookup.phone,
       lookup.nationalId,
       lookup.clientName,

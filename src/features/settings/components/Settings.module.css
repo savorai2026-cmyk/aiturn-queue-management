@@ -163,11 +163,15 @@ button.tabBtn[aria-current='page']:not(:disabled):active:focus {
   border-color: var(--color-teal-600);
 }
 
+.settingsColumn {
+  width: 100%;
+  max-width: 840px;
+}
+
 .settingsStack {
   display: grid;
   gap: 14px;
   width: 100%;
-  max-width: 840px;
 }
 
 .stickyBar {
@@ -213,27 +217,23 @@ button.tabBtn[aria-current='page']:not(:disabled):active:focus {
   cursor: pointer;
 }
 
-button.headerHit:hover,
+button.headerHit,
 button.headerHit:focus,
 button.headerHit:focus-visible,
 button.headerHit:active,
 button.headerHit:not(:disabled):hover,
-button.headerHit:not(:disabled):active {
-  background: #ffffff;
+button.headerHit:not(:disabled):active,
+button.headerHit:not(:disabled):hover:focus,
+button.headerHit:not(:disabled):active:focus {
   box-shadow: none;
   transform: none;
+  transition: background-color 120ms ease;
 }
 
-.headerHit:hover h3,
-.headerHit:focus-visible h3,
-.headerHit:hover .groupChevron,
-.headerHit:focus-visible .groupChevron {
-  color: var(--color-navy-700);
-}
-
-.headerHit:hover p,
-.headerHit:focus-visible p {
-  color: var(--color-navy-800);
+button.headerHit:hover,
+button.headerHit:not(:disabled):hover,
+button.headerHit:not(:disabled):hover:focus {
+  background: #f2f7f8;
 }
 
 .groupToggle {

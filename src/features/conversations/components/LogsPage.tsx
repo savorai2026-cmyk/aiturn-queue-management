@@ -29,8 +29,13 @@ import type {
   ConversationLogColumnKey,
   LogRecordingPlayback,
 } from '../conversations.types';
-import { LOG_PAGE_SIZE, defaultLogLookup } from '../conversations.mappers';
-import type { LogLookup } from '../conversations.types';
+import {
+  DEFAULT_LOG_PAGE_SIZE,
+  LOG_PAGE_SIZE_OPTIONS,
+  defaultLogLookup,
+  logPeriodRange,
+} from '../conversations.mappers';
+import type { LogLookup, LogPeriod } from '../conversations.types';
 import { useConversationLogs } from '../useConversationLogs';
 import RecordingCell from './RecordingCell';
 import styles from './LogsPage.module.css';
@@ -51,18 +56,29 @@ function insertLogColumns(keys: string[], extras: string[]) {
   return next;
 }
 
+const LOG_PERIODS: { id: LogPeriod; label: string }[] = [
+  { id: 'week', label: 'שבוע' },
+  { id: 'month', label: 'חודש' },
+  { id: 'quarter', label: '3 חודשים' },
+  { id: 'custom', label: 'תקופה' },
+];
+
 function LogPager({
   className,
   isLoading,
   page,
   pageCount,
+  pageSize,
   onPage,
+  onPageSize,
 }: {
   className?: string;
   isLoading: boolean;
   page: number;
   pageCount: number;
+  pageSize: number;
   onPage: (page: number) => void;
+  onPageSize: (pageSize: number) => void;
 }) {
   return (
     <div className={className ? `${styles.pager} ${className}` : styles.pager}>
@@ -82,6 +98,21 @@ function LogPager({
       >
         הבא
       </button>
+      <span className={styles.pageLabel}>
+        עמוד {page + 1} מתוך {pageCount}
+      </span>
+      <label className={styles.pageSize}>
+        <span>בעמוד</span>
+        <select
+          value={pageSize}
+          disabled={isLoading}
+          onChange={(event) => onPageSize(Number(event.target.value))}
+        >
+          {LOG_PAGE_SIZE_OPTIONS.map((size) => (
+            <option key={size} value={size}>{size}</option>
+          ))}
+        </select>
+      </label>
     </div>
   );
 }
@@ -102,9 +133,11 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
   const [draft, setDraft] = useState<LogLookup>(defaultLogLookup);
   const [lookup, setLookup] = useState<LogLookup>(defaultLogLookup);
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(DEFAULT_LOG_PAGE_SIZE);
   const { result, error, isLoading, refresh } = useConversationLogs(
     businessCode,
     page,
+    pageSize,
     lookup,
   );
   const { visibleFieldsFor, toggleField, reorderFields } = useUiPreferences(businessCode);
@@ -116,6 +149,7 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
     setDraft(defaultLogLookup());
     setLookup(defaultLogLookup());
     setPage(0);
+    setPageSize(DEFAULT_LOG_PAGE_SIZE);
   }, [businessCode]);
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<ColumnSort | null>(null);
@@ -142,18 +176,13 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
     result.logs.find((log) => log.id === selectedLogId) ?? null;
   const hasActiveFilters = Object.keys(visibleFilters).length > 0;
   const hasTableControls = hasActiveFilters || visibleSort !== null;
-  const defaultLookup = defaultLogLookup();
   const hasLookup = Boolean(
     lookup.phone ||
       lookup.nationalId ||
       lookup.clientName ||
-      lookup.from !== defaultLookup.from ||
-      lookup.to !== defaultLookup.to,
+      lookup.period !== 'week',
   );
-  const pageCount = Math.max(1, Math.ceil(result.total / LOG_PAGE_SIZE));
-  const listTitle = hasTableControls
-    ? `לוגים (${visibleLogs.length} מתוך ${result.logs.length} בעמוד)`
-    : `לוגים (${result.total})`;
+  const pageCount = Math.max(1, Math.ceil(result.total / pageSize));
 
   const applyLookup = (next: LogLookup) => {
     const same =
@@ -161,6 +190,7 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
       next.phone === lookup.phone &&
       next.nationalId === lookup.nationalId &&
       next.clientName === lookup.clientName &&
+      next.period === lookup.period &&
       next.from === lookup.from &&
       next.to === lookup.to;
     setPage(0);
@@ -203,35 +233,22 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
     };
   }, [isDetailsOpen, selectedLog]);
 
+  const selectPeriod = (period: LogPeriod) => {
+    if (period === 'custom') {
+      setDraft((current) => ({ ...current, period }));
+      return;
+    }
+    const next = {
+      ...draft,
+      period,
+      ...logPeriodRange(period),
+    };
+    setDraft(next);
+    applyLookup(next);
+  };
+
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <h2 className={styles.title}>{listTitle}</h2>
-        <div className={styles.tableControls}>
-          <DisplayToolbar
-            fields={LOG_FIELDS}
-            visibleKeys={visibleKeys}
-            onToggle={(key) => toggleField('logs', key)}
-            onReorder={(keys) => reorderFields('logs', keys)}
-            filtersVisible={filtersVisible}
-            filtersActive={hasActiveFilters}
-            onToggleFilters={() => setFiltersVisible((open) => !open)}
-          />
-          {hasTableControls ? (
-            <button
-              type="button"
-              className={columnTableStyles.clearButton}
-              onClick={() => {
-                setColumnFilters({});
-                setSort(null);
-              }}
-            >
-              נקה סינון ומיון
-            </button>
-          ) : null}
-        </div>
-      </div>
-
       <form
         className={styles.search}
         onSubmit={(event) => {
@@ -240,6 +257,7 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
             phone: draft.phone.trim(),
             nationalId: draft.nationalId.trim(),
             clientName: draft.clientName.trim(),
+            period: draft.period,
             from: draft.from,
             to: draft.to,
           });
@@ -276,24 +294,42 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
             }
           />
         </label>
-        <label className={`${styles.field} ${styles.dateField}`}>
-          <span>מתאריך</span>
-          <DateField
-            aria-label="מתאריך"
-            value={draft.from}
-            max={draft.to || undefined}
-            onChange={(from) => setDraft((current) => ({ ...current, from }))}
-          />
-        </label>
-        <label className={`${styles.field} ${styles.dateField}`}>
-          <span>עד תאריך</span>
-          <DateField
-            aria-label="עד תאריך"
-            value={draft.to}
-            min={draft.from || undefined}
-            onChange={(to) => setDraft((current) => ({ ...current, to }))}
-          />
-        </label>
+        <div className={styles.period} role="radiogroup" aria-label="תקופה">
+          {LOG_PERIODS.map((period) => (
+            <button
+              key={period.id}
+              type="button"
+              role="radio"
+              aria-checked={draft.period === period.id}
+              className={draft.period === period.id ? styles.periodActive : styles.periodButton}
+              onClick={() => selectPeriod(period.id)}
+            >
+              {period.label}
+            </button>
+          ))}
+        </div>
+        {draft.period === 'custom' ? (
+          <>
+            <label className={`${styles.field} ${styles.dateField}`}>
+              <span>מתאריך</span>
+              <DateField
+                aria-label="מתאריך"
+                value={draft.from}
+                max={draft.to || undefined}
+                onChange={(from) => setDraft((current) => ({ ...current, from, period: 'custom' }))}
+              />
+            </label>
+            <label className={`${styles.field} ${styles.dateField}`}>
+              <span>עד תאריך</span>
+              <DateField
+                aria-label="עד תאריך"
+                value={draft.to}
+                min={draft.from || undefined}
+                onChange={(to) => setDraft((current) => ({ ...current, to, period: 'custom' }))}
+              />
+            </label>
+          </>
+        ) : null}
         <button type="submit" className={styles.searchButton} disabled={isLoading}>
           חיפוש
         </button>
@@ -310,21 +346,43 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
             נקה
           </button>
         ) : null}
+        <div className={styles.tableControls}>
+          <DisplayToolbar
+            fields={LOG_FIELDS}
+            visibleKeys={visibleKeys}
+            onToggle={(key) => toggleField('logs', key)}
+            onReorder={(keys) => reorderFields('logs', keys)}
+            filtersVisible={filtersVisible}
+            filtersActive={hasActiveFilters}
+            onToggleFilters={() => setFiltersVisible((open) => !open)}
+          />
+          {hasTableControls ? (
+            <button
+              type="button"
+              className={columnTableStyles.clearButton}
+              onClick={() => {
+                setColumnFilters({});
+                setSort(null);
+              }}
+            >
+              נקה סינון ומיון
+            </button>
+          ) : null}
+        </div>
       </form>
 
-      <p className={styles.note}>
-        {isLoading
-          ? 'טוען לוגים...'
-          : `עמוד ${page + 1} מתוך ${pageCount} · ${result.total} שיחות`}
-      </p>
-
-      {!error && result.total > LOG_PAGE_SIZE ? (
+      {!error ? (
         <LogPager
           className={styles.pagerTop}
           isLoading={isLoading}
           page={page}
           pageCount={pageCount}
+          pageSize={pageSize}
           onPage={setPage}
+          onPageSize={(size) => {
+            setPageSize(size);
+            setPage(0);
+          }}
         />
       ) : null}
 
@@ -390,12 +448,17 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
       </div>
       )}
 
-      {!error && result.total > LOG_PAGE_SIZE ? (
+      {!error ? (
         <LogPager
           isLoading={isLoading}
           page={page}
           pageCount={pageCount}
+          pageSize={pageSize}
           onPage={setPage}
+          onPageSize={(size) => {
+            setPageSize(size);
+            setPage(0);
+          }}
         />
       ) : null}
 

@@ -24,10 +24,13 @@ export interface ConversationLog {
   createdAt: string;
 }
 
+export type LogPeriod = 'week' | 'month' | 'quarter' | 'custom';
+
 export interface LogLookup {
   phone: string;
   nationalId: string;
   clientName: string;
+  period: LogPeriod;
   from: string;
   to: string;
 }

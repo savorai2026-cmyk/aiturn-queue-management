@@ -18,6 +18,10 @@ import {
   parsePreferredChannel,
 } from '../clients.mappers';
 import {
+  cancellationPolicyDraft,
+  cancellationPolicyPayload,
+} from '../../settings/cancellationPolicy';
+import {
   errorIncludes,
   getErrorMessage,
 } from '../../../shared/errors';
@@ -58,12 +62,16 @@ function getInitialFormData(client: Client | null): ClientFormValues {
     whatsapp_number: client?.whatsapp_number || '',
     acquisition_source: client?.acquisition_source || '',
     preferred_channel: parsePreferredChannel(client?.preferred_channel),
+    cancellation_policy: null,
   };
 }
 
 export default function AddClientModal({ businessCode, clientToEdit, onClose, onSuccess }: AddClientModalProps) {
   const [formData, setFormData] = useState(() =>
     getInitialFormData(clientToEdit),
+  );
+  const [policyDraft, setPolicyDraft] = useState(() =>
+    cancellationPolicyDraft(clientToEdit?.cancellation_policy),
   );
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -79,11 +87,19 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
     setErrorMessage('');
     setIsSaving(true);
 
+    const policy = cancellationPolicyPayload(policyDraft);
+    if ('error' in policy) {
+      setErrorMessage(policy.error);
+      setIsSaving(false);
+      return;
+    }
+    const values = { ...formData, cancellation_policy: policy.value };
+
     try {
       if (clientToEdit) {
-        await updateClient(businessCode, clientToEdit.id, formData);
+        await updateClient(businessCode, clientToEdit.id, values);
       } else {
-        await createClient(businessCode, formData);
+        await createClient(businessCode, values);
       }
 
       onSuccess();
@@ -126,6 +142,8 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
         <form className={modal.form} onSubmit={handleSubmit}>
           <div className={modal.scroll}>
           <div className={styles.formGrid}>
+            <section className={styles.policySection}>
+            <h3 className={styles.policyHeading}>פרטים אישיים</h3>
             <div className={styles.formGroup}>
               <label>שם מלא *</label>
               <input 
@@ -356,6 +374,10 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
               />
             </div>
 
+            </section>
+
+            <section className={styles.policySection}>
+            <h3 className={styles.policyHeading}>הגדרות לקוח</h3>
             <div className={styles.formGroup}>
               <label htmlFor="preferred_channel">ערוץ מועדף</label>
               <select
@@ -373,9 +395,6 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
                 ))}
               </select>
             </div>
-
-            <section className={styles.policySection}>
-              <h3 className={styles.policyHeading}>הגדרות הזמנה</h3>
 
               <div className={styles.formGroup}>
                 <label className={styles.labelWithTip} htmlFor="booking_policy">
@@ -416,7 +435,6 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
                   ))}
                 </select>
               </div>
-            </section>
 
             <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
               <div className={styles.checkboxGroup}>
@@ -430,6 +448,133 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
                 <label htmlFor="allows_sms">שליחת הודעות SMS מותרת</label>
               </div>
             </div>
+
+            <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+              <div className={styles.checkboxGroup}>
+                <input
+                  type="checkbox"
+                  id="client-cancellation-enabled"
+                  checked={policyDraft.enabled}
+                  onChange={(event) =>
+                    setPolicyDraft((previous) => ({
+                      ...previous,
+                      enabled: event.target.checked,
+                    }))
+                  }
+                />
+                <label htmlFor="client-cancellation-enabled">
+                  חריג מכלל הביטולים של העסק
+                </label>
+              </div>
+            </div>
+            {policyDraft.enabled && (
+              <>
+                <div className={styles.formGroup}>
+                  <label htmlFor="client-cancellation-count">מספר ביטולים</label>
+                  <input
+                    id="client-cancellation-count"
+                    type="number"
+                    min="1"
+                    step="1"
+                    dir="ltr"
+                    className={`${styles.input} ${styles.ltrInput}`}
+                    value={policyDraft.cancellations}
+                    onChange={(event) =>
+                      setPolicyDraft((previous) => ({
+                        ...previous,
+                        cancellations: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label htmlFor="client-cancellation-days">בתוך כמה ימים</label>
+                  <input
+                    id="client-cancellation-days"
+                    type="number"
+                    min="1"
+                    step="1"
+                    dir="ltr"
+                    className={`${styles.input} ${styles.ltrInput}`}
+                    value={policyDraft.withinDays}
+                    onChange={(event) =>
+                      setPolicyDraft((previous) => ({
+                        ...previous,
+                        withinDays: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label htmlFor="client-cancellation-near">רק ביטול קרוב לתור (שעות)</label>
+                  <input
+                    id="client-cancellation-near"
+                    type="number"
+                    min="1"
+                    step="1"
+                    dir="ltr"
+                    placeholder="הכל"
+                    className={`${styles.input} ${styles.ltrInput}`}
+                    value={policyDraft.nearHours}
+                    onChange={(event) =>
+                      setPolicyDraft((previous) => ({
+                        ...previous,
+                        nearHours: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label htmlFor="client-cancellation-hold">המתנה לאסמכתא (שעות)</label>
+                  <input
+                    id="client-cancellation-hold"
+                    type="number"
+                    min="1"
+                    step="1"
+                    dir="ltr"
+                    className={`${styles.input} ${styles.ltrInput}`}
+                    value={policyDraft.holdHours}
+                    onChange={(event) =>
+                      setPolicyDraft((previous) => ({
+                        ...previous,
+                        holdHours: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                  <label htmlFor="client-cancellation-payee">שם המוטב</label>
+                  <input
+                    id="client-cancellation-payee"
+                    type="text"
+                    className={styles.input}
+                    value={policyDraft.payeeName}
+                    onChange={(event) =>
+                      setPolicyDraft((previous) => ({
+                        ...previous,
+                        payeeName: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                  <label htmlFor="client-cancellation-text">איך לשלם</label>
+                  <textarea
+                    id="client-cancellation-text"
+                    rows={3}
+                    className={styles.textarea}
+                    value={policyDraft.paymentText}
+                    onChange={(event) =>
+                      setPolicyDraft((previous) => ({
+                        ...previous,
+                        paymentText: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              </>
+            )}
+            </section>
           </div>
           </div>
 

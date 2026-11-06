@@ -838,7 +838,7 @@ function BusinessConfigForm({
   };
 
   return (
-    <div>
+    <div className={styles.settingsColumn}>
       <div className={styles.stickyBar}>
         <div className={styles.sectionToolbar}>
           <DisplayToolbar
@@ -1045,8 +1045,6 @@ function BusinessConfigForm({
               <span>{policyDraft.enabled ? 'פעיל' : 'כבוי'}</span>
             </label>
           </SettingsRow>
-          {policyDraft.enabled && (
-            <>
               <SettingsRow
                 label="מספר ביטולים"
                 htmlFor="business-cancellation-count"
@@ -1173,8 +1171,6 @@ function BusinessConfigForm({
                   }
                 />
               </SettingsRow>
-            </>
-          )}
         </SettingsGroup>
 
         <SettingsGroup

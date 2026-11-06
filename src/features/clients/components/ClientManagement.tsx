@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   formatClientCell,
   filterAndSortClients,
-  toClientDetailRows,
+  toClientDetailSections,
 } from '../clients.mappers';
 import { countClientUpcomingAppointments, deleteClient, sendCancellationNotices, cancellationNoticeError } from '../clients.api';
 import {
@@ -407,7 +407,7 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
       {isDetailsOpen && selectedClient && (
         <RecordDetailsModal
           title={`פרטי לקוח · ${selectedClient.full_name || selectedClient.mobile_phone}`}
-          rows={toClientDetailRows(selectedClient)}
+          sections={toClientDetailSections(selectedClient)}
           onClose={() => setIsDetailsOpen(false)}
         />
       )}

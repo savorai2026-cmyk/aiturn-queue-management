@@ -4,6 +4,7 @@ import {
   findLogClient,
   findRecordingForLog,
   defaultLogDateRange,
+  logPeriodRange,
   formatDurationSeconds,
   logRangeBound,
   formatIsraeliPhone,
@@ -56,6 +57,14 @@ describe('conversation log mappers', () => {
     expect(nationalIdSearch('12-3456782')).toBe('123456782');
     expect(logSearchText(' אביב% ')).toBe('אביב');
     expect(defaultLogDateRange(new Date(2026, 9, 16))).toEqual({
+      from: '2026-10-10',
+      to: '2026-10-16',
+    });
+    expect(logPeriodRange('month', new Date(2026, 9, 16))).toEqual({
+      from: '2026-09-16',
+      to: '2026-10-16',
+    });
+    expect(logPeriodRange('quarter', new Date(2026, 9, 16))).toEqual({
       from: '2026-07-16',
       to: '2026-10-16',
     });

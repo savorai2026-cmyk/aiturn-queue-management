@@ -21,6 +21,29 @@
   font-size: 18px;
 }
 
+.groups {
+  display: grid;
+  gap: 14px;
+  margin: 0 0 18px;
+}
+
+.group {
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: #fbfdfd;
+}
+
+.groupTitle {
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-line);
+  background: #ffffff;
+  color: var(--color-navy-900);
+  font-size: 15px;
+  font-weight: 600;
+}
+
 .list {
   display: grid;
   gap: 6px;
@@ -29,6 +52,11 @@
   padding: 8px;
   border-radius: 8px;
   background: #e8f1f4;
+}
+
+.group .list {
+  margin: 0;
+  border-radius: 0;
 }
 
 .row {

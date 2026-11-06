@@ -1,4 +1,5 @@
 import type {
+  Json,
   Tables,
   TablesInsert,
   TablesUpdate,
@@ -64,6 +65,7 @@ export interface ClientFormValues {
   whatsapp_number: string;
   acquisition_source: string;
   preferred_channel: string;
+  cancellation_policy: Json | null;
 }
 
 export type ClientColumnKey = keyof Client;

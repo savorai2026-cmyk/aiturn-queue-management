@@ -318,13 +318,8 @@ textarea:focus-visible {
   padding: 7px 12px;
   border: 0 solid rgba(7, 63, 103, 0.1);
   border-bottom-width: 1px;
-  border-left-width: 1px;
   vertical-align: middle;
   line-height: 1.35;
-}
-
-.data-table tr > :first-child {
-  border-right-width: 1px;
 }
 
 .data-table th:first-child,

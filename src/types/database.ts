@@ -436,6 +436,7 @@ export type Database = {
           booking_policy: 'instant' | 'approval' | 'blocked'
           building_number: string | null
           business_code: string
+          cancellation_policy: Json | null
           city: string | null
           created_at: string
           deleted_at: string | null
@@ -467,6 +468,7 @@ export type Database = {
           booking_policy?: 'instant' | 'approval' | 'blocked'
           building_number?: string | null
           business_code: string
+          cancellation_policy?: Json | null
           city?: string | null
           created_at?: string
           deleted_at?: string | null
@@ -498,6 +500,7 @@ export type Database = {
           booking_policy?: 'instant' | 'approval' | 'blocked'
           building_number?: string | null
           business_code?: string
+          cancellation_policy?: Json | null
           city?: string | null
           created_at?: string
           deleted_at?: string | null

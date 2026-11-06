@@ -10,8 +10,9 @@ import {
   type ClientUpdate,
   type PaymentRequirement,
 } from './clients.types';
+import { describeCancellationPolicy } from '../settings/cancellationPolicy';
 import { CLIENT_FIELDS } from '../../shared/displayFields/catalogs';
-import type { DetailRow } from '../../shared/displayFields/types';
+import type { DetailRow, DetailSection } from '../../shared/displayFields/types';
 import {
   columnExactNumber,
   columnTextIncludes,
@@ -229,6 +230,7 @@ export function normalizeClientValues(
     whatsapp_number: emptyToNull(values.whatsapp_number),
     acquisition_source: emptyToNull(values.acquisition_source),
     preferred_channel: emptyToNull(parsePreferredChannel(values.preferred_channel)),
+    cancellation_policy: values.cancellation_policy,
   };
 }
 
@@ -281,4 +283,32 @@ export function toClientDetailRows(client: Client): DetailRow[] {
     value: formatClientCell(client, field.key as ClientColumnKey),
     dir: field.dir,
   }));
+}
+
+const CLIENT_SETTING_KEYS = new Set([
+  'booking_policy',
+  'payment_requirement',
+  'allows_sms',
+  'preferred_channel',
+]);
+
+export function toClientDetailSections(client: Client): DetailSection[] {
+  const rows = toClientDetailRows(client);
+  return [
+    {
+      title: 'פרטים אישיים',
+      rows: rows.filter((row) => !CLIENT_SETTING_KEYS.has(row.key)),
+    },
+    {
+      title: 'הגדרות לקוח',
+      rows: [
+        ...rows.filter((row) => CLIENT_SETTING_KEYS.has(row.key)),
+        {
+          key: 'cancellation_policy',
+          label: 'חריגת ביטולים',
+          value: describeCancellationPolicy(client.cancellation_policy),
+        },
+      ],
+    },
+  ];
 }

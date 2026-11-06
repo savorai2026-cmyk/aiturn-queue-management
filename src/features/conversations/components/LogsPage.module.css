@@ -16,6 +16,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-inline-start: auto;
 }
 
 .title {
@@ -30,7 +31,7 @@
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 10px;
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
   margin-bottom: 14px;
   padding: 4px 10px 4px 4px;
@@ -127,11 +128,80 @@
   font-size: 13px;
 }
 
+.period {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+}
+
+.periodButton,
+.periodActive {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.periodButton {
+  border: 1px solid var(--color-line);
+  background: #ffffff;
+  color: var(--color-navy-900);
+}
+
+.periodActive {
+  border: 1px solid var(--color-teal-600);
+  background: #e7f6f4;
+  color: var(--color-teal-600);
+}
+
+button.periodButton:hover,
+button.periodButton:active,
+button.periodActive:hover,
+button.periodActive:active,
+button.periodButton:not(:disabled):hover,
+button.periodButton:not(:disabled):active,
+button.periodActive:not(:disabled):hover,
+button.periodActive:not(:disabled):active {
+  box-shadow: none;
+  transform: none;
+}
+
 .pager {
   display: flex;
+  align-items: center;
   justify-content: flex-start;
   gap: 8px;
   margin-top: 12px;
+}
+
+.pageLabel {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pageSize {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-navy-900);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pageSize select {
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: #ffffff;
+  color: var(--color-navy-900);
+  font: inherit;
+  font-size: 13px;
 }
 
 .pagerTop {

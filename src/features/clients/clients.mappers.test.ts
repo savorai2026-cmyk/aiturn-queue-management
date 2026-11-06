@@ -10,6 +10,7 @@ import type { Client } from './clients.types';
 
 const CLIENT: Client = {
   business_code: 'business-1',
+  cancellation_policy: null,
   id: 5,
   national_id: null,
   full_name: 'ישראל ישראלי',
@@ -94,6 +95,7 @@ describe('normalizeClientValues', () => {
       whatsapp_number: '',
       acquisition_source: '',
       preferred_channel: '',
+      cancellation_policy: null,
     })).toEqual({
       full_name: 'ישראל ישראלי',
       mobile_phone: '0500000000',
@@ -118,6 +120,7 @@ describe('normalizeClientValues', () => {
       whatsapp_number: null,
       acquisition_source: null,
       preferred_channel: null,
+      cancellation_policy: null,
     });
   });
 
@@ -150,6 +153,7 @@ describe('normalizeClientValues', () => {
         whatsapp_number: '',
         acquisition_source: '',
         preferred_channel: '',
+        cancellation_policy: null,
       }).language,
     ).toBe('he');
   });
@@ -184,6 +188,7 @@ describe('normalizeClientValues', () => {
         whatsapp_number: '',
         acquisition_source: '',
         preferred_channel: 'וואטסאפ',
+        cancellation_policy: null,
       }).preferred_channel,
     ).toBe('whatsapp');
   });

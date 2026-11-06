@@ -114,3 +114,12 @@ export function cancellationPolicyPayload(
     },
   };
 }
+
+export function describeCancellationPolicy(raw: unknown): string {
+  const draft = cancellationPolicyDraft(raw);
+  if (!draft.enabled) return 'לפי כלל העסק';
+  const near = draft.nearHours.trim()
+    ? ` רק אם הביטול היה עד ${draft.nearHours} שעות לפני התור`
+    : '';
+  return `${draft.cancellations} ביטולים ב-${draft.withinDays} ימים, המתנה ${draft.holdHours} שעות${near}`;
+}

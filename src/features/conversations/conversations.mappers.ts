@@ -12,10 +12,13 @@ import type {
   ConversationLog,
   ConversationLogColumnKey,
   LogLookup,
+  LogPeriod,
   LogRecordingPlayback,
 } from './conversations.types';
 
-export const LOG_PAGE_SIZE = 100;
+export const DEFAULT_LOG_PAGE_SIZE = 10;
+export const LOG_PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+export const LOG_PAGE_SIZE = DEFAULT_LOG_PAGE_SIZE;
 export const RECORDINGS_BUCKET = 'recordings';
 
 const CHANNEL_LABELS: Record<string, string> = {
@@ -79,9 +82,20 @@ function toDateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+export function logPeriodRange(
+  period: Exclude<LogPeriod, 'custom'>,
+  now = new Date(),
+) {
+  const to = toDateKey(now);
+  const from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (period === 'week') from.setDate(from.getDate() - 6);
+  else if (period === 'month') from.setMonth(from.getMonth() - 1);
+  else from.setMonth(from.getMonth() - 3);
+  return { from: toDateKey(from), to };
+}
+
 export function defaultLogDateRange(now = new Date()) {
-  const from = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
-  return { from: toDateKey(from), to: toDateKey(now) };
+  return logPeriodRange('week', now);
 }
 
 export function defaultLogLookup(now = new Date()): LogLookup {
@@ -89,6 +103,7 @@ export function defaultLogLookup(now = new Date()): LogLookup {
     phone: '',
     nationalId: '',
     clientName: '',
+    period: 'week',
     ...defaultLogDateRange(now),
   };
 }

@@ -103,7 +103,7 @@
   height: 14px;
 }
 
-.input, .select {
+.input, .select, .textarea {
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -117,7 +117,13 @@
   background-color: #ffffff;
 }
 
-.input:focus, .select:focus {
+.textarea {
+  min-height: 72px;
+  resize: vertical;
+  font: inherit;
+}
+
+.input:focus, .select:focus, .textarea:focus {
   border-color: var(--color-teal-600);
   box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
 }

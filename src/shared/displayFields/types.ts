@@ -30,6 +30,11 @@ export interface UiPreferences {
   usage?: ScopePreferences;
 }
 
+export interface DetailSection {
+  title: string;
+  rows: DetailRow[];
+}
+
 export interface DetailRow {
   key: string;
   label: string;
