@@ -1,12 +1,10 @@
 import type {
   Json,
   Tables,
-  TablesInsert,
   TablesUpdate,
 } from '../../types/database';
 
 export type AppointmentRow = Tables<'appointments'>;
-export type AppointmentInsert = TablesInsert<'appointments'>;
 export type AppointmentUpdate = TablesUpdate<'appointments'>;
 export type AppointmentServiceRow = Tables<'appointment_services'>;
 export type ClientSummary = Pick<
@@ -84,21 +82,6 @@ export interface CalendarEventProps {
   clientName: string;
   tooltip: string;
   holdLabel?: string;
-}
-
-export interface BookAppointmentPayload {
-  businessCode: string;
-  clientName: string;
-  clientPhone: string;
-  appointmentTime: string;
-  services: Array<{
-    serviceId: number;
-    duration: number;
-    price: number;
-  }>;
-  status: AppointmentStatus;
-  clientNotes: string;
-  businessNotes: string;
 }
 
 export interface SchedulerSlot {

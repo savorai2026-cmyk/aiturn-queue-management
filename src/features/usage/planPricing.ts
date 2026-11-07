@@ -7,7 +7,6 @@ export const EXPANDED_EXTRA_USER_ILS = 30;
 export const VAT_RATE = 0.18;
 export const REGULAR_VOICE_AGOROT_PER_MINUTE = 90;
 export const EXPANDED_VOICE_AGOROT_PER_MINUTE = 70;
-export const VOICE_AGOROT_PER_MINUTE = REGULAR_VOICE_AGOROT_PER_MINUTE;
 export const REGULAR_INCLUDED_STORAGE_GB = 5;
 export const EXPANDED_INCLUDED_STORAGE_GB = 7;
 export const EXTRA_STORAGE_GB_ILS = 5;
@@ -45,10 +44,6 @@ export function historyRetentionMaxMonths(plan: SubscriptionPlan): number {
     : REGULAR_HISTORY_MAX_MONTHS;
 }
 
-export function monthlyPlanIls(plan: SubscriptionPlan): number {
-  return plan === 'expanded' ? EXPANDED_MONTHLY_ILS : MONTHLY_PLAN_ILS;
-}
-
 export function extraUserIls(plan: SubscriptionPlan): number {
   return plan === 'expanded' ? EXPANDED_EXTRA_USER_ILS : EXTRA_USER_ILS;
 }
@@ -69,14 +64,6 @@ export function extraStorageChargeIls(
 ): number {
   const extra = Math.max(0, quotaGb - includedStorageGb(plan));
   return extra * extraStorageGbIls(plan);
-}
-
-export function recordingRetentionLimitText(plan: SubscriptionPlan): string {
-  return daysLimitText(plan === 'expanded' ? EXPANDED_RECORDING_MAX_DAYS : REGULAR_RECORDING_MAX_DAYS);
-}
-
-export function historyRetentionLimitText(plan: SubscriptionPlan): string {
-  return monthsLimitText(plan === 'expanded' ? EXPANDED_HISTORY_MAX_MONTHS : REGULAR_HISTORY_MAX_MONTHS);
 }
 
 export function daysLimitText(days: number): string {
@@ -143,10 +130,6 @@ export function applyTariffOverride(
   return next;
 }
 
-export function includedUserCount(plan: SubscriptionPlan): number {
-  return plan === 'expanded' ? EXPANDED_INCLUDED_USERS : REGULAR_INCLUDED_USERS;
-}
-
 export function extraUserCount(
   memberCount: number,
   includedUsers = REGULAR_INCLUDED_USERS,
@@ -155,19 +138,7 @@ export function extraUserCount(
   return Math.max(0, Math.floor(memberCount) - includedUsers);
 }
 
-export function extraUserChargeIls(
-  memberCount: number,
-  plan: SubscriptionPlan = 'regular',
-): number {
-  return extraUserCount(memberCount, includedUserCount(plan)) * extraUserIls(plan);
-}
-
-export function voiceChargeIls(seconds: number): number {
-  if (!Number.isFinite(seconds) || seconds <= 0) return 0;
-  return (seconds / 60) * (VOICE_AGOROT_PER_MINUTE / 100) * (1 + VAT_RATE);
-}
-
-export function voiceAgorotIncludingVat(agorot = VOICE_AGOROT_PER_MINUTE): number {
+export function voiceAgorotIncludingVat(agorot = REGULAR_VOICE_AGOROT_PER_MINUTE): number {
   return agorotIncludingVat(agorot);
 }
 
@@ -187,64 +158,6 @@ export function normalizeHistoryMonths(
   const months = Math.round(raw);
   if (months < 1 || months > maxMonths) return null;
   return months;
-}
-
-const WHATSAPP_WINDOW_MS = 24 * 60 * 60 * 1000;
-
-export interface WhatsappWindowLog {
-  id: string;
-  phone: string | null;
-  startedAt: string;
-  initiatedBy?: string | null;
-}
-
-export interface WhatsappWindowCounts {
-  customer: number;
-  business: number;
-}
-
-function whatsappPhoneKey(phone: string | null, fallback: string) {
-  const digits = (phone ?? '').replace(/\D/g, '');
-  if (!digits) return fallback;
-  const local = digits.startsWith('972') ? digits.slice(3) : digits;
-  return local.startsWith('0') ? local.slice(1) : local;
-}
-
-export function countWhatsappWindows(
-  logs: WhatsappWindowLog[],
-  monthStartMs: number,
-): WhatsappWindowCounts {
-  const byPhone = new Map<string, { started: number; initiatedBy: string | null }[]>();
-  const seen = new Set<string>();
-
-  for (const log of logs) {
-    if (seen.has(log.id)) continue;
-    seen.add(log.id);
-    const started = Date.parse(log.startedAt);
-    if (!Number.isFinite(started)) continue;
-    const key = whatsappPhoneKey(log.phone, `log:${log.id}`);
-    const starts = byPhone.get(key) ?? [];
-    starts.push({ started, initiatedBy: log.initiatedBy ?? null });
-    byPhone.set(key, starts);
-  }
-
-  const counts: WhatsappWindowCounts = { customer: 0, business: 0 };
-  for (const starts of byPhone.values()) {
-    starts.sort((left, right) => left.started - right.started);
-    let openedAt = Number.NEGATIVE_INFINITY;
-    for (const item of starts) {
-      if (item.started < openedAt + WHATSAPP_WINDOW_MS) continue;
-      openedAt = item.started;
-      if (item.started < monthStartMs) continue;
-      if (item.initiatedBy?.trim().toLowerCase() === 'business') {
-        counts.business += 1;
-      } else {
-        counts.customer += 1;
-      }
-    }
-  }
-
-  return counts;
 }
 
 export function whatsappChargeIls(

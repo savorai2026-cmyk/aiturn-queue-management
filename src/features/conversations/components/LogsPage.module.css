@@ -293,3 +293,9 @@ button.periodActive:not(:disabled):active {
     width: 100%;
   }
 }
+
+.scanNotice {
+  margin: 0 0 8px;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}

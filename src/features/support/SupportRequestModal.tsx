@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '../auth/AuthContextState';
 import { getBusinessSettings } from '../settings/settings.api';
 import modal from '../../shared/components/modalShell.module.css';
@@ -32,7 +32,13 @@ export default function SupportRequestModal({
   onClose,
 }: SupportRequestModalProps) {
   const { user } = useAuth();
+  const userRef = useRef(user);
+  const userId = user?.id ?? null;
   const [form, setForm] = useState<SupportDraft>(EMPTY);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
@@ -45,6 +51,8 @@ export default function SupportRequestModal({
     setSent(false);
 
     const load = async () => {
+      // Token refreshes replace the user object; only a different account refills the form.
+      const user = userRef.current;
       let contactEmail = user?.email?.trim() ?? '';
       let contactPhone = user?.phone?.trim() ?? '';
       let label = businessName.trim();
@@ -75,7 +83,7 @@ export default function SupportRequestModal({
     return () => {
       cancelled = true;
     };
-  }, [businessCode, businessName, user]);
+  }, [businessCode, businessName, userId]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -104,6 +112,7 @@ export default function SupportRequestModal({
     void sendSupportRequest({ ...form, businessCode })
       .then(() => {
         setSent(true);
+        setForm((previous) => ({ ...previous, message: '' }));
       })
       .catch((sendError: unknown) => {
         setError(sendError instanceof Error ? sendError.message : 'המייל לא נשלח.');

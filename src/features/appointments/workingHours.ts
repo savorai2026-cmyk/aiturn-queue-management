@@ -4,6 +4,7 @@ import {
   parseTimeToMinutes,
   toDateKey,
   toFullCalendarTime,
+  toLocalDateFromKey,
 } from './time';
 
 export type WeekdayKey =
@@ -286,6 +287,7 @@ export function resolveWorkingDay(
     return {
       is_closed: exception.is_closed,
       shifts: exception.shifts,
+      ...(exception.tentative ? { tentative: exception.tentative } : {}),
     };
   }
 
@@ -555,8 +557,14 @@ export function validateWorkingHourExceptions(
   return null;
 }
 
+// FullCalendar drops array entries that have no daysOfWeek.
+function weekdayOfDateKey(dateKey: string): number[] {
+  return [toLocalDateFromKey(dateKey).getDay()];
+}
+
 function shiftToCalendarRange(dateKey: string, shift: WorkingShift): CalendarBusinessHour {
   return {
+    daysOfWeek: weekdayOfDateKey(dateKey),
     startTime: formatTimeHm(shift.start),
     endTime: formatTimeHm(shift.end),
     startRecur: dateKey,
@@ -566,6 +574,7 @@ function shiftToCalendarRange(dateKey: string, shift: WorkingShift): CalendarBus
 
 function closedDayPlaceholder(dateKey: string): CalendarBusinessHour {
   return {
+    daysOfWeek: weekdayOfDateKey(dateKey),
     startTime: '00:00',
     endTime: '00:01',
     startRecur: dateKey,
@@ -655,6 +664,7 @@ function collectShiftMinutes(
 export function getCalendarSlotRange(
   workingHours: WorkingHours | null,
   exceptions: WorkingHourException[] = [],
+  appointmentTimes: Array<{ start: string; end: string }> = [],
 ): {
   slotMinTime: string;
   slotMaxTime: string;
@@ -666,6 +676,14 @@ export function getCalendarSlotRange(
       slotMinTime: '00:00:00',
       slotMaxTime: '24:00:00',
     };
+  }
+
+  // An appointment booked outside the shifts must stay visible on the grid.
+  for (const time of appointmentTimes) {
+    minutes.push(
+      Math.floor(parseTimeToMinutes(time.start) / 60) * 60,
+      Math.min(Math.ceil(parseTimeToMinutes(time.end) / 60) * 60, 24 * 60),
+    );
   }
 
   const minMinutes = Math.min(...minutes);

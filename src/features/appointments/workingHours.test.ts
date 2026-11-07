@@ -202,6 +202,27 @@ describe('working hours', () => {
     ).toBe(false);
   });
 
+  it('gives every ranged entry its weekday so FullCalendar keeps it', () => {
+    const hours = parseWorkingHours({
+      sunday: { is_closed: false, shifts: [{ start: '08:00', end: '18:00' }] },
+      wednesday: { is_closed: false, shifts: [{ start: '15:00', end: '18:00' }] },
+    });
+    const expanded = toFullCalendarBusinessHoursForRange(
+      hours,
+      [{ date: '2026-11-08', is_closed: false, shifts: [{ start: '07:00', end: '13:00' }] }],
+      '2026-11-08',
+      '2026-11-15',
+    );
+
+    expect(expanded.every((item) => item.daysOfWeek?.length === 1)).toBe(true);
+    expect(
+      expanded.find((item) => item.startRecur === '2026-11-11'),
+    ).toMatchObject({ daysOfWeek: [3], startTime: '15:00', endTime: '18:00' });
+    expect(
+      expanded.find((item) => item.startRecur === '2026-11-08'),
+    ).toMatchObject({ daysOfWeek: [0], startTime: '07:00', endTime: '13:00' });
+  });
+
   it('maps an open special day to local recurring hours', () => {
     const hours = parseWorkingHours({
       friday: { is_closed: false, shifts: [{ start: '09:00', end: '18:00' }] },
@@ -221,6 +242,7 @@ describe('working hours', () => {
 
     expect(expanded).toEqual([
       {
+        daysOfWeek: [5],
         startTime: '09:00',
         endTime: '12:00',
         startRecur: '2026-09-25',
@@ -350,6 +372,15 @@ describe('working hours', () => {
       { start: '11:00', end: '12:00', min_insists: 1 },
     ]);
     expect(validateWorkingDayDrafts(drafts)).toBeNull();
+
+    const hours = parseWorkingHours(payload);
+    const exceptions = parseWorkingHourExceptions(payload);
+    expect(resolveWorkingDay(hours, exceptions, '2026-11-05')?.tentative).toEqual([
+      { start: '14:00', end: '16:00', min_insists: 2 },
+    ]);
+    expect(resolveWorkingDay(hours, exceptions, '2026-11-12')?.tentative).toEqual([
+      { start: '11:00', end: '12:00', min_insists: 1 },
+    ]);
   });
 
   it('rejects a tentative range outside working hours', () => {

@@ -5,7 +5,6 @@ import {
 } from '../usage/planPricing';
 
 export const INCLUDED_STORAGE_GB = 5;
-export const EXTRA_STORAGE_GB_ILS = 5;
 export const MIN_STORAGE_QUOTA_GB = 5;
 
 const KIB = 1024;

@@ -1,10 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../features/auth/AuthContextState';
 import { getErrorMessage } from '../errors';
-import {
-  getDefaultVisibleKeys,
-  getDisplayCatalog,
-} from './catalogs';
 import {
   hasStoredUiPreferences,
   readCachedUiPreferences,
@@ -129,23 +125,7 @@ export function useUiPreferences(businessCode: string) {
     [businessCode, memberId, memberPrefs, userId],
   );
 
-  const catalogs = useMemo(
-    () => ({
-      clients: getDisplayCatalog('clients'),
-      appointments: getDisplayCatalog('appointments'),
-      services: getDisplayCatalog('services'),
-      business: getDisplayCatalog('business'),
-      businessConfig: getDisplayCatalog('businessConfig'),
-      statuses: getDisplayCatalog('statuses'),
-      logs: getDisplayCatalog('logs'),
-      usage: getDisplayCatalog('usage'),
-      defaults: getDefaultVisibleKeys,
-    }),
-    [],
-  );
-
   return {
-    catalogs,
     visibleFieldsFor,
     toggleField,
     reorderFields,

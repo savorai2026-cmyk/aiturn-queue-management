@@ -35,6 +35,7 @@ interface SidePanelProps {
   appointment: AppointmentDetails | null;
   statuses: StatusCatalogItem[];
   isBusy: boolean;
+  readOnly?: boolean;
   visibleFields: string[];
   onToggleField: (key: string) => void;
   onSave: (values: AppointmentEditValues) => Promise<void>;
@@ -44,6 +45,7 @@ export const SidePanel = ({
   appointment,
   statuses,
   isBusy,
+  readOnly = false,
   visibleFields,
   onToggleField,
   onSave,
@@ -125,26 +127,30 @@ export const SidePanel = ({
             variant="onDark"
             helpPosition="start"
           />
-          <button
-            type="button"
-            className={styles.iconButton}
-            onClick={() => setIsEditing((current) => !current)}
-            aria-label={isEditing ? 'סגור עריכה' : 'עריכת פרטי התור'}
-            title={isEditing ? 'סגור עריכה' : 'עריכה'}
-            disabled={isBusy}
-          >
-            <PencilIcon />
-          </button>
-          <button
-            type="button"
-            className={styles.iconButton}
-            onClick={() => void handleSave()}
-            aria-label="שמירת שינויים"
-            title={hasChanges ? 'שמירה' : 'אין שינויים לשמירה'}
-            disabled={isBusy || !hasChanges}
-          >
-            <SaveIcon />
-          </button>
+          {readOnly ? null : (
+            <>
+              <button
+                type="button"
+                className={styles.iconButton}
+                onClick={() => setIsEditing((current) => !current)}
+                aria-label={isEditing ? 'סגור עריכה' : 'עריכת פרטי התור'}
+                title={isEditing ? 'סגור עריכה' : 'עריכה'}
+                disabled={isBusy}
+              >
+                <PencilIcon />
+              </button>
+              <button
+                type="button"
+                className={styles.iconButton}
+                onClick={() => void handleSave()}
+                aria-label="שמירת שינויים"
+                title={hasChanges ? 'שמירה' : 'אין שינויים לשמירה'}
+                disabled={isBusy || !hasChanges}
+              >
+                <SaveIcon />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -344,6 +350,7 @@ export const SidePanel = ({
           <textarea
             className={styles.textarea}
             value={formData.business_notes}
+            readOnly={!isEditing}
             onChange={(event) =>
               setFormData((current) =>
                 current

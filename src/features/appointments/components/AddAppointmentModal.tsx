@@ -22,7 +22,7 @@ import type {
   AppointmentServiceOption,
   SchedulerSlot,
 } from '../appointments.types';
-import { toDateKey } from '../time';
+import { nowInTimeZone, toDateKey } from '../time';
 import { getBookingMaxDate } from '../workingHours';
 import {
   getAppointmentCreateErrorMessage,
@@ -44,6 +44,7 @@ interface AddAppointmentModalProps {
   initialDate?: string | null;
   initialTime?: string | null;
   maxAdvBookingDays?: number | null;
+  timezone?: string | null;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -94,12 +95,14 @@ export default function AddAppointmentModal({
   initialDate = null,
   initialTime = null,
   maxAdvBookingDays = null,
+  timezone = null,
   onClose,
   onSuccess,
 }: AddAppointmentModalProps) {
   const createStatusOptions = creatableStatuses(statuses);
-  const minAppointmentDate = toDateKey(new Date());
-  const maxAppointmentDate = getBookingMaxDate(maxAdvBookingDays);
+  const businessNow = nowInTimeZone(timezone);
+  const minAppointmentDate = toDateKey(businessNow);
+  const maxAppointmentDate = getBookingMaxDate(maxAdvBookingDays, businessNow);
   const [clients, setClients] = useState<AppointmentClientOption[]>([]);
   const [services, setServices] = useState<AppointmentServiceOption[]>([]);
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
@@ -135,10 +138,6 @@ export default function AddAppointmentModal({
 
         setClients(clientOptions);
         setServices(serviceOptions);
-        setFormData((previous) => ({
-          ...previous,
-          client_id: previous.client_id || String(clientOptions[0]?.id ?? ''),
-        }));
       })
       .catch((error: unknown) => {
         if (isCancelled) return;
@@ -220,17 +219,7 @@ export default function AddAppointmentModal({
     >,
   ) => {
     const { name, value } = event.target;
-
-    if (name === 'status') {
-      setFormData((previous) => ({ ...previous, status: value }));
-      return;
-    }
-
     setFormData((previous) => ({ ...previous, [name]: value }));
-
-    if (name === 'appointment_date' || name === 'start_time') {
-      clearSlotSuggestions();
-    }
   };
 
   const toggleService = (serviceId: number) => {
@@ -305,13 +294,13 @@ export default function AddAppointmentModal({
       return;
     }
 
-    if (formData.end_time <= formData.start_time) {
-      setErrorMessage('שעת הסיום חייבת להיות מאוחרת משעת ההתחלה.');
+    if (!calculatedEndTime) {
+      setErrorMessage('השירותים שנבחרו חורגים מסוף היום.');
       return;
     }
 
-    if (!calculatedEndTime) {
-      setErrorMessage('השירותים שנבחרו חורגים מסוף היום.');
+    if (calculatedEndTime <= formData.start_time) {
+      setErrorMessage('שעת הסיום חייבת להיות מאוחרת משעת ההתחלה.');
       return;
     }
 
@@ -513,18 +502,12 @@ export default function AddAppointmentModal({
               </div>
 
               <div className={styles.formGroup}>
-                <label htmlFor="appointment-end">שעת סיום</label>
+                <label htmlFor="appointment-end">שעת סיום (לפי השירותים)</label>
                 <HourMinuteField
                   id="appointment-end"
                   value={formData.end_time}
-                  required
+                  readOnly
                   aria-label="שעת סיום"
-                  onChange={(endTime) => {
-                    setFormData((previous) => ({
-                      ...previous,
-                      end_time: endTime,
-                    }));
-                  }}
                 />
               </div>
             </div>

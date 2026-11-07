@@ -481,6 +481,22 @@
   opacity: 1 !important;
 }
 
+:global(.fc-bg-event.tentative-fill),
+:global(.fc .fc-bg-event.tentative-fill) {
+  background-color: #fff6e5 !important;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 8px,
+    rgba(217, 119, 6, 0.2) 8px,
+    rgba(217, 119, 6, 0.2) 10px
+  ) !important;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 1 !important;
+}
+
 :global(.fc-timegrid-event.event-group-start),
 :global(.fc-timegrid-event.event-group-middle) {
   margin-bottom: 0 !important;

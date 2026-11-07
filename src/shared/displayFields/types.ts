@@ -5,8 +5,7 @@ export type DisplayScope =
   | 'business'
   | 'businessConfig'
   | 'statuses'
-  | 'logs'
-  | 'usage';
+  | 'logs';
 
 export interface DisplayField {
   key: string;
@@ -27,7 +26,6 @@ export interface UiPreferences {
   businessConfig?: ScopePreferences;
   statuses?: ScopePreferences;
   logs?: ScopePreferences;
-  usage?: ScopePreferences;
 }
 
 export interface DetailSection {

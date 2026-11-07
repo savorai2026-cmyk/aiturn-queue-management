@@ -190,14 +190,18 @@ export async function updateAppointment(
   appointmentId: number,
   changes: AppointmentUpdate,
 ): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('appointments')
     .update(changes)
     .eq('business_code', businessCode)
-    .eq('id', appointmentId);
+    .eq('id', appointmentId)
+    .select('id');
 
   if (error) {
     throw new Error(error.message);
+  }
+  if (!data?.length) {
+    throw new Error('התור לא עודכן. ייתכן שחסרה הרשאת עריכה.');
   }
 }
 

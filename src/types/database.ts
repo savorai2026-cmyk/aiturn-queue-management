@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -336,6 +336,9 @@ export type Database = {
       businesses: {
         Row: {
           agent_phone_number: string | null
+          owner_alert_channel: string | null
+          owner_alert_phone: string | null
+          owner_alert_lead_hours: number
           business_code: string
           business_name: string
           contact_phone: string | null
@@ -366,6 +369,9 @@ export type Database = {
         }
         Insert: {
           agent_phone_number?: string | null
+          owner_alert_channel?: string | null
+          owner_alert_phone?: string | null
+          owner_alert_lead_hours?: number
           business_code: string
           business_name: string
           contact_phone?: string | null
@@ -396,6 +402,9 @@ export type Database = {
         }
         Update: {
           agent_phone_number?: string | null
+          owner_alert_channel?: string | null
+          owner_alert_phone?: string | null
+          owner_alert_lead_hours?: number
           business_code?: string
           business_name?: string
           contact_phone?: string | null

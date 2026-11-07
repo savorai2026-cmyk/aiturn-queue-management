@@ -8,12 +8,9 @@ import {
   schedulerFailureMessage,
   type SchedulerResponseBody,
 } from './scheduler.mappers';
-import type {
-  BookAppointmentPayload,
-  SchedulerSlot,
-} from './appointments.types';
+import type { SchedulerSlot } from './appointments.types';
 
-type SchedulerAction = 'book' | 'slots' | 'cancel' | 'reschedule';
+type SchedulerAction = 'slots' | 'cancel' | 'reschedule';
 
 interface SchedulerSuccessBody extends SchedulerResponseBody {
   slots?: unknown;
@@ -53,31 +50,6 @@ async function invokeScheduler<T>(
   }
 
   return body as T;
-}
-
-export async function bookAppointment(payload: BookAppointmentPayload) {
-  const primary = payload.services[0];
-  if (!primary) {
-    throw new Error('יש לבחור לפחות שירות אחד.');
-  }
-
-  return invokeScheduler('book', {
-    business_code: payload.businessCode,
-    client_name: payload.clientName,
-    client_phone: payload.clientPhone,
-    appointment_time: payload.appointmentTime,
-    service_id: primary.serviceId,
-    duration: Math.round(
-      payload.services.reduce((total, service) => total + service.duration, 0),
-    ),
-    price: Math.round(
-      payload.services.reduce((total, service) => total + service.price, 0),
-    ),
-    force_booking: true,
-    status: payload.status,
-    client_notes: payload.clientNotes.trim() || undefined,
-    business_notes: payload.businessNotes.trim() || undefined,
-  });
 }
 
 export async function getSchedulerSlots(payload: {

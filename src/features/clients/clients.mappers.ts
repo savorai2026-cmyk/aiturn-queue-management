@@ -211,7 +211,7 @@ export function normalizeClientValues(
     mobile_phone: values.mobile_phone.trim(),
     email: emptyToNull(values.email),
     city: emptyToNull(values.city),
-    gender: values.gender,
+    gender: values.gender || null,
     national_id: emptyToNull(values.national_id),
     booking_policy: values.booking_policy,
     payment_requirement: values.payment_requirement,

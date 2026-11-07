@@ -37,6 +37,7 @@ import IconButton, {
   TrashIcon,
 } from '../../../shared/components/IconButton';
 import { getErrorMessage } from '../../../shared/errors';
+import { canEditRecords, useBusiness } from '../../business/BusinessContextState';
 import ConfirmDeleteModal from '../../settings/components/ConfirmDeleteModal';
 import AddClientModal from './AddClientModal';
 import styles from './ClientManagement.module.css';
@@ -119,6 +120,8 @@ const CLIENT_SELECT_OPTIONS = {
 export default function ClientManagement({ businessCode }: ClientManagementProps) {
   const { clients, error, isLoading, refresh } = useClients(businessCode);
   const { visibleFieldsFor, toggleField, reorderFields } = useUiPreferences(businessCode);
+  const { activeBusiness } = useBusiness();
+  const canEdit = canEditRecords(activeBusiness?.role);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
@@ -275,15 +278,17 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
               נקה סינון ומיון
             </button>
           ) : null}
-          <button
-            className={styles.btnPrimary}
-            onClick={() => {
-              setEditingClient(null);
-              setIsModalOpen(true);
-            }}
-          >
-            לקוח חדש
-          </button>
+          {canEdit ? (
+            <button
+              className={styles.btnPrimary}
+              onClick={() => {
+                setEditingClient(null);
+                setIsModalOpen(true);
+              }}
+            >
+              לקוח חדש
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -308,6 +313,7 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
               setColumnFilters((current) => ({ ...current, [key]: value }))
             }
             selectOptions={CLIENT_SELECT_OPTIONS}
+            showActions={canEdit}
             onReorder={(keys) => reorderFields('clients', keys)}
           />
           <tbody>
@@ -319,29 +325,31 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
                 }
                 onClick={() => setSelectedClientId(client.id)}
               >
-                <td>
-                  <div className={styles.rowActions}>
-                    <IconButton
-                      label="ערוך לקוח"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleEdit(client);
-                      }}
-                    >
-                      <PencilIcon />
-                    </IconButton>
-                    <IconButton
-                      label="מחק לקוח"
-                      variant="danger"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setPendingDelete(client);
-                      }}
-                    >
-                      <TrashIcon />
-                    </IconButton>
-                  </div>
-                </td>
+                {canEdit ? (
+                  <td>
+                    <div className={styles.rowActions}>
+                      <IconButton
+                        label="ערוך לקוח"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleEdit(client);
+                        }}
+                      >
+                        <PencilIcon />
+                      </IconButton>
+                      <IconButton
+                        label="מחק לקוח"
+                        variant="danger"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setPendingDelete(client);
+                        }}
+                      >
+                        <TrashIcon />
+                      </IconButton>
+                    </div>
+                  </td>
+                ) : null}
                 {activeColumns.map((column) => (
                   <td key={column.key} dir={column.dir || 'rtl'}>
                     {formatClientCell(client, column.key as ClientColumnKey)}
@@ -351,7 +359,10 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
             ))}
             {visibleClients.length === 0 && (
               <tr>
-                <td colSpan={activeColumns.length + 1} className={styles.emptyState}>
+                <td
+                  colSpan={activeColumns.length + (canEdit ? 1 : 0)}
+                  className={styles.emptyState}
+                >
                   {clients.length === 0
                     ? 'לא נמצאו לקוחות במערכת'
                     : 'לא נמצאו לקוחות מתאימים לסינון'}
@@ -370,7 +381,7 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
         />
       ) : null}
 
-      {isModalOpen && (
+      {canEdit && isModalOpen && (
         <AddClientModal
           businessCode={businessCode}
           clientToEdit={editingClient}

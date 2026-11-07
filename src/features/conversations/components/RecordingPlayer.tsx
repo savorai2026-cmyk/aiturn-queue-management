@@ -193,6 +193,9 @@ export default function RecordingPlayer({
       link.href = href;
       link.download = fileName;
       link.rel = 'noopener';
+      if (!storagePath) {
+        link.target = '_blank';
+      }
       document.body.appendChild(link);
       link.click();
       link.remove();

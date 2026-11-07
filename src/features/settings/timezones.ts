@@ -64,18 +64,6 @@ const TIMEZONE_LABELS: Record<string, string> = {
   'Pacific/Auckland': 'אוקלנד',
 };
 
-export function listIanaTimezones(): string[] {
-  try {
-    if (typeof Intl !== 'undefined' && 'supportedValuesOf' in Intl) {
-      return Intl.supportedValuesOf('timeZone');
-    }
-  } catch {
-    // Some runtimes expose the method but reject this key.
-  }
-
-  return [...MAIN_TIMEZONES];
-}
-
 export function formatGmtOffset(timeZone: string, date = new Date()): string {
   try {
     const value = new Intl.DateTimeFormat('en-US', {

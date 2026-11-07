@@ -79,6 +79,45 @@ export function toDateKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * Appointments are stored as wall-clock date and time in the business timezone,
+ * so "now" must be the business wall clock too, not the browser's.
+ */
+export function nowInTimeZone(
+  timeZone: string | null | undefined,
+  at: Date = new Date(),
+): Date {
+  const zone = timeZone?.trim();
+  if (!zone) return new Date(at.getTime());
+
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: zone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).formatToParts(at);
+    const part = (type: Intl.DateTimeFormatPartTypes) =>
+      Number(parts.find((item) => item.type === type)?.value);
+
+    return new Date(
+      part('year'),
+      part('month') - 1,
+      part('day'),
+      part('hour'),
+      part('minute'),
+      part('second'),
+      at.getMilliseconds(),
+    );
+  } catch {
+    return new Date(at.getTime());
+  }
+}
+
 export function toLocalDateFromKey(dateKey: string, time = '00:00'): Date {
   const [year, month, day] = dateKey.split('-').map(Number);
   const minutes = parseTimeToMinutes(time);

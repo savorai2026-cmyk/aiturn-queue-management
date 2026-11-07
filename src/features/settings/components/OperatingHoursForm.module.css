@@ -335,6 +335,10 @@
   color: #047857;
 }
 
+.lockedFields {
+  display: contents;
+}
+
 .error {
   background: #fef2f2;
   color: #b91c1c;

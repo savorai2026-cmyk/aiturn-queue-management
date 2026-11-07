@@ -219,9 +219,12 @@ export function toCalendarEvents(
       const details = toAppointmentDetails(appointment);
       const color = getAppointmentColor(appointment.status, catalog);
       const services = details.services;
-      const startTime = services[0]?.startTime ?? appointment.start_time;
+      const startTime = appointment.start_time;
+      const savedEnd = appointment.end_time;
       const endTime =
-        services[services.length - 1]?.endTime ?? appointment.end_time;
+        savedEnd && parseTimeToMinutes(savedEnd) > parseTimeToMinutes(startTime)
+          ? savedEnd
+          : services[services.length - 1]?.endTime ?? savedEnd;
       const serviceTitle = services
         .map((service) => service.title.trim())
         .filter(Boolean)
@@ -288,7 +291,7 @@ export function toCalendarEvents(
       classNames: [
         `event-group-${groupRole}`,
         ...(hold?.awaiting ? ['event-payment-hold'] : []),
-        ...(hold && !hold.awaiting ? ['event-payment-proof'] : []),
+        ...(hold?.proof && !hold.awaiting ? ['event-payment-proof'] : []),
       ],
       extendedProps,
     };
@@ -357,6 +360,22 @@ export function toAppointmentUpdate(
     client_notes: values.client_notes.trim() || null,
     business_notes: values.business_notes.trim() || null,
   };
+}
+
+/** Only the columns the user changed, so a save can't revert concurrent bot updates. */
+export function changedAppointmentFields(
+  baseline: AppointmentEditValues,
+  values: AppointmentEditValues,
+): AppointmentUpdate {
+  const before = toAppointmentUpdate(baseline);
+  const after = toAppointmentUpdate(values);
+  const changes: AppointmentUpdate = {};
+  for (const key of Object.keys(after) as Array<keyof AppointmentUpdate>) {
+    if (after[key] !== before[key]) {
+      Object.assign(changes, { [key]: after[key] });
+    }
+  }
+  return changes;
 }
 
 export function formatAppointmentField(

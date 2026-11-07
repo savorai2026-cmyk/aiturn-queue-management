@@ -53,7 +53,9 @@ export default function PaymentHoldNotice({
       <p>
         {hold.awaiting
           ? 'הלקוח סומן כחשוד לביטול. התור ממתין לאסמכתא בוואטסאפ ולא נחשב תור קבוע.'
-          : 'התקבלה אסמכתא בוואטסאפ והתור אושר.'}
+          : hold.proof
+            ? 'התקבלה אסמכתא בוואטסאפ והתור אושר.'
+            : 'הסטטוס שונה ידנית לפני שהתקבלה אסמכתא.'}
       </p>
       <p className={styles.meta}>
         {hold.amount ? <span>סכום {hold.amount} ₪</span> : null}
@@ -65,9 +67,9 @@ export default function PaymentHoldNotice({
         <button type="button" onClick={() => void openProof()} disabled={isOpening}>
           {isOpening ? 'פותח...' : 'צפייה באסמכתא'}
         </button>
-      ) : (
+      ) : hold.awaiting ? (
         <p className={styles.meta}>עדיין לא התקבלה אסמכתא.</p>
-      )}
+      ) : null}
       {error ? <p className={styles.error}>{error}</p> : null}
     </section>
   );

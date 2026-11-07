@@ -3,7 +3,6 @@ import styles from './IconButton.module.css';
 
 export {
   PencilIcon,
-  PlusIcon,
   TrashIcon,
 } from './icons';
 

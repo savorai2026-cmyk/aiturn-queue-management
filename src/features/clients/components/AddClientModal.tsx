@@ -43,7 +43,7 @@ function getInitialFormData(client: Client | null): ClientFormValues {
     mobile_phone: client?.mobile_phone || '',
     email: client?.email || '',
     city: client?.city || '',
-    gender: client?.gender || 'M',
+    gender: client?.gender || '',
     national_id: client?.national_id || '',
     booking_policy: parseBookingPolicy(client?.booking_policy),
     payment_requirement: parsePaymentRequirement(client?.payment_requirement),
@@ -200,6 +200,7 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
                 onChange={handleChange}
                 className={styles.select}
               >
+                <option value="">לא צוין</option>
                 <option value="M">זכר</option>
                 <option value="F">נקבה</option>
               </select>

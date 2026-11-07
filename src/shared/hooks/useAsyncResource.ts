@@ -52,11 +52,11 @@ export function useAsyncResource<T>({
         if (isCancelled) return;
 
         console.error(`${logLabel}:`, getErrorMessage(error));
-        setState({
-          resourceKey,
-          data: initialData,
-          error: errorMessage,
-        });
+        setState((previous) =>
+          previous.resourceKey === resourceKey && previous.error === null
+            ? previous
+            : { resourceKey, data: initialData, error: errorMessage },
+        );
       });
 
     return () => {

@@ -23,7 +23,15 @@ import {
   type WorkingHourException,
   type WorkingHours,
 } from '../workingHours';
-import { addDaysToDateKey, snapMinutes, snapTimeHm, toDateKey, toLocalDateFromKey, toTimeHm } from '../time';
+import {
+  addDaysToDateKey,
+  nowInTimeZone,
+  snapMinutes,
+  snapTimeHm,
+  toDateKey,
+  toLocalDateFromKey,
+  toTimeHm,
+} from '../time';
 import {
   DRAG_PERIOD_HOVER_MS,
   buildDropRange,
@@ -105,6 +113,8 @@ interface CalendarViewProps {
   workingHours: Json | null;
   slotDurationMinutes: number | null;
   maxAdvBookingDays: number | null;
+  timezone: string | null;
+  canEdit: boolean;
 }
 
 function isClosedCalendarDay(
@@ -128,8 +138,13 @@ function specialNoteForDate(
   return note || null;
 }
 
-function dateWhenLeavingMonth(monthStart: Date, monthEnd: Date, selectedDate: string | null) {
-  const today = new Date();
+function dateWhenLeavingMonth(
+  monthStart: Date,
+  monthEnd: Date,
+  selectedDate: string | null,
+  now: Date,
+) {
+  const today = new Date(now.getTime());
   today.setHours(0, 0, 0, 0);
   if (today >= monthStart && today < monthEnd) return today;
   if (selectedDate) {
@@ -192,7 +207,10 @@ export default function CalendarView({
   workingHours,
   slotDurationMinutes,
   maxAdvBookingDays,
+  timezone,
+  canEdit,
 }: CalendarViewProps) {
+  const getNow = useCallback(() => nowInTimeZone(timezone), [timezone]);
   const calendarRef = useRef<FullCalendar | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const storedLocation = useMemo(
@@ -203,7 +221,7 @@ export default function CalendarView({
     window.matchMedia(MOBILE_QUERY).matches,
   );
   const [visibleRange, setVisibleRange] = useState(() => {
-    const start = storedLocation?.date ?? toDateKey(new Date());
+    const start = storedLocation?.date ?? toDateKey(getNow());
     return { start, end: start };
   });
   const dragTooltipRef = useRef<HTMLDivElement | null>(null);
@@ -240,7 +258,7 @@ export default function CalendarView({
     storedLocation?.view ?? (isMobile ? 'timeGridDay' : 'timeGridWeek'),
   );
   const [viewCurrentStartKey, setViewCurrentStartKey] = useState(
-    () => storedLocation?.date ?? toDateKey(new Date()),
+    () => storedLocation?.date ?? toDateKey(getNow()),
   );
 
   useEffect(() => {
@@ -455,7 +473,12 @@ export default function CalendarView({
         : 'timeGridDay';
       api.changeView(
         nextView,
-        dateWhenLeavingMonth(api.view.currentStart, api.view.currentEnd, selectedDate),
+        dateWhenLeavingMonth(
+          api.view.currentStart,
+          api.view.currentEnd,
+          selectedDate,
+          getNow(),
+        ),
       );
     };
     root.addEventListener('mousedown', onMouseDown, true);
@@ -464,7 +487,7 @@ export default function CalendarView({
       root.removeEventListener('mousedown', onMouseDown, true);
       root.removeEventListener('click', onClick, true);
     };
-  }, [selectedDate]);
+  }, [getNow, selectedDate]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -507,11 +530,11 @@ export default function CalendarView({
   }, [applyDayMarks, events, isMobile]);
 
   const goToToday = useCallback(() => {
-    const today = new Date();
+    const today = getNow();
     calendarRef.current?.getApi().today();
     onSelectDate(toDateKey(today));
     onSelectTime?.(null);
-  }, [onSelectDate, onSelectTime]);
+  }, [getNow, onSelectDate, onSelectTime]);
 
   const syncTodayButton = useCallback(() => {
     const root = rootRef.current;
@@ -524,13 +547,13 @@ export default function CalendarView({
     button.title = TODAY_HINT;
     button.setAttribute('aria-label', TODAY_HINT);
 
-    const today = new Date();
+    const today = getNow();
     const todayKey = toDateKey(today);
     const viewHasToday = api
       ? api.view.activeStart <= today && today < api.view.activeEnd
       : false;
     button.disabled = selectedDate === todayKey && viewHasToday;
-  }, [selectedDate]);
+  }, [getNow, selectedDate]);
 
   useLayoutEffect(() => {
     syncTodayButton();
@@ -552,15 +575,37 @@ export default function CalendarView({
         : toFullCalendarBusinessHours(parsedHours),
     [exceptions, parsedHours, visibleRange.end, visibleRange.start],
   );
+  const activeAppointments = useMemo(
+    () => appointments.filter((appointment) => !isCanceledStatus(appointment.status)),
+    [appointments],
+  );
   const slotRange = useMemo(
-    () => getCalendarSlotRange(parsedHours, exceptions),
-    [exceptions, parsedHours],
+    () =>
+      getCalendarSlotRange(
+        parsedHours,
+        exceptions,
+        activeAppointments.map((appointment) => ({
+          start: appointment.start_time,
+          end: appointment.end_time,
+        })),
+      ),
+    [activeAppointments, exceptions, parsedHours],
   );
   const bookingRangeEnd = useMemo(
-    () => getBookingRangeEndExclusive(maxAdvBookingDays),
-    [maxAdvBookingDays],
+    () => getBookingRangeEndExclusive(maxAdvBookingDays, getNow()),
+    [getNow, maxAdvBookingDays],
   );
   bookingRangeEndRef.current = bookingRangeEnd;
+  const navigationRangeEnd = useMemo(() => {
+    if (!bookingRangeEnd) return null;
+    const lastDate = activeAppointments.reduce(
+      (latest, appointment) =>
+        appointment.appointment_date > latest ? appointment.appointment_date : latest,
+      '',
+    );
+    const afterLast = lastDate ? addDaysToDateKey(lastDate, 1) : '';
+    return afterLast > bookingRangeEnd ? afterLast : bookingRangeEnd;
+  }, [activeAppointments, bookingRangeEnd]);
 
   const holidaysByDate = useMemo(
     () => getIsraeliHolidaysInRange(visibleRange.start, visibleRange.end),
@@ -589,7 +634,7 @@ export default function CalendarView({
           : event.classNames
             ? [event.classNames]
             : [];
-        const canMove = !isCanceledStatus(props?.status ?? '');
+        const canMove = canEdit && !isCanceledStatus(props?.status ?? '');
         const classNames = [
           ...existingNames,
           props?.appointmentId === selectedAppointmentId ? 'event-selected' : '',
@@ -645,6 +690,24 @@ export default function CalendarView({
             });
           }
 
+          if (!closed) {
+            const tentative =
+              resolveWorkingDay(parsedHours, exceptions, current)?.tentative ?? [];
+            tentative.forEach((range, index) => {
+              markers.push({
+                id: `tentative-${current}-${index}`,
+                title: 'שוקל סגירה',
+                start: toLocalDateFromKey(current, range.start),
+                end: toLocalDateFromKey(current, range.end),
+                display: 'background',
+                editable: false,
+                overlap: true,
+                classNames: ['tentative-fill'],
+                extendedProps: { specialDayLabel: true },
+              });
+            });
+          }
+
           current = addDaysToDateKey(current, 1);
           guard += 1;
         }
@@ -653,6 +716,7 @@ export default function CalendarView({
       return [...markers, ...appointmentEvents];
     },
     [
+      canEdit,
       events,
       exceptions,
       parsedHours,
@@ -1111,16 +1175,19 @@ export default function CalendarView({
         headerToolbar={
           isMobile
             ? {
-                left: 'newAppointmentBtn',
+                left: canEdit ? 'newAppointmentBtn' : '',
                 center: 'prev,title,next',
                 right: 'goTodayBtn',
               }
             : {
-                left: 'newAppointmentBtn prev,next goTodayBtn',
+                left: canEdit
+                  ? 'newAppointmentBtn prev,next goTodayBtn'
+                  : 'prev,next goTodayBtn',
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay',
               }
         }
+        now={getNow}
         events={calendarEvents}
         height="auto"
         stickyHeaderDates
@@ -1138,10 +1205,10 @@ export default function CalendarView({
           meridiem: false,
         }}
         snapDuration="00:05:00"
-        validRange={bookingRangeEnd ? { end: bookingRangeEnd } : undefined}
+        validRange={navigationRangeEnd ? { end: navigationRangeEnd } : undefined}
         businessHours={businessHours.length > 0 ? businessHours : undefined}
         eventOverlap={handleEventOverlap}
-        editable
+        editable={canEdit}
         eventDurationEditable={false}
         eventResizableFromStart={false}
         nowIndicator

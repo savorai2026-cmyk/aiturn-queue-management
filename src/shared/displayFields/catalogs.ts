@@ -73,8 +73,7 @@ export const BUSINESS_CONFIG_FIELDS: DisplayField[] = [
   { key: 'save_recordings', label: 'שמירת הקלטות', defaultVisible: true },
   { key: 'recordings_retention_days', label: 'ימי שמירת הקלטות', defaultVisible: true },
   { key: 'history_retention_months', label: 'חודשי היסטוריית תורים', defaultVisible: true },
-  { key: 'voice_log_retention_months', label: 'חודשי לוג קולי', defaultVisible: true },
-  { key: 'whatsapp_retention_months', label: 'חודשי התכתבות וואטסאפ', defaultVisible: true },
+  { key: 'whatsapp_retention_months', label: 'חודשי התכתבות וואטסאפ ותמלול', defaultVisible: true },
   { key: 'subscription_plan', label: 'מנוי', defaultVisible: true },
   { key: 'storage_quota_gb', label: 'מכסת אחסון', defaultVisible: true },
   { key: 'is_active', label: 'הסוכנים פעילים', defaultVisible: true },
@@ -91,17 +90,6 @@ export const LOG_FIELDS: DisplayField[] = [
   { key: 'recording', label: 'הקלטה', defaultVisible: true },
 ];
 
-export const USAGE_FIELDS: DisplayField[] = [
-  { key: 'createdAt', label: 'תאריך', defaultVisible: true },
-  { key: 'action', label: 'פעולה', defaultVisible: true },
-  { key: 'quantity', label: 'כמות', defaultVisible: true },
-  { key: 'unit', label: 'יחידה', defaultVisible: true },
-  { key: 'amountCredits', label: 'קרדיטים', defaultVisible: true },
-  { key: 'id', label: 'מזהה', defaultVisible: true, dir: 'ltr' },
-  { key: 'businessCode', label: 'קוד עסק', defaultVisible: true, dir: 'ltr' },
-  { key: 'meta', label: 'מטא', defaultVisible: true, dir: 'ltr' },
-];
-
 const CATALOGS: Record<DisplayScope, DisplayField[]> = {
   clients: CLIENT_FIELDS,
   appointments: APPOINTMENT_FIELDS,
@@ -110,7 +98,6 @@ const CATALOGS: Record<DisplayScope, DisplayField[]> = {
   businessConfig: BUSINESS_CONFIG_FIELDS,
   statuses: STATUS_FIELDS,
   logs: LOG_FIELDS,
-  usage: USAGE_FIELDS,
 };
 
 export function getDisplayCatalog(scope: DisplayScope): DisplayField[] {

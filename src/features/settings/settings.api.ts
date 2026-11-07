@@ -3,7 +3,6 @@ import { supabase } from '../../supabaseClient';
 import { getErrorMessage } from '../../shared/errors';
 import { decodeAudioBase64, readAgentVoices, type AgentVoiceOption } from './agentVoices';
 import type {
-  AppointmentStatusInsert,
   AppointmentStatusRow,
   AppointmentStatusUpdate,
   BusinessSettings,
@@ -26,6 +25,9 @@ const businessColumns = `
   contact_phone,
   email,
   agent_phone_number,
+  owner_alert_channel,
+  owner_alert_phone,
+  owner_alert_lead_hours,
   timezone,
   slot_duration_minutes,
   deposit_percent,
@@ -221,22 +223,6 @@ export async function getStatuses(
   return data;
 }
 
-export async function createStatus(
-  status: AppointmentStatusInsert,
-): Promise<AppointmentStatusRow> {
-  const { data, error } = await supabase
-    .from('statuses')
-    .insert(status)
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data;
-}
-
 export async function updateStatus(
   businessCode: string,
   statusCode: string,
@@ -255,39 +241,6 @@ export async function updateStatus(
   }
 
   return data;
-}
-
-export async function deleteStatus(
-  businessCode: string,
-  statusCode: string,
-): Promise<void> {
-  const rpc = await supabase.rpc('delete_catalog_status', {
-    p_business_code: businessCode,
-    p_status_code: statusCode,
-  });
-
-  if (!rpc.error) {
-    return;
-  }
-
-  if (!isMissingRpc(rpc.error)) {
-    throw new Error(rpc.error.message);
-  }
-
-  const { data, error } = await supabase
-    .from('statuses')
-    .delete()
-    .eq('business_code', businessCode)
-    .eq('status_code', statusCode)
-    .select('status_code');
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  if (!data?.length) {
-    throw new Error('לא ניתן למחוק את הסטטוס.');
-  }
 }
 
 export async function getBusinessStorageUsedBytes(
@@ -378,6 +331,12 @@ export async function getBusinessPlanUsage(
   };
 }
 
+function assertBusinessUpdated(rows: unknown[] | null) {
+  if (!rows?.length) {
+    throw new Error('השינויים לא נשמרו. ייתכן שחסרה הרשאת עריכה לעסק.');
+  }
+}
+
 function withoutAgentVoice(
   settings: Partial<EditableBusinessSettings>,
 ): Partial<EditableBusinessSettings> {
@@ -394,12 +353,13 @@ export async function updateBusinessSettings(
     ? settings.agent_voice_id?.trim() || null
     : undefined;
   const payload = agentVoiceColumnAvailable ? settings : withoutAgentVoice(settings);
-  const { error } = Object.keys(payload).length === 0
-    ? { error: null }
+  const { data, error } = Object.keys(payload).length === 0
+    ? { data: [{ business_code: businessCode }], error: null }
     : await supabase
       .from('businesses')
       .update(payload)
-      .eq('business_code', businessCode);
+      .eq('business_code', businessCode)
+      .select('business_code');
 
   if (error && isMissingAgentVoiceColumn(error)) {
     agentVoiceColumnAvailable = false;
@@ -408,13 +368,17 @@ export async function updateBusinessSettings(
       const retry = await supabase
         .from('businesses')
         .update(rest)
-        .eq('business_code', businessCode);
+        .eq('business_code', businessCode)
+        .select('business_code');
       if (retry.error) {
         throw new Error(retry.error.message);
       }
+      assertBusinessUpdated(retry.data);
     }
   } else if (error) {
     throw new Error(error.message);
+  } else {
+    assertBusinessUpdated(data);
   }
 
   if (!agentVoiceColumnAvailable && requestedVoice) {
@@ -450,14 +414,16 @@ export async function updateOperatingHours(
   businessCode: string,
   settings: OperatingHoursUpdate,
 ): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('businesses')
     .update(settings)
-    .eq('business_code', businessCode);
+    .eq('business_code', businessCode)
+    .select('business_code');
 
   if (error) {
     throw new Error(error.message);
   }
+  assertBusinessUpdated(data);
 }
 
 export async function rewriteAgentPrompt(

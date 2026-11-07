@@ -44,17 +44,8 @@ interface LogsPageProps {
   businessCode: string;
 }
 
-function insertLogColumns(keys: string[], extras: string[]) {
-  const catalog = LOG_FIELDS.map((field) => field.key);
-  const next = [...keys];
-  for (const extra of extras) {
-    if (next.includes(extra)) continue;
-    const catalogIndex = catalog.indexOf(extra);
-    const index = next.findIndex((key) => catalog.indexOf(key) > catalogIndex);
-    next.splice(index === -1 ? next.length : index, 0, extra);
-  }
-  return next;
-}
+/** Column filters and sort run in the browser, so they scan this many rows of the period. */
+const FILTER_SCAN_LIMIT = 500;
 
 const LOG_PERIODS: { id: LogPeriod; label: string }[] = [
   { id: 'week', label: 'שבוע' },
@@ -134,13 +125,25 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
   const [lookup, setLookup] = useState<LogLookup>(defaultLogLookup);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_LOG_PAGE_SIZE);
+  const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
+  const [sort, setSort] = useState<ColumnSort | null>(null);
+  const [filtersVisible, setFiltersVisible] = useState(false);
+  const { visibleFieldsFor, toggleField, reorderFields } = useUiPreferences(businessCode);
+  const visibleKeys = visibleFieldsFor('logs');
+  const visibleFilters = useMemo(
+    () => visibleColumnFilters(columnFilters, visibleKeys),
+    [columnFilters, visibleKeys],
+  );
+  const visibleSort =
+    sort && visibleKeys.includes(sort.key) ? sort : null;
+  const hasActiveFilters = Object.keys(visibleFilters).length > 0;
+  const hasTableControls = hasActiveFilters || visibleSort !== null;
   const { result, error, isLoading, refresh } = useConversationLogs(
     businessCode,
-    page,
-    pageSize,
+    hasTableControls ? 0 : page,
+    hasTableControls ? FILTER_SCAN_LIMIT : pageSize,
     lookup,
   );
-  const { visibleFieldsFor, toggleField, reorderFields } = useUiPreferences(businessCode);
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [playback, setPlayback] = useState<LogRecordingPlayback>({});
@@ -151,38 +154,27 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
     setPage(0);
     setPageSize(DEFAULT_LOG_PAGE_SIZE);
   }, [businessCode]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
-  const [sort, setSort] = useState<ColumnSort | null>(null);
-  const [filtersVisible, setFiltersVisible] = useState(false);
-
-  const storedLogKeys = visibleFieldsFor('logs');
-  const visibleKeys = storedLogKeys.every((key) =>
-    ['startedAt', 'channel', 'clientPhone', 'durationSeconds', 'summary', 'recording'].includes(key),
-  )
-    ? insertLogColumns(storedLogKeys, ['clientName', 'nationalId'])
-    : storedLogKeys;
   const activeColumns = orderCatalogFields(LOG_FIELDS, visibleKeys);
-  const visibleFilters = useMemo(
-    () => visibleColumnFilters(columnFilters, visibleKeys),
-    [columnFilters, visibleKeys],
-  );
-  const visibleSort =
-    sort && visibleKeys.includes(sort.key) ? sort : null;
-  const visibleLogs = useMemo(
+  const matchingLogs = useMemo(
     () => filterAndSortLogs(result.logs, visibleFilters, visibleSort),
     [result.logs, visibleFilters, visibleSort],
   );
+  const visibleLogs = hasTableControls
+    ? matchingLogs.slice(page * pageSize, (page + 1) * pageSize)
+    : matchingLogs;
+  const scanTruncated = hasTableControls && result.total > result.logs.length;
   const selectedLog =
     result.logs.find((log) => log.id === selectedLogId) ?? null;
-  const hasActiveFilters = Object.keys(visibleFilters).length > 0;
-  const hasTableControls = hasActiveFilters || visibleSort !== null;
   const hasLookup = Boolean(
     lookup.phone ||
       lookup.nationalId ||
       lookup.clientName ||
       lookup.period !== 'week',
   );
-  const pageCount = Math.max(1, Math.ceil(result.total / pageSize));
+  const pageCount = Math.max(
+    1,
+    Math.ceil((hasTableControls ? matchingLogs.length : result.total) / pageSize),
+  );
 
   const applyLookup = (next: LogLookup) => {
     const same =
@@ -363,6 +355,7 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
               onClick={() => {
                 setColumnFilters({});
                 setSort(null);
+                setPage(0);
               }}
             >
               נקה סינון ומיון
@@ -387,6 +380,11 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
       ) : null}
 
       {error ? <ErrorState message={error} onRetry={refresh} /> : null}
+      {scanTruncated ? (
+        <p className={styles.scanNotice} role="status">
+          הסינון והמיון חלים על {FILTER_SCAN_LIMIT} השיחות האחרונות בתקופה. לצמצום, בחרו תקופה קצרה יותר.
+        </p>
+      ) : null}
 
       {isLoading && result.logs.length === 0 ? (
         <LoadingState message="טוען לוגים..." />
@@ -399,10 +397,14 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
             sort={visibleSort}
             showFilters={filtersVisible}
             showActions={false}
-            onSort={(key) => setSort((current) => nextColumnSort(current, key))}
-            onFilter={(key, value) =>
-              setColumnFilters((current) => ({ ...current, [key]: value }))
-            }
+            onSort={(key) => {
+              setSort((current) => nextColumnSort(current, key));
+              setPage(0);
+            }}
+            onFilter={(key, value) => {
+              setColumnFilters((current) => ({ ...current, [key]: value }));
+              setPage(0);
+            }}
             selectOptions={LOG_SELECT_OPTIONS}
             onReorder={(keys) => reorderFields('logs', keys)}
           />

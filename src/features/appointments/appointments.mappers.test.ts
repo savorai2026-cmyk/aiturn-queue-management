@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { assignGroupRoles, allowCalendarEventOverlap } from './calendarGrouping';
 import {
+  changedAppointmentFields,
   formatCalendarEventCopy,
   getAppointmentColor,
   toAppointmentDetails,
@@ -204,11 +205,19 @@ describe('toCalendarEvents', () => {
     ]);
 
     expect(events[0]).toMatchObject({
-      title: '09:00 - 09:30 · שעווה · ישראל ישראלי',
+      title: '09:00 - 09:50 · שעווה · ישראל ישראלי',
     });
     expect(events[0].extendedProps).toMatchObject({
       serviceTitle: 'שעווה',
     });
+  });
+
+  it('sizes the event by the saved end time after a manual edit', () => {
+    const [event] = toCalendarEvents([
+      createAppointment({ end_time: '10:15:00' }),
+    ]);
+
+    expect(event.end).toBe(`${event.start?.toString().slice(0, 10)}T10:15`);
   });
 
   it('omits a missing service name instead of writing שירות', () => {
@@ -310,6 +319,15 @@ describe('appointment edit mapping', () => {
       client_notes: null,
       business_notes: 'הערה פנימית',
     });
+  });
+
+  it('saves only the fields the user changed', () => {
+    const original = toAppointmentEditValues(toAppointmentDetails(createAppointment()));
+
+    expect(changedAppointmentFields(original, { ...original })).toEqual({});
+    expect(
+      changedAppointmentFields(original, { ...original, business_notes: 'להתקשר' }),
+    ).toEqual({ business_notes: 'להתקשר' });
   });
 
   it('treats appointment edits as unchanged until a field actually differs', () => {

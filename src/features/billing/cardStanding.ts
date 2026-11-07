@@ -166,7 +166,7 @@ export function cardStandingMessage(
   hold: BillingHold = 'auto',
 ): string {
   if (hold === 'blocked') {
-    return 'העסק חסום ידנית. סוכן הקול וסוכן הוואטסאפ מושבתים, והגישה למערכת חסומה עד שהחסימה תוסר בסופאבייס.';
+    return 'העסק חסום ידנית. סוכן הקול וסוכן הוואטסאפ מושבתים, והגישה למערכת חסומה. לפתיחה יש לפנות לתמיכה.';
   }
   const { stage, daysLeft, daysUntilBlock } = standing;
   if (stage === 'd30' || stage === 'd15' || stage === 'd5') {

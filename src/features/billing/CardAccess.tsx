@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { onBusinessAccessChanged } from './accessEvents';
 import { getBusinessAccess } from './billing.api';
 import { canManagePaymentMethods, isActivePaymentMethod } from './billing.mappers';
 import {
@@ -27,12 +28,22 @@ export default function CardAccess({
   const [billingHold, setBillingHold] = useState(parseBillingHold(null));
   const [isActive, setIsActive] = useState(true);
   const [closed, setClosed] = useState(false);
-  const [createdLoaded, setCreatedLoaded] = useState(false);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const createdLoaded = loadedFor === businessCode;
   const [updating, setUpdating] = useState(false);
+  const [accessVersion, setAccessVersion] = useState(0);
+
+  useEffect(
+    () =>
+      onBusinessAccessChanged(businessCode, () => {
+        setAccessVersion((version) => version + 1);
+        refresh();
+      }),
+    [businessCode, refresh],
+  );
 
   useEffect(() => {
     let cancelled = false;
-    setCreatedLoaded(false);
     getBusinessAccess(businessCode)
       .then((value) => {
         if (cancelled) return;
@@ -50,12 +61,12 @@ export default function CardAccess({
         }
       })
       .finally(() => {
-        if (!cancelled) setCreatedLoaded(true);
+        if (!cancelled) setLoadedFor(businessCode);
       });
     return () => {
       cancelled = true;
     };
-  }, [businessCode]);
+  }, [businessCode, accessVersion]);
 
   const access = resolveBusinessAccess({
     hold: billingHold,
@@ -92,7 +103,7 @@ export default function CardAccess({
             updateButton
           ) : (
             <p className={styles.hint}>
-              כדי לפתוח, שנו בסופאבייס את billing_hold של העסק ל-exempt או ל-auto.
+              לפתיחת החשבון יש לפנות לתמיכה.
             </p>
           )}
         </main>

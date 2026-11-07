@@ -5,7 +5,6 @@ export type ServiceInsert = TablesInsert<'services'>;
 export type ServiceUpdate = TablesUpdate<'services'>;
 
 export type AppointmentStatusRow = Tables<'statuses'>;
-export type AppointmentStatusInsert = TablesInsert<'statuses'>;
 export type AppointmentStatusUpdate = TablesUpdate<'statuses'>;
 
 export interface ServiceFormValues {
@@ -25,6 +24,9 @@ export type BusinessSettings = Pick<
   | 'contact_phone'
   | 'email'
   | 'agent_phone_number'
+  | 'owner_alert_channel'
+  | 'owner_alert_phone'
+  | 'owner_alert_lead_hours'
   | 'timezone'
   | 'slot_duration_minutes'
   | 'deposit_percent'
@@ -49,6 +51,7 @@ export type BusinessSettings = Pick<
 export type EditableBusinessProfile = Pick<
   BusinessSettings,
   'business_name' | 'contact_phone' | 'email' | 'agent_phone_number'
+  | 'owner_alert_channel' | 'owner_alert_phone' | 'owner_alert_lead_hours'
 >;
 
 export type EditableBusinessConfig = Pick<

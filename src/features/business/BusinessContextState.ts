@@ -2,6 +2,16 @@ import { createContext, useContext } from 'react';
 
 export type BusinessRole = 'owner' | 'admin' | 'staff' | 'viewer';
 
+/** Matches the database policies on appointments, clients and the scheduler. */
+export function canEditRecords(role: BusinessRole | null | undefined): boolean {
+  return role === 'owner' || role === 'admin' || role === 'staff';
+}
+
+/** Matches the database policies on businesses, services and statuses. */
+export function canManageBusiness(role: BusinessRole | null | undefined): boolean {
+  return role === 'owner' || role === 'admin';
+}
+
 export interface BusinessMembership {
   businessCode: string;
   businessName: string;

@@ -174,7 +174,9 @@ export default function PriceList({
           <h2>מנוי</h2>
           <p>
             {subscriptionPlan == null
-              ? 'מחשב את המנוי...'
+              ? planError
+                ? 'פרטי המנוי לא זמינים כרגע.'
+                : 'מחשב את המנוי...'
               : onOpenPlanSettings
                 ? `העסק על המנוי ${planLabel(plan)}. המנוי השני נפתח בהגדרות העסק.`
                 : `העסק על המנוי ${planLabel(plan)}.`}
@@ -183,13 +185,13 @@ export default function PriceList({
         <div className={styles.plans}>
           <PlanCard
             plan="regular"
-            terms={regularTariff}
+            terms={plan === 'regular' ? resolvedTariff : regularTariff}
             selected={plan === 'regular'}
             onSelect={onOpenPlanSettings}
           />
           <PlanCard
             plan="expanded"
-            terms={expandedTariff}
+            terms={plan === 'expanded' ? resolvedTariff : expandedTariff}
             selected={plan === 'expanded'}
             onSelect={onOpenPlanSettings}
           />

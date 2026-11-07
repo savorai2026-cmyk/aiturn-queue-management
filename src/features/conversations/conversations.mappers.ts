@@ -18,7 +18,6 @@ import type {
 
 export const DEFAULT_LOG_PAGE_SIZE = 10;
 export const LOG_PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
-export const LOG_PAGE_SIZE = DEFAULT_LOG_PAGE_SIZE;
 export const RECORDINGS_BUCKET = 'recordings';
 
 const CHANNEL_LABELS: Record<string, string> = {

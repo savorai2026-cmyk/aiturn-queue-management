@@ -26,24 +26,6 @@ function Svg({
   );
 }
 
-export function PlusIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width={18}
-      height={18}
-      fill="none"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      data-icon="plus"
-    >
-      <path data-part="outer" d="M12 4v16M4 12h16" />
-      <path data-part="inner" d="M12 4v16M4 12h16" />
-    </svg>
-  );
-}
-
 export function PencilIcon() {
   return (
     <Svg icon="pencil">
@@ -120,19 +102,6 @@ export function CalendarIcon() {
   );
 }
 
-export function UsersIcon() {
-  return (
-    <Svg icon="users">
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <g data-part="friend">
-        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </g>
-    </Svg>
-  );
-}
-
 export function GearIcon() {
   return (
     <Svg icon="gear">
@@ -157,30 +126,6 @@ export function CopyIcon() {
       <g data-part="front">
         <rect x="9" y="9" width="13" height="13" rx="2" />
       </g>
-    </Svg>
-  );
-}
-
-export function MoveIcon() {
-  return (
-    <Svg icon="move">
-      <g data-part="left">
-        <path d="m8 3-4 4 4 4" />
-        <path d="M4 7h16" />
-      </g>
-      <g data-part="right">
-        <path d="m16 21 4-4-4-4" />
-        <path d="M20 17H4" />
-      </g>
-    </Svg>
-  );
-}
-
-export function BanIcon() {
-  return (
-    <Svg icon="ban">
-      <circle cx="12" cy="12" r="10" />
-      <path d="m4.9 4.9 14.2 14.2" />
     </Svg>
   );
 }
@@ -296,36 +241,11 @@ export function HelpIcon() {
   );
 }
 
-export function CostIcon() {
-  return (
-    <Svg icon="cost">
-      <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z" />
-      <g data-part="lines">
-        <path d="M8 8h8" />
-        <path d="M8 12h8" />
-        <path d="M8 16h5" />
-      </g>
-    </Svg>
-  );
-}
-
 export function MailIcon() {
   return (
     <Svg icon="mail">
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <path d="m3 7 9 7 9-7" />
-    </Svg>
-  );
-}
-
-export function LogsIcon() {
-  return (
-    <Svg icon="logs">
-      <path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z" />
-      <g data-part="lines">
-        <path d="M8 8h8" />
-        <path d="M8 12h5" />
-      </g>
     </Svg>
   );
 }

@@ -56,7 +56,7 @@ export function readPaymentHold(
 
   return {
     awaiting,
-    label: awaiting ? 'ממתין לאסמכתא' : 'יש אסמכתא',
+    label: awaiting ? 'ממתין לאסמכתא' : proof ? 'יש אסמכתא' : 'נשלחה בקשת אסמכתא',
     requestedAt,
     amount: text(data?.payment_amount) ?? proof?.amount ?? null,
     payeeName: text(data?.payee_name) ?? proof?.payeeName ?? null,

@@ -47,8 +47,9 @@ import type {
   Service,
 } from '../settings.types';
 import { useSettings } from '../useSettings';
-import { useBusiness } from '../../business/BusinessContextState';
+import { canManageBusiness, useBusiness } from '../../business/BusinessContextState';
 import { usePaymentMethod } from '../../billing/usePaymentMethod';
+import { notifyBusinessAccessChanged } from '../../billing/accessEvents';
 import PaymentMethodSettings from '../../billing/PaymentMethodSettings';
 import {
   ErrorState,
@@ -190,8 +191,14 @@ export default function Settings({
     useSettings(businessCode);
   const { activeBusiness } = useBusiness();
   const isOwner = activeBusiness?.role === 'owner';
+  const canManage = canManageBusiness(activeBusiness?.role);
   const payment = usePaymentMethod(businessCode);
   const { visibleFieldsFor, toggleField, reorderFields } = useUiPreferences(businessCode);
+  const handleBusinessSaved = async () => {
+    await onBusinessUpdated();
+    refresh();
+    notifyBusinessAccessChanged(businessCode);
+  };
 
   useEffect(() => {
     setActiveTab(readStoredSettingsTab(businessCode));
@@ -223,7 +230,11 @@ export default function Settings({
     }
     if (target !== 'cloud-storage' && target !== 'subscription-plan') return;
     const frame = window.requestAnimationFrame(() => {
-      document.getElementById(target)?.scrollIntoView({
+      const section = document.getElementById(target);
+      section
+        ?.querySelector<HTMLButtonElement>(':scope > header > button[aria-expanded="false"]')
+        ?.click();
+      section?.scrollIntoView({
         behavior: 'smooth',
         block: 'start',
       });
@@ -258,9 +269,10 @@ export default function Settings({
             <BusinessProfileForm
               key={business.business_code}
               business={business}
+              readOnly={!canManage}
               visibleFields={visibleFieldsFor('business')}
               onToggleField={(key) => toggleField('business', key)}
-              onSaved={onBusinessUpdated}
+              onSaved={handleBusinessSaved}
             />
             {isOwner ? null : <TwoFactorPanel />}
           </>
@@ -271,7 +283,7 @@ export default function Settings({
               business={business}
               visibleFields={visibleFieldsFor('businessConfig')}
               onToggleField={(key) => toggleField('businessConfig', key)}
-              onSaved={onBusinessUpdated}
+              onSaved={handleBusinessSaved}
             />
             <BusinessAccountPanel
               businessCode={business.business_code}
@@ -285,15 +297,14 @@ export default function Settings({
           <OperatingHoursForm
             key={`${business.business_code}-hours`}
             business={business}
-            onSaved={async () => {
-              await onBusinessUpdated();
-              refresh();
-            }}
+            readOnly={!canManage}
+            onSaved={handleBusinessSaved}
           />
         ) : activeTab === 'services' ? (
           <ServicesTable
             businessCode={businessCode}
             services={services}
+            readOnly={!canManage}
             visibleFields={visibleFieldsFor('services')}
             onToggleField={(key) => toggleField('services', key)}
             onReorderFields={(keys) => reorderFields('services', keys)}
@@ -303,6 +314,7 @@ export default function Settings({
           <StatusesTable
             businessCode={businessCode}
             statuses={statuses}
+            readOnly={!canManage}
             visibleFields={visibleFieldsFor('statuses')}
             onToggleField={(key) => toggleField('statuses', key)}
             onReorderFields={(keys) => reorderFields('statuses', keys)}
@@ -315,7 +327,10 @@ export default function Settings({
             paymentMethod={payment.paymentMethod}
             isLoading={payment.isLoading}
             error={payment.error}
-            onRefresh={payment.refresh}
+            onRefresh={() => {
+              payment.refresh();
+              notifyBusinessAccessChanged(businessCode);
+            }}
           />
         ) : null}
       </div>
@@ -331,6 +346,9 @@ function toEditableProfile(
     contact_phone: business.contact_phone,
     email: business.email,
     agent_phone_number: business.agent_phone_number,
+    owner_alert_channel: business.owner_alert_channel,
+    owner_alert_phone: business.owner_alert_phone,
+    owner_alert_lead_hours: business.owner_alert_lead_hours ?? 24,
   };
 }
 
@@ -374,13 +392,17 @@ function toEditableConfig(
   };
 }
 
+const READ_ONLY_NOTE = 'צפייה בלבד. רק בעלים או מנהל יכולים לשנות כאן.';
+
 function BusinessProfileForm({
   business,
+  readOnly,
   visibleFields,
   onToggleField,
   onSaved,
 }: {
   business: BusinessSettings;
+  readOnly: boolean;
   visibleFields: string[];
   onToggleField: (key: string) => void;
   onSaved: () => Promise<void>;
@@ -411,9 +433,22 @@ function BusinessProfileForm({
     setMessage(null);
 
     try {
+      const channel = formData.owner_alert_channel || null;
+      const phone = formData.owner_alert_phone?.trim() || null;
+      if (channel && !phone) {
+        setMessage({
+          text: 'כדי לשלוח התראה צריך גם מספר.',
+          type: 'error',
+        });
+        setIsSaving(false);
+        return;
+      }
       await updateBusinessSettings(business.business_code, {
         ...formData,
         business_name: formData.business_name.trim(),
+        owner_alert_channel: channel,
+        owner_alert_phone: phone,
+        owner_alert_lead_hours: formData.owner_alert_lead_hours,
       });
       await onSaved();
       setMessage({
@@ -442,6 +477,8 @@ function BusinessProfileForm({
           canViewDetails
         />
       </div>
+      {readOnly ? <p className={styles.readOnlyNote}>{READ_ONLY_NOTE}</p> : null}
+      <fieldset className={styles.lockedFields} disabled={readOnly}>
       <div className={styles.formGrid}>
         {isVisible('business_name') && (
           <div className={styles.formGroup}>
@@ -493,7 +530,56 @@ function BusinessProfileForm({
             />
           </div>
         )}
+        <div className={styles.formGroup}>
+          <label>התראה על ביטול קרוב</label>
+          <select
+            name="owner_alert_channel"
+            value={formData.owner_alert_channel || ''}
+            onChange={(event) => {
+              const value = event.target.value;
+              setFormData((previous) => ({
+                ...previous,
+                owner_alert_channel: value || null,
+              }));
+            }}
+            className={styles.input}
+          >
+            <option value="">בלי התראה</option>
+            <option value="call">שיחה קולית</option>
+            <option value="whatsapp">וואטסאפ</option>
+          </select>
+        </div>
+        <div className={styles.formGroup}>
+          <label>מספר להתראה</label>
+          <input
+            type="text"
+            name="owner_alert_phone"
+            value={formData.owner_alert_phone || ''}
+            onChange={handleChange}
+            className={styles.input}
+            dir="ltr"
+          />
+        </div>
+        <div className={styles.formGroup}>
+          <label>חלון ההתראה בשעות</label>
+          <input
+            type="number"
+            min={1}
+            name="owner_alert_lead_hours"
+            value={formData.owner_alert_lead_hours}
+            onChange={(event) => {
+              const hours = Number(event.target.value);
+              setFormData((previous) => ({
+                ...previous,
+                owner_alert_lead_hours: Number.isFinite(hours) && hours > 0 ? hours : 24,
+              }));
+            }}
+            className={styles.input}
+            dir="ltr"
+          />
+        </div>
       </div>
+      </fieldset>
 
       {message && (
         <p className={styles[message.type]} role="status">
@@ -501,19 +587,21 @@ function BusinessProfileForm({
         </p>
       )}
 
-      <button
-        type="button"
-        className={styles.btnPrimary}
-        onClick={() => void handleSave()}
-        disabled={isSaving}
-      >
-        {isSaving ? 'שומר...' : (
-          <>
-            <SaveIcon />
-            שמור פרטי עסק
-          </>
-        )}
-      </button>
+      {readOnly ? null : (
+        <button
+          type="button"
+          className={styles.btnPrimary}
+          onClick={() => void handleSave()}
+          disabled={isSaving}
+        >
+          {isSaving ? 'שומר...' : (
+            <>
+              <SaveIcon />
+              שמור פרטי עסק
+            </>
+          )}
+        </button>
+      )}
 
       {isDetailsOpen && (
         <RecordDetailsModal
@@ -1045,6 +1133,8 @@ function BusinessConfigForm({
               <span>{policyDraft.enabled ? 'פעיל' : 'כבוי'}</span>
             </label>
           </SettingsRow>
+          {policyDraft.enabled && (
+            <>
               <SettingsRow
                 label="מספר ביטולים"
                 htmlFor="business-cancellation-count"
@@ -1171,6 +1261,8 @@ function BusinessConfigForm({
                   }
                 />
               </SettingsRow>
+            </>
+          )}
         </SettingsGroup>
 
         <SettingsGroup
@@ -1228,7 +1320,10 @@ function BusinessConfigForm({
           )}
         </SettingsGroup>
 
-        {(isVisible('save_recordings') || isVisible('recordings_retention_days')) && (
+        {(isVisible('save_recordings') ||
+          isVisible('recordings_retention_days') ||
+          isVisible('history_retention_months') ||
+          isVisible('whatsapp_retention_months')) && (
           <SettingsGroup defaultCollapsed title="הקלטות">
             {isVisible('save_recordings') && (
               <SettingsRow
@@ -1282,6 +1377,7 @@ function BusinessConfigForm({
                 <span className={styles.controlSuffix}>ימים</span>
               </SettingsRow>
             )}
+            {isVisible('history_retention_months') && (
             <SettingsRow
               label="היסטוריית תורים"
               htmlFor="business-history-retention"
@@ -1309,6 +1405,8 @@ function BusinessConfigForm({
               />
               <span className={styles.controlSuffix}>חודשים</span>
             </SettingsRow>
+            )}
+            {isVisible('whatsapp_retention_months') && (
             <SettingsRow
               label="התכתבות וואטסאפ ותמלול"
               htmlFor="business-whatsapp-retention"
@@ -1337,6 +1435,7 @@ function BusinessConfigForm({
               />
               <span className={styles.controlSuffix}>חודשים</span>
             </SettingsRow>
+            )}
           </SettingsGroup>
         )}
 
@@ -1368,26 +1467,28 @@ function BusinessConfigForm({
           </SettingsGroup>
         )}
 
-        <SettingsGroup
-          id="subscription-plan"
-          title="מנוי"
-          description="הסכום הקבוע לחודש, ומה משתנה במחיר לפי המנוי שנבחר."
-        >
-          <div className={styles.planBoard}>
-            <PlanCard
-              plan="regular"
-              terms={regularTerms}
-              selected={selectedPlan === 'regular'}
-              onSelect={() => applyPlan('regular')}
-            />
-            <PlanCard
-              plan="expanded"
-              terms={expandedTerms}
-              selected={selectedPlan === 'expanded'}
-              onSelect={() => applyPlan('expanded')}
-            />
-          </div>
-        </SettingsGroup>
+        {isVisible('subscription_plan') && (
+          <SettingsGroup
+            id="subscription-plan"
+            title="מנוי"
+            description="הסכום הקבוע לחודש, ומה משתנה במחיר לפי המנוי שנבחר."
+          >
+            <div className={styles.planBoard}>
+              <PlanCard
+                plan="regular"
+                terms={regularTerms}
+                selected={selectedPlan === 'regular'}
+                onSelect={() => applyPlan('regular')}
+              />
+              <PlanCard
+                plan="expanded"
+                terms={expandedTerms}
+                selected={selectedPlan === 'expanded'}
+                onSelect={() => applyPlan('expanded')}
+              />
+            </div>
+          </SettingsGroup>
+        )}
       </SettingsStack>
 
       {isDetailsOpen && (
@@ -1425,6 +1526,7 @@ function BusinessConfigForm({
 function ServicesTable({
   businessCode,
   services,
+  readOnly,
   visibleFields,
   onToggleField,
   onReorderFields,
@@ -1432,6 +1534,7 @@ function ServicesTable({
 }: {
   businessCode: string;
   services: Service[];
+  readOnly: boolean;
   visibleFields: string[];
   onToggleField: (key: string) => void;
   onReorderFields: (keys: string[]) => void;
@@ -1512,15 +1615,18 @@ function ServicesTable({
               נקה סינון ומיון
             </button>
           ) : null}
-          <button
-            type="button"
-            className={`${styles.btnPrimary} ${styles.addServiceButton}`}
-            onClick={() => setModalMode('add')}
-          >
-            הוסף שירות
-          </button>
+          {readOnly ? null : (
+            <button
+              type="button"
+              className={`${styles.btnPrimary} ${styles.addServiceButton}`}
+              onClick={() => setModalMode('add')}
+            >
+              הוסף שירות
+            </button>
+          )}
         </div>
       </div>
+      {readOnly ? <p className={styles.readOnlyNote}>{READ_ONLY_NOTE}</p> : null}
 
       {pendingDelete && (
         <ConfirmDeleteModal
@@ -1553,6 +1659,7 @@ function ServicesTable({
             setColumnFilters((current) => ({ ...current, [key]: value }))
           }
           onReorder={onReorderFields}
+          showActions={!readOnly}
           selectOptions={{
             is_active: [
               { value: 'active', label: 'פעיל' },
@@ -1564,7 +1671,7 @@ function ServicesTable({
           {visibleServices.length === 0 ? (
             <tr>
               <td
-                colSpan={Math.max(activeColumns.length, 1) + 1}
+                colSpan={Math.max(activeColumns.length, 1) + (readOnly ? 0 : 1)}
                 className={styles.emptyServices}
               >
                 {services.length === 0
@@ -1590,36 +1697,38 @@ function ServicesTable({
                 onClick={() => setSelectedServiceId(service.id)}
                 onDoubleClick={() => {
                   setSelectedServiceId(service.id);
-                  setModalMode('edit');
+                  if (!readOnly) setModalMode('edit');
                 }}
               >
-                <td>
-                  <div className={styles.rowActions}>
-                    <IconButton
-                      label="ערוך שירות"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setSelectedServiceId(service.id);
-                        setModalMode('edit');
-                      }}
-                    >
-                      <PencilIcon />
-                    </IconButton>
-                    <IconButton
-                      label="מחק שירות"
-                      variant="danger"
-                      disabled={deletingServiceId !== null}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setSelectedServiceId(service.id);
-                        setActionError('');
-                        setPendingDelete(service);
-                      }}
-                    >
-                      <TrashIcon />
-                    </IconButton>
-                  </div>
-                </td>
+                {readOnly ? null : (
+                  <td>
+                    <div className={styles.rowActions}>
+                      <IconButton
+                        label="ערוך שירות"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedServiceId(service.id);
+                          setModalMode('edit');
+                        }}
+                      >
+                        <PencilIcon />
+                      </IconButton>
+                      <IconButton
+                        label="מחק שירות"
+                        variant="danger"
+                        disabled={deletingServiceId !== null}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedServiceId(service.id);
+                          setActionError('');
+                          setPendingDelete(service);
+                        }}
+                      >
+                        <TrashIcon />
+                      </IconButton>
+                    </div>
+                  </td>
+                )}
                 {activeColumns.map((column) => (
                   <td key={column.key} dir={column.dir}>
                     {column.key === 'is_active' ? (
@@ -1643,7 +1752,7 @@ function ServicesTable({
       </table>
       </div>
 
-      {modalMode && (modalMode === 'add' || selectedService) && (
+      {!readOnly && modalMode && (modalMode === 'add' || selectedService) && (
         <AddServiceModal
           businessCode={businessCode}
           service={modalMode === 'edit' ? selectedService : null}
@@ -1669,6 +1778,7 @@ function ServicesTable({
 function StatusesTable({
   businessCode,
   statuses,
+  readOnly,
   visibleFields,
   onToggleField,
   onReorderFields,
@@ -1676,6 +1786,7 @@ function StatusesTable({
 }: {
   businessCode: string;
   statuses: AppointmentStatusRow[];
+  readOnly: boolean;
   visibleFields: string[];
   onToggleField: (key: string) => void;
   onReorderFields: (keys: string[]) => void;
@@ -1712,7 +1823,7 @@ function StatusesTable({
 
   const openColorEditor = (statusCode: string) => {
     setSelectedStatusCode(statusCode);
-    setIsEditOpen(true);
+    if (!readOnly) setIsEditOpen(true);
   };
 
   return (
@@ -1744,6 +1855,7 @@ function StatusesTable({
           </div>
         ) : null}
       </div>
+      {readOnly ? <p className={styles.readOnlyNote}>{READ_ONLY_NOTE}</p> : null}
 
       <div className={styles.tableScroll}>
       <table className={`data-table ${styles.table}`}>
@@ -1752,6 +1864,7 @@ function StatusesTable({
           filters={columnFilters}
           sort={visibleSort}
           showFilters={filtersVisible}
+          showActions={!readOnly}
           onSort={(key) => setSort((current) => nextColumnSort(current, key))}
           onFilter={(key, value) =>
             setColumnFilters((current) => ({ ...current, [key]: value }))
@@ -1762,7 +1875,7 @@ function StatusesTable({
           {visibleStatuses.length === 0 ? (
             <tr>
               <td
-                colSpan={Math.max(activeColumns.length, 1) + 1}
+                colSpan={Math.max(activeColumns.length, 1) + (readOnly ? 0 : 1)}
                 className={styles.emptyServices}
               >
                 {statuses.length === 0
@@ -1782,19 +1895,21 @@ function StatusesTable({
                 onClick={() => setSelectedStatusCode(status.status_code)}
                 onDoubleClick={() => openColorEditor(status.status_code)}
               >
-                <td>
-                  <div className={styles.rowActions}>
-                    <IconButton
-                      label="ערוך צבע סטטוס"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        openColorEditor(status.status_code);
-                      }}
-                    >
-                      <PencilIcon />
-                    </IconButton>
-                  </div>
-                </td>
+                {readOnly ? null : (
+                  <td>
+                    <div className={styles.rowActions}>
+                      <IconButton
+                        label="ערוך צבע סטטוס"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openColorEditor(status.status_code);
+                        }}
+                      >
+                        <PencilIcon />
+                      </IconButton>
+                    </div>
+                  </td>
+                )}
                 {activeColumns.map((column) => (
                   <td key={column.key} dir={column.dir}>
                     {column.key === 'color' ? (
@@ -1820,7 +1935,7 @@ function StatusesTable({
       </table>
       </div>
 
-      {isEditOpen && selectedStatus && (
+      {!readOnly && isEditOpen && selectedStatus && (
         <StatusModal
           businessCode={businessCode}
           status={selectedStatus}

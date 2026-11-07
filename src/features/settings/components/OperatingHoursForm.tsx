@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { updateOperatingHours } from '../settings.api';
 import type { BusinessSettings } from '../settings.types';
 import {
-  createBlankSpecialDay,
   getBookingMaxDate,
   parseWorkingHourExceptions,
   suggestNextShift,
@@ -16,14 +15,13 @@ import {
   type SpecialDayDraft,
   type WorkingDayDraft,
 } from '../../appointments/workingHours';
-import { toDateKey } from '../../appointments/time';
+import { nowInTimeZone, toDateKey } from '../../appointments/time';
 import IconButton, {
   TrashIcon,
 } from '../../../shared/components/IconButton';
 import HelpTip from '../../../shared/components/HelpTip';
 import { HourMinuteField } from '../../../shared/components/HourMinuteField';
 import {
-  CalendarIcon,
   CopyIcon,
   SaveIcon,
 } from '../../../shared/components/icons';
@@ -34,6 +32,7 @@ import styles from './OperatingHoursForm.module.css';
 
 interface OperatingHoursFormProps {
   business: BusinessSettings;
+  readOnly?: boolean;
   onSaved: () => Promise<void>;
 }
 
@@ -75,6 +74,7 @@ function formatHebrewDate(dateKey: string) {
 
 export default function OperatingHoursForm({
   business,
+  readOnly = false,
   onSaved,
 }: OperatingHoursFormProps) {
   const [days, setDays] = useState<WorkingDayDraft[]>(() =>
@@ -82,9 +82,6 @@ export default function OperatingHoursForm({
   );
   const [specialDays, setSpecialDays] = useState<SpecialDayDraft[]>(() =>
     toSpecialDayDrafts(parseWorkingHourExceptions(business.working_hours)),
-  );
-  const [showSpecialDays, setShowSpecialDays] = useState(
-    () => parseWorkingHourExceptions(business.working_hours).length > 0,
   );
   const [bookingDays, setBookingDays] = useState<string>(
     business.max_adv_booking_days == null
@@ -97,7 +94,8 @@ export default function OperatingHoursForm({
     type: 'success' | 'error';
   } | null>(null);
 
-  const todayKey = toDateKey(new Date());
+  const businessNow = nowInTimeZone(business.timezone);
+  const todayKey = toDateKey(businessNow);
   const upcomingSpecialDays = specialDays.filter((day) =>
     isUpcomingSpecialDay(day, todayKey),
   );
@@ -110,8 +108,8 @@ export default function OperatingHoursForm({
     if (!bookingDays || !Number.isFinite(parsed) || parsed <= 0) {
       return null;
     }
-    return getBookingMaxDate(parsed);
-  }, [bookingDays]);
+    return getBookingMaxDate(parsed, nowInTimeZone(business.timezone));
+  }, [bookingDays, business.timezone]);
 
   const updateDay = (key: WorkingDayDraft['key'], patch: Partial<WorkingDayDraft>) => {
     setDays((current) =>
@@ -248,6 +246,10 @@ export default function OperatingHoursForm({
 
   return (
     <div className={styles.container}>
+      {readOnly ? (
+        <p className={styles.hint}>צפייה בלבד. רק בעלים או מנהל יכולים לשנות כאן.</p>
+      ) : null}
+      <fieldset className={styles.lockedFields} disabled={readOnly}>
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h3>
@@ -305,7 +307,7 @@ export default function OperatingHoursForm({
             </h3>
             <div className={styles.tableSave}>
               {status}
-              <SaveHoursButton isSaving={isSaving} onClick={save} />
+              {readOnly ? null : <SaveHoursButton isSaving={isSaving} onClick={save} />}
             </div>
           </div>
           <div className={styles.days}>
@@ -402,37 +404,22 @@ export default function OperatingHoursForm({
             העתק שעות לכל הימים הפתוחים
           </button>
           <HelpTip text="מעתיק את כל מקטעי השעות מהיום הפתוח הראשון לכל שאר הימים שמסומנים כפתוחים, כולל הפסקת צהריים אם הוגדרה. ימים סגורים לא משתנים." />
-          <button
-            type="button"
-            className={styles.secondaryBtn}
-            onClick={() => {
-              setShowSpecialDays(true);
-              setSpecialDays((current) =>
-                current.length > 0 ? current : [createBlankSpecialDay(days)],
-              );
-            }}
-          >
-            <CalendarIcon />
-            ימים מיוחדים
-          </button>
-          <HelpTip text="סוגר תאריך או טווח תאריכים, או מחליף בהם את שעות השבוע הרגיל. מתאים לחופשה, חצי יום, או בוקר וערב עם הפסקה." />
         </div>
 
-        {showSpecialDays ? (
-          <SpecialDaysEditor
-            weeklyDays={days}
-            days={upcomingSpecialDays}
-            hiddenPastCount={pastSpecialDays.length}
-            onChange={(next) => setSpecialDays([...pastSpecialDays, ...next])}
-          />
-        ) : null}
+        <SpecialDaysEditor
+          weeklyDays={days}
+          days={upcomingSpecialDays}
+          hiddenPastCount={pastSpecialDays.length}
+          onChange={(next) => setSpecialDays([...pastSpecialDays, ...next])}
+        />
       </section>
+      </fieldset>
 
       <div className={styles.formFoot}>
         {status}
-        <SaveHoursButton isSaving={isSaving} onClick={save} />
+        {readOnly ? null : <SaveHoursButton isSaving={isSaving} onClick={save} />}
         <p className={styles.todayHint}>
-          היום: {formatHebrewDate(toDateKey(new Date()))}
+          היום: {formatHebrewDate(todayKey)}
         </p>
       </div>
     </div>

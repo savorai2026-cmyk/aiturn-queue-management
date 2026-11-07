@@ -15,22 +15,25 @@ import {
   updateAppointmentServicePrices,
 } from './appointments.api';
 import {
+  changedAppointmentFields,
   toAppointmentDetails,
   toAppointmentEditValues,
   toAppointmentUpdate,
 } from './appointments.mappers';
+import { isCanceledStatus } from './appointmentStatuses';
 import { pickDefaultAppointment } from './pickDefaultAppointment';
 import { useUiPreferences } from '../../shared/displayFields/useUiPreferences';
 import {
   shiftedAppointmentTimes,
   formatHebrewDateTime,
   formatTimeHm,
+  nowInTimeZone,
   toDateKey,
-  toLocalDateTime,
   toSchedulerDateTime,
 } from './time';
-import { rescheduleAppointment } from './scheduler.api';
+import { cancelAppointment, rescheduleAppointment } from './scheduler.api';
 import { useAppointments, useCalendarSettings } from './useAppointments';
+import { canEditRecords, useBusiness } from '../business/BusinessContextState';
 import { getAppointmentSaveErrorMessage, getErrorMessage } from '../../shared/errors';
 import type {
   AppointmentDetails,
@@ -90,6 +93,9 @@ export default function AppointmentsPage({
   const { appointments, statuses, events, error, isLoading, refresh } =
     useAppointments(businessCode);
   const calendarSettings = useCalendarSettings(businessCode);
+  const timezone = calendarSettings.data.timezone;
+  const { activeBusiness } = useBusiness();
+  const canEdit = canEditRecords(activeBusiness?.role);
   const { visibleFieldsFor, toggleField } = useUiPreferences(businessCode);
   const [selectedId, setSelectedId] = useState<number | null>(
     () => readCalendarLocation(businessCode)?.selectedId ?? null,
@@ -107,7 +113,9 @@ export default function AppointmentsPage({
   const [isDropEditOpen, setIsDropEditOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
-  const [actionError, setActionError] = useState('');
+  const actionError = calendarSettings.error
+    ? `${calendarSettings.error} היומן מוצג בלי שעות פעילות.`
+    : '';
   const [dropError, setDropError] = useState('');
 
   useEffect(() => {
@@ -132,7 +140,7 @@ export default function AppointmentsPage({
 
   const displayedAppointment =
     selectedAppointment ??
-    (isLoading ? null : pickDefaultAppointment(appointmentDetails));
+    (isLoading ? null : pickDefaultAppointment(appointmentDetails, nowInTimeZone(timezone)));
   const displayedServiceId = selectedAppointment
     ? selectedServiceId
     : displayedAppointment?.services[0]?.serviceId ?? null;
@@ -147,7 +155,6 @@ export default function AppointmentsPage({
   );
 
   const runBusy = async (work: () => Promise<void>) => {
-    setActionError('');
     setIsBusy(true);
     try {
       await work();
@@ -156,56 +163,82 @@ export default function AppointmentsPage({
     }
   };
 
-  const handleSave = async (values: AppointmentEditValues) => {
-    if (!displayedAppointment) {
-      throw new Error('No appointment is selected');
-    }
-
-    await runBusy(async () => {
-      const previousTime = toSchedulerDateTime(
-        displayedAppointment.appointment_date,
-        displayedAppointment.start_time,
-      );
-      const nextTime = toSchedulerDateTime(
-        values.appointment_date,
-        values.start_time,
-      );
-
-      if (previousTime !== nextTime) {
-        if (!displayedAppointment.clientPhone) {
-          throw new Error('חסר מספר טלפון ללקוח');
-        }
-
+  /**
+   * The scheduler moves or cancels through the bot so the customer hears about it.
+   * The business may override the bot's slot rules, so a scheduler refusal falls
+   * back to the direct update below.
+   */
+  const syncWithScheduler = async (
+    appointment: AppointmentDetails,
+    baseline: AppointmentEditValues,
+    values: AppointmentEditValues,
+    serviceId: number,
+  ): Promise<'moved' | 'none'> => {
+    if (!appointment.clientPhone) return 'none';
+    const previousTime = toSchedulerDateTime(baseline.appointment_date, baseline.start_time);
+    const nextTime = toSchedulerDateTime(values.appointment_date, values.start_time);
+    try {
+      if (isCanceledStatus(values.status) && !isCanceledStatus(baseline.status)) {
+        await cancelAppointment({
+          businessCode,
+          clientPhone: appointment.clientPhone,
+          appointmentTime: previousTime,
+        });
+      } else if (previousTime !== nextTime) {
         await rescheduleAppointment({
           businessCode,
-          clientPhone: displayedAppointment.clientPhone,
-          serviceId: displayedAppointment.services[0]?.serviceId ?? 0,
+          clientPhone: appointment.clientPhone,
+          serviceId,
           currentAppointmentTime: previousTime,
           newAppointmentTime: nextTime,
         });
+        return 'moved';
       }
+    } catch (error) {
+      console.warn('Scheduler sync failed, saving directly:', getErrorMessage(error));
+    }
+    return 'none';
+  };
 
-      await updateAppointment(
+  const saveAppointmentEdits = async (
+    appointment: AppointmentDetails,
+    values: AppointmentEditValues,
+    serviceId: number,
+  ) => {
+    const baseline = toAppointmentEditValues(appointment);
+    const synced = await syncWithScheduler(appointment, baseline, values, serviceId);
+
+    const changes = changedAppointmentFields(baseline, values);
+    if (synced === 'moved') {
+      const { appointment_date, start_time, end_time, status } = toAppointmentUpdate(values);
+      Object.assign(changes, { appointment_date, start_time, end_time, status });
+    }
+    if (Object.keys(changes).length > 0) {
+      await updateAppointment(businessCode, appointment.id, changes);
+    }
+
+    const pricesChanged = values.servicePrices.some(
+      (service, index) => service.price !== baseline.servicePrices[index]?.price,
+    );
+    if (pricesChanged) {
+      await updateAppointmentServicePrices(
         businessCode,
-        displayedAppointment.id,
-        toAppointmentUpdate(values),
+        appointment.id,
+        values.servicePrices,
       );
+    }
+  };
 
-      if (values.servicePrices.length > 0) {
-        try {
-          await updateAppointmentServicePrices(
-            businessCode,
-            displayedAppointment.id,
-            values.servicePrices,
-          );
-        } catch (error) {
-          console.error(
-            'שגיאה בעדכון מחירי שירותים:',
-            getErrorMessage(error),
-          );
-        }
-      }
+  const handleSave = async (values: AppointmentEditValues) => {
+    if (!displayedAppointment) return;
+    const appointment = displayedAppointment;
 
+    await runBusy(async () => {
+      await saveAppointmentEdits(
+        appointment,
+        values,
+        appointment.services[0]?.serviceId ?? 0,
+      );
       refresh();
     });
   };
@@ -224,54 +257,14 @@ export default function AppointmentsPage({
       return;
     }
 
-    const nextTimes = shiftedAppointmentTimes(
-      pendingAppointment.appointment_date,
-      pendingAppointment.start_time,
-      pendingAppointment.end_time,
-      getDropDeltaMinutes(pendingDrop),
-    );
-    const savedDate = values?.appointment_date ?? nextTimes.appointment_date;
+    const target = values ?? toMovedEditValues(pendingAppointment, pendingDrop);
+    const savedDate = target.appointment_date;
 
     setDropError('');
     setIsBusy(true);
 
     try {
-      await updateAppointment(
-        businessCode,
-        pendingAppointment.id,
-        values ? toAppointmentUpdate(values) : nextTimes,
-      );
-
-      if (values && values.servicePrices.length > 0) {
-        try {
-          await updateAppointmentServicePrices(
-            businessCode,
-            pendingAppointment.id,
-            values.servicePrices,
-          );
-        } catch (error) {
-          console.error(
-            'שגיאה בעדכון מחירי שירותים:',
-            getErrorMessage(error),
-          );
-        }
-      }
-
-      if (pendingDrop.clientPhone) {
-        try {
-          await rescheduleAppointment({
-            businessCode,
-            clientPhone: pendingDrop.clientPhone,
-            serviceId: pendingDrop.serviceId,
-            currentAppointmentTime: toLocalDateTime(pendingDrop.previousStart),
-            newAppointmentTime: values
-              ? toSchedulerDateTime(values.appointment_date, values.start_time)
-              : toLocalDateTime(pendingDrop.nextStart),
-          });
-        } catch (error) {
-          console.error('Scheduler reschedule failed:', getErrorMessage(error));
-        }
-      }
+      await saveAppointmentEdits(pendingAppointment, target, pendingDrop.serviceId);
 
       setSelectedId(pendingAppointment.id);
       setSelectedServiceId(pendingDrop.serviceId);
@@ -295,6 +288,7 @@ export default function AppointmentsPage({
           appointment={displayedAppointment}
           statuses={statuses}
           isBusy={isBusy}
+          readOnly={!canEdit}
           visibleFields={visibleFieldsFor('appointments')}
           onToggleField={(key) => toggleField('appointments', key)}
           onSave={handleSave}
@@ -321,7 +315,6 @@ export default function AppointmentsPage({
               setSelectedServiceId(serviceId);
               setSelectedDate(appointment.appointment_date);
               setDraftStartTime(null);
-              setActionError('');
             }}
             onSelectDate={setSelectedDate}
             onSelectTime={setDraftStartTime}
@@ -330,7 +323,6 @@ export default function AppointmentsPage({
             selectedDate={displayedDate}
             hasPendingMove={pendingDrop !== null}
             onDropRequest={(request) => {
-              setActionError('');
               setDropError('');
               setIsDropEditOpen(false);
               setPendingDrop(request);
@@ -342,6 +334,8 @@ export default function AppointmentsPage({
             workingHours={calendarSettings.data.workingHours}
             slotDurationMinutes={calendarSettings.data.slotDurationMinutes}
             maxAdvBookingDays={calendarSettings.data.maxAdvBookingDays}
+            timezone={timezone}
+            canEdit={canEdit}
           />
         </div>
       </main>
@@ -357,7 +351,8 @@ export default function AppointmentsPage({
             ),
             toLabel: formatMoveRange(pendingDrop.nextStart, pendingDrop.nextEnd),
             movesAllServices: (pendingAppointment.services.length ?? 0) > 1,
-            isPastTarget: pendingDrop.nextStart.getTime() < Date.now(),
+            isPastTarget:
+              pendingDrop.nextStart.getTime() < nowInTimeZone(timezone).getTime(),
           }}
           isSaving={isBusy}
           errorMessage={dropError}
@@ -389,13 +384,14 @@ export default function AppointmentsPage({
         />
       )}
 
-      {isAddModalOpen && (
+      {canEdit && isAddModalOpen && (
         <AddAppointmentModal
           businessCode={businessCode}
           statuses={statuses}
           initialDate={displayedDate}
           initialTime={draftStartTime}
           maxAdvBookingDays={calendarSettings.data.maxAdvBookingDays}
+          timezone={timezone}
           onClose={() => setIsAddModalOpen(false)}
           onSuccess={() => {
             setIsAddModalOpen(false);
