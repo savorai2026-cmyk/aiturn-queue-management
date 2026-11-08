@@ -5,9 +5,12 @@ export interface PaymentProof {
   paidAt: string | null;
 }
 
+export type PaymentHoldReason = 'deposit' | 'full' | 'cancellations';
+
 export interface PaymentHold {
   awaiting: boolean;
   label: string;
+  reason: PaymentHoldReason;
   requestedAt: string | null;
   amount: string | null;
   payeeName: string | null;
@@ -54,9 +57,12 @@ export function readPaymentHold(
     return null;
   }
 
+  const reasonRaw = text(data?.payment_reason);
+
   return {
     awaiting,
     label: awaiting ? 'ממתין לאסמכתא' : proof ? 'יש אסמכתא' : 'נשלחה בקשת אסמכתא',
+    reason: reasonRaw === 'deposit' || reasonRaw === 'full' ? reasonRaw : 'cancellations',
     requestedAt,
     amount: text(data?.payment_amount) ?? proof?.amount ?? null,
     payeeName: text(data?.payee_name) ?? proof?.payeeName ?? null,

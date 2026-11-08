@@ -22,6 +22,7 @@ export const PAYMENT_REQUIREMENT_OPTIONS: {
   value: PaymentRequirement;
   label: string;
 }[] = [
+  { value: 'inherit', label: 'לפי העסק' },
   { value: 'none', label: 'ללא תשלום' },
   { value: 'deposit', label: 'מקדמה' },
   { value: 'full', label: 'תשלום מלא' },

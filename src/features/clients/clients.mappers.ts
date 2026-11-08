@@ -54,7 +54,7 @@ export function parseBookingPolicy(
 export function parsePaymentRequirement(
   value: string | null | undefined,
 ): PaymentRequirement {
-  return value === 'deposit' || value === 'full' ? value : 'none';
+  return value === 'none' || value === 'deposit' || value === 'full' ? value : 'inherit';
 }
 
 const PREFERRED_CHANNEL_ALIASES: Record<string, string> = {

@@ -81,6 +81,13 @@ import IconButton, {
 import { SaveIcon } from '../../../shared/components/icons';
 import HelpTip from '../../../shared/components/HelpTip';
 import { getTimezoneGroups } from '../timezones';
+import {
+  BUSINESS_PAYMENT_OPTIONS,
+  DEFAULT_PAYMENT_HOLD_HOURS,
+  MAX_PAYMENT_HOLD_HOURS,
+  parseBusinessPaymentRequirement,
+  validatePrepayment,
+} from '../prepayment';
 import AddServiceModal from './AddServiceModal';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
 import BusinessAccountPanel from './BusinessAccountPanel';
@@ -359,6 +366,12 @@ function toEditableConfig(
     timezone: business.timezone,
     slot_duration_minutes: business.slot_duration_minutes,
     deposit_percent: parseDepositPercent(business.deposit_percent),
+    default_payment_requirement: parseBusinessPaymentRequirement(
+      business.default_payment_requirement,
+    ),
+    payment_payee_name: business.payment_payee_name,
+    payment_instructions: business.payment_instructions,
+    payment_hold_hours: business.payment_hold_hours ?? DEFAULT_PAYMENT_HOLD_HOURS,
     agent_prompt: business.agent_prompt,
     agent_voice_id: business.agent_voice_id,
     cancellation_policy: business.cancellation_policy,
@@ -743,9 +756,18 @@ function BusinessConfigForm({
 
     try {
       const depositPercent = normalizeDepositPercent(formData.deposit_percent);
-      if (depositPercent == null) {
+      const payeeName = formData.payment_payee_name?.trim() || null;
+      const paymentInstructions = formData.payment_instructions?.trim() || null;
+      const prepaymentError = validatePrepayment({
+        requirement: formData.default_payment_requirement,
+        depositPercent: depositPercent ?? Number.NaN,
+        payeeName: payeeName ?? '',
+        instructions: paymentInstructions ?? '',
+        holdHours: formData.payment_hold_hours,
+      });
+      if (depositPercent == null || prepaymentError) {
         setMessage({
-          text: 'אחוז המקדמה חייב להיות מספר בין 0 ל-100.',
+          text: prepaymentError ?? 'אחוז המקדמה חייב להיות מספר בין 0 ל-100.',
           type: 'error',
         });
         return;
@@ -813,6 +835,10 @@ function BusinessConfigForm({
         timezone: formData.timezone,
         slot_duration_minutes: formData.slot_duration_minutes,
         deposit_percent: depositPercent,
+        default_payment_requirement: formData.default_payment_requirement,
+        payment_payee_name: payeeName,
+        payment_instructions: paymentInstructions,
+        payment_hold_hours: formData.payment_hold_hours,
         agent_prompt: formData.agent_prompt?.trim() || null,
         agent_voice_id: formData.agent_voice_id?.trim() || null,
         save_recordings: formData.save_recordings,
@@ -828,6 +854,8 @@ function BusinessConfigForm({
       setFormData((previous) => ({
         ...previous,
         deposit_percent: depositPercent,
+        payment_payee_name: payeeName,
+        payment_instructions: paymentInstructions,
         agent_prompt: formData.agent_prompt?.trim() || null,
         agent_voice_id: formData.agent_voice_id?.trim() || null,
         subscription_plan: subscriptionPlan,
@@ -1077,13 +1105,38 @@ function BusinessConfigForm({
         {isVisible('deposit_percent') && (
           <SettingsGroup
             defaultCollapsed
-            title="תשלום המקדמה"
-            description="האחוז כאן חל על כל הלקוחות שדרישת התשלום שלהם היא מקדמה. בחירה של 5% קובעת 5% לכולם. אצל לקוח מסוים אפשר לבחור אחרת: בלי מקדמה, או לדרוש מקדמה גם אם לשאר הלקוחות אין. תשלום מלא בכרטיס תמיד 100%."
+            title="תשלום מראש"
+            description="מה כל הלקוחות משלמים לפני שהתור נקבע. אצל לקוח מסוים אפשר לבחור אחרת, לשני הכיוונים, והבחירה שלו גוברת. התור נשמר כממתין לאסמכתא עד שהלקוח שולח בוואטסאפ קבלה על הסכום ועל שם המוטב."
           >
+            <SettingsRow
+              label="כל הלקוחות"
+              htmlFor="business-payment-requirement"
+              help="חל על כל לקוח שמוגדר אצלו 'לפי העסק'. ללקוח שהוגדר אחרת, ההגדרה שלו גוברת."
+            >
+              <select
+                id="business-payment-requirement"
+                className={styles.input}
+                value={formData.default_payment_requirement}
+                onChange={(event) =>
+                  setFormData((previous) => ({
+                    ...previous,
+                    default_payment_requirement: parseBusinessPaymentRequirement(
+                      event.target.value,
+                    ),
+                  }))
+                }
+              >
+                {BUSINESS_PAYMENT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </SettingsRow>
             <SettingsRow
               label="אחוז מקדמה"
               htmlFor="business-deposit-percent"
-              help="גובה המקדמה לכל הלקוחות. אצל הלקוח עצמו בוחרים רק אם הוא משלם מקדמה, תשלום מלא, או בלי תשלום."
+              help="חל על כל מי שמשלם מקדמה, גם על לקוח שהוגדר אצלו מקדמה כשלשאר הלקוחות אין. הסכום מעוגל לשקל שלם."
             >
               <input
                 id="business-deposit-percent"
@@ -1105,6 +1158,71 @@ function BusinessConfigForm({
                 aria-label="אחוז מקדמה ממחיר התור"
               />
               <span className={styles.controlSuffix}>%</span>
+            </SettingsRow>
+            <SettingsRow
+              label="שם המוטב"
+              htmlFor="business-payment-payee"
+              help="השם שצריך להופיע על הקבלה."
+              stacked
+            >
+              <input
+                id="business-payment-payee"
+                type="text"
+                className={styles.input}
+                value={formData.payment_payee_name || ''}
+                onChange={(event) =>
+                  setFormData((previous) => ({
+                    ...previous,
+                    payment_payee_name: event.target.value,
+                  }))
+                }
+              />
+            </SettingsRow>
+            <SettingsRow
+              label="איך לשלם"
+              htmlFor="business-payment-instructions"
+              help="ההסבר שהסוכן שולח ללקוח: לאן להעביר ומה לצרף."
+              stacked
+            >
+              <textarea
+                id="business-payment-instructions"
+                className={styles.textarea}
+                rows={3}
+                value={formData.payment_instructions || ''}
+                onChange={(event) =>
+                  setFormData((previous) => ({
+                    ...previous,
+                    payment_instructions: event.target.value,
+                  }))
+                }
+              />
+            </SettingsRow>
+            <SettingsRow
+              label="המתנה לאסמכתא"
+              htmlFor="business-payment-hold"
+              help="אחרי השעות האלה, תור בלי אסמכתא מתבטל והשעה מתפנה."
+            >
+              <input
+                id="business-payment-hold"
+                type="number"
+                min="1"
+                max={MAX_PAYMENT_HOLD_HOURS}
+                step="1"
+                dir="ltr"
+                className={styles.compactInput}
+                value={formData.payment_hold_hours}
+                onChange={(event) => {
+                  const hours = Number(event.target.value);
+                  setFormData((previous) => ({
+                    ...previous,
+                    payment_hold_hours:
+                      event.target.value === '' || !Number.isFinite(hours)
+                        ? DEFAULT_PAYMENT_HOLD_HOURS
+                        : hours,
+                  }));
+                }}
+              />
+              <span className={styles.controlSuffix}>שעות</span>
             </SettingsRow>
           </SettingsGroup>
         )}

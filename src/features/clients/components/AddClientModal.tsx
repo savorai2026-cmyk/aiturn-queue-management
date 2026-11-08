@@ -420,7 +420,7 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
               <div className={styles.formGroup}>
                 <label className={styles.labelWithTip} htmlFor="payment_requirement">
                   דרישת תשלום
-                  <HelpTip text="הגדרה ללקוח הזה בלבד. ללא תשלום: התור נקבע בלי גבייה. מקדמה: נגבה אחוז המקדמה מהגדרות העסק, אותו אחוז לכל מי שדרישתו מקדמה. תשלום מלא: תמיד 100% ממחיר התור. אפשר לפטור לקוח ממקדמה גם כשלעסק יש אחוז, או לדרוש ממנו מקדמה גם כששאר הלקוחות בלי תשלום." />
+                  <HelpTip text="לפי העסק: חל מה שהוגדר לכל הלקוחות בהגדרות העסק. בחירה אחרת גוברת על העסק, לשני הכיוונים: ללא תשלום פוטר את הלקוח, מקדמה גובה את אחוז המקדמה של העסק, ותשלום מלא גובה 100% ממחיר התור. הגבייה צריכה שם מוטב והסבר תשלום בהגדרות העסק." />
                 </label>
                 <select
                   id="payment_requirement"

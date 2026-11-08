@@ -48,7 +48,6 @@ export const SERVICE_FIELDS: DisplayField[] = [
   { key: 'is_active', label: 'סטטוס', defaultVisible: true },
   { key: 'description', label: 'תיאור', defaultVisible: false },
   { key: 'buffer_time_minutes', label: 'זמן חיץ (דקות)', defaultVisible: false },
-  { key: 'deposit_amount', label: 'פיקדון (₪)', defaultVisible: false },
 ];
 
 export const STATUS_FIELDS: DisplayField[] = [
@@ -68,7 +67,7 @@ export const BUSINESS_FIELDS: DisplayField[] = [
 export const BUSINESS_CONFIG_FIELDS: DisplayField[] = [
   { key: 'timezone', label: 'אזור זמן', defaultVisible: true, dir: 'ltr' },
   { key: 'slot_duration_minutes', label: 'משך משבצת (דקות)', defaultVisible: true },
-  { key: 'deposit_percent', label: 'אחוז מקדמה', defaultVisible: true },
+  { key: 'deposit_percent', label: 'תשלום מראש', defaultVisible: true },
   { key: 'agent_prompt', label: 'תיאור מקצועי לסוכן', defaultVisible: true },
   { key: 'save_recordings', label: 'שמירת הקלטות', defaultVisible: true },
   { key: 'recordings_retention_days', label: 'ימי שמירת הקלטות', defaultVisible: true },

@@ -13,7 +13,6 @@ export interface ServiceFormValues {
   duration_minutes: string;
   buffer_time_minutes: string;
   price: string;
-  deposit_amount: string;
   is_active: boolean;
 }
 
@@ -30,6 +29,10 @@ export type BusinessSettings = Pick<
   | 'timezone'
   | 'slot_duration_minutes'
   | 'deposit_percent'
+  | 'default_payment_requirement'
+  | 'payment_payee_name'
+  | 'payment_instructions'
+  | 'payment_hold_hours'
   | 'agent_prompt'
   | 'agent_voice_id'
   | 'cancellation_policy'
@@ -59,6 +62,10 @@ export type EditableBusinessConfig = Pick<
   | 'timezone'
   | 'slot_duration_minutes'
   | 'deposit_percent'
+  | 'default_payment_requirement'
+  | 'payment_payee_name'
+  | 'payment_instructions'
+  | 'payment_hold_hours'
   | 'agent_prompt'
   | 'agent_voice_id'
   | 'cancellation_policy'

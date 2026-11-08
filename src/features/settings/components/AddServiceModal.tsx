@@ -30,7 +30,6 @@ const INITIAL_VALUES: ServiceFormValues = {
   duration_minutes: '30',
   buffer_time_minutes: '0',
   price: '0',
-  deposit_amount: '0',
   is_active: true,
 };
 
@@ -43,7 +42,6 @@ function toFormValues(service?: Service | null): ServiceFormValues {
     duration_minutes: String(service.duration_minutes),
     buffer_time_minutes: String(service.buffer_time_minutes ?? 0),
     price: String(service.price),
-    deposit_amount: String(service.deposit_amount ?? 0),
     is_active: service.is_active !== false,
   };
 }
@@ -52,7 +50,6 @@ function validateService(values: ServiceFormValues): string | null {
   const duration = Number(values.duration_minutes);
   const buffer = Number(values.buffer_time_minutes);
   const price = Number(values.price);
-  const deposit = Number(values.deposit_amount);
 
   if (!values.title.trim()) {
     return 'יש להזין שם שירות.';
@@ -70,14 +67,6 @@ function validateService(values: ServiceFormValues): string | null {
     return 'מחיר השירות אינו יכול להיות שלילי.';
   }
 
-  if (!Number.isFinite(deposit) || deposit < 0) {
-    return 'סכום הפיקדון אינו יכול להיות שלילי.';
-  }
-
-  if (deposit > price) {
-    return 'סכום הפיקדון אינו יכול להיות גבוה ממחיר השירות.';
-  }
-
   return null;
 }
 
@@ -92,7 +81,6 @@ function toServiceInsert(
     duration_minutes: Number(values.duration_minutes),
     buffer_time_minutes: Number(values.buffer_time_minutes),
     price: Number(values.price),
-    deposit_amount: Number(values.deposit_amount),
     is_active: values.is_active,
   };
 }
@@ -104,7 +92,6 @@ function toServiceUpdate(values: ServiceFormValues): ServiceUpdate {
     duration_minutes: Number(values.duration_minutes),
     buffer_time_minutes: Number(values.buffer_time_minutes),
     price: Number(values.price),
-    deposit_amount: Number(values.deposit_amount),
     is_active: values.is_active,
   };
 }
@@ -274,20 +261,6 @@ export default function AddServiceModal({
                 min="0"
                 step="0.01"
                 required
-              />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label htmlFor="service-deposit">פיקדון (₪)</label>
-              <input
-                id="service-deposit"
-                type="number"
-                name="deposit_amount"
-                value={formData.deposit_amount}
-                onChange={handleChange}
-                className={styles.input}
-                min="0"
-                step="0.01"
               />
             </div>
 

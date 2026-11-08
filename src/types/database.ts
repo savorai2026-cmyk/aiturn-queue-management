@@ -344,6 +344,10 @@ export type Database = {
           contact_phone: string | null
           created_at: string | null
           deposit_percent: number
+          default_payment_requirement: 'none' | 'deposit' | 'full'
+          payment_payee_name: string | null
+          payment_instructions: string | null
+          payment_hold_hours: number
           email: string | null
           is_active: boolean | null
           closed_at: string | null
@@ -377,6 +381,10 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string | null
           deposit_percent?: number
+          default_payment_requirement?: 'none' | 'deposit' | 'full'
+          payment_payee_name?: string | null
+          payment_instructions?: string | null
+          payment_hold_hours?: number
           email?: string | null
           is_active?: boolean | null
           closed_at?: string | null
@@ -410,6 +418,10 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string | null
           deposit_percent?: number
+          default_payment_requirement?: 'none' | 'deposit' | 'full'
+          payment_payee_name?: string | null
+          payment_instructions?: string | null
+          payment_hold_hours?: number
           email?: string | null
           is_active?: boolean | null
           closed_at?: string | null
@@ -460,7 +472,7 @@ export type Database = {
           last_contact: string | null
           mobile_phone: string
           national_id: string | null
-          payment_requirement: 'none' | 'deposit' | 'full'
+          payment_requirement: 'inherit' | 'none' | 'deposit' | 'full'
           po_box: string | null
           preferred_channel: string | null
           street: string | null
@@ -492,7 +504,7 @@ export type Database = {
           last_contact?: string | null
           mobile_phone: string
           national_id?: string | null
-          payment_requirement?: 'none' | 'deposit' | 'full'
+          payment_requirement?: 'inherit' | 'none' | 'deposit' | 'full'
           po_box?: string | null
           preferred_channel?: string | null
           street?: string | null
@@ -524,7 +536,7 @@ export type Database = {
           last_contact?: string | null
           mobile_phone?: string
           national_id?: string | null
-          payment_requirement?: 'none' | 'deposit' | 'full'
+          payment_requirement?: 'inherit' | 'none' | 'deposit' | 'full'
           po_box?: string | null
           preferred_channel?: string | null
           street?: string | null

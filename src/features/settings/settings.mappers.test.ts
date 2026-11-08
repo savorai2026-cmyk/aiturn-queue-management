@@ -57,13 +57,20 @@ describe('deposit percent', () => {
 
   it('formats the business percent for details', () => {
     const business = {
+      default_payment_requirement: 'deposit',
       deposit_percent: 20,
     } as BusinessSettings;
 
-    expect(formatBusinessField(business, 'deposit_percent')).toBe('20%');
+    expect(formatBusinessField(business, 'deposit_percent')).toBe('מקדמה 20%');
     expect(
       formatBusinessField({ ...business, deposit_percent: 12.5 }, 'deposit_percent'),
-    ).toBe('12.5%');
+    ).toBe('מקדמה 12.5%');
+    expect(
+      formatBusinessField(
+        { ...business, default_payment_requirement: 'none' },
+        'deposit_percent',
+      ),
+    ).toBe('ללא תשלום (מקדמה 20% ללקוחות שסומנו)');
     expect(
       formatBusinessField(
         { ...business, agent_prompt: 'מספרה בתל אביב' } as BusinessSettings,

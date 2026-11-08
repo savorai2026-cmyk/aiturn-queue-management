@@ -12,10 +12,21 @@ describe('payment hold', () => {
     ).toMatchObject({
       awaiting: true,
       label: 'ממתין לאסמכתא',
+      reason: 'cancellations',
       amount: '120',
       payeeName: 'המרפאה',
       proof: null,
     });
+  });
+
+  it('reads a deposit hold and its amount', () => {
+    expect(
+      readPaymentHold('05', {
+        payment_requested_at: '2026-11-08T10:00:00+02:00',
+        payment_amount: 35,
+        payment_reason: 'deposit',
+      }),
+    ).toMatchObject({ awaiting: true, reason: 'deposit', amount: '35' });
   });
 
   it('keeps a received WhatsApp proof after the appointment is confirmed', () => {

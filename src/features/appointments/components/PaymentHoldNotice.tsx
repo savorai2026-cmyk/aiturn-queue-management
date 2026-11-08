@@ -1,8 +1,14 @@
 import { useState } from 'react';
 import { getRecordingSignedUrl } from '../../conversations/conversations.api';
-import { readPaymentHold } from '../paymentHold';
+import { readPaymentHold, type PaymentHoldReason } from '../paymentHold';
 import type { AppointmentDetails } from '../appointments.types';
 import styles from './PaymentHoldNotice.module.css';
+
+const AWAITING_REASON: Record<PaymentHoldReason, string> = {
+  deposit: 'נדרשת מקדמה לפני קביעת התור.',
+  full: 'נדרש תשלום מלא לפני קביעת התור.',
+  cancellations: 'הלקוח סומן כחשוד לביטול.',
+};
 
 function formatMoment(value: string | null) {
   if (!value) return null;
@@ -52,7 +58,7 @@ export default function PaymentHoldNotice({
       <strong>{hold.label}</strong>
       <p>
         {hold.awaiting
-          ? 'הלקוח סומן כחשוד לביטול. התור ממתין לאסמכתא בוואטסאפ ולא נחשב תור קבוע.'
+          ? `${AWAITING_REASON[hold.reason]} התור ממתין לאסמכתא בוואטסאפ ולא נחשב תור קבוע.`
           : hold.proof
             ? 'התקבלה אסמכתא בוואטסאפ והתור אושר.'
             : 'הסטטוס שונה ידנית לפני שהתקבלה אסמכתא.'}

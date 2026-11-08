@@ -23,6 +23,7 @@ import {
   type SubscriptionPlan,
 } from '../usage/planPricing';
 import { normalizeStorageQuotaGb, INCLUDED_STORAGE_GB } from './storageQuota';
+import { prepaymentSummary } from './prepayment';
 
 const ILS_FORMATTER = new Intl.NumberFormat('he-IL', {
   style: 'currency',
@@ -32,9 +33,6 @@ const ILS_FORMATTER = new Intl.NumberFormat('he-IL', {
 export function formatServiceCell(service: Service, key: string): string {
   if (key === 'is_active') return service.is_active ? 'פעיל' : 'לא פעיל';
   if (key === 'price') return ILS_FORMATTER.format(service.price);
-  if (key === 'deposit_amount') {
-    return ILS_FORMATTER.format(service.deposit_amount ?? 0);
-  }
   if (key === 'buffer_time_minutes') {
     return String(service.buffer_time_minutes ?? 0);
   }
@@ -50,7 +48,6 @@ const SERVICE_NUMERIC_KEYS = new Set([
   'duration_minutes',
   'price',
   'buffer_time_minutes',
-  'deposit_amount',
 ]);
 
 export type ServiceColumnFilters = ColumnFilters;
@@ -60,7 +57,6 @@ function serviceNumericValue(service: Service, key: string): number {
   if (key === 'price') return Number(service.price);
   if (key === 'duration_minutes') return Number(service.duration_minutes);
   if (key === 'buffer_time_minutes') return Number(service.buffer_time_minutes ?? 0);
-  if (key === 'deposit_amount') return Number(service.deposit_amount ?? 0);
   return 0;
 }
 
@@ -240,8 +236,10 @@ export function formatBusinessField(
   key: string,
 ): string {
   if (key === 'deposit_percent') {
-    const percent = parseDepositPercent(business.deposit_percent);
-    return `${percent.toLocaleString('he-IL', { maximumFractionDigits: 2 })}%`;
+    return prepaymentSummary(
+      business.default_payment_requirement,
+      parseDepositPercent(business.deposit_percent),
+    );
   }
 
   if (key === 'save_recordings') {
