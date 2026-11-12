@@ -169,8 +169,23 @@ describe('toCalendarEvents', () => {
     });
 
     const events = toCalendarEvents([first, second]);
-    expect(events[0].extendedProps).toMatchObject({ groupRole: 'start' });
-    expect(events[1].extendedProps).toMatchObject({ groupRole: 'end' });
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      id: 'group-1-2',
+      title: "09:00 - 09:50 · עיצוב גבות, לק ג'ל · ישראל ישראלי",
+      start: '2026-08-20T09:00',
+      end: '2026-08-20T09:50',
+    });
+    expect(events[0].extendedProps).toMatchObject({
+      groupRole: 'combined',
+      appointmentId: 1,
+      serviceTitle: "עיצוב גבות, לק ג'ל",
+      timeLabel: '09:00 - 09:50',
+      segments: [
+        { appointmentId: 1, serviceId: 25, startMinutes: 9 * 60, endMinutes: 9 * 60 + 25 },
+        { appointmentId: 2, serviceId: 34, startMinutes: 9 * 60 + 25, endMinutes: 9 * 60 + 50 },
+      ],
+    });
   });
 
   it('hides canceled appointments from the calendar', () => {

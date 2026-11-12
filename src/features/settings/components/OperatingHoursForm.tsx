@@ -26,7 +26,6 @@ import {
   SaveIcon,
 } from '../../../shared/components/icons';
 import SpecialDaysEditor from './SpecialDaysEditor';
-import TentativeRangesEditor from './TentativeRangesEditor';
 import ClosureDemandPanel from './ClosureDemandPanel';
 import styles from './OperatingHoursForm.module.css';
 
@@ -78,7 +77,10 @@ export default function OperatingHoursForm({
   onSaved,
 }: OperatingHoursFormProps) {
   const [days, setDays] = useState<WorkingDayDraft[]>(() =>
-    toWorkingDayDrafts(business.working_hours),
+    toWorkingDayDrafts(business.working_hours).map((day) => ({
+      ...day,
+      tentative: [],
+    })),
   );
   const [specialDays, setSpecialDays] = useState<SpecialDayDraft[]>(() =>
     toSpecialDayDrafts(parseWorkingHourExceptions(business.working_hours)),
@@ -248,7 +250,12 @@ export default function OperatingHoursForm({
     <div className={styles.container}>
       {readOnly ? (
         <p className={styles.hint}>צפייה בלבד. רק בעלים או מנהל יכולים לשנות כאן.</p>
-      ) : null}
+      ) : (
+        <div className={styles.stickyBar}>
+          {status}
+          <SaveHoursButton isSaving={isSaving} onClick={save} />
+        </div>
+      )}
       <fieldset className={styles.lockedFields} disabled={readOnly}>
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
@@ -305,10 +312,6 @@ export default function OperatingHoursForm({
               ימי ושעות פעילות
               <HelpTip text="סמנו באילו ימים העסק פתוח. לכל יום אפשר להגדיר כמה מקטעי שעות, למשל בוקר וערב עם הפסקת צהריים קבועה. ימים סגורים יופיעו ביומן כלא זמינים לגרירה ולזימון." />
             </h3>
-            <div className={styles.tableSave}>
-              {status}
-              {readOnly ? null : <SaveHoursButton isSaving={isSaving} onClick={save} />}
-            </div>
           </div>
           <div className={styles.days}>
           <div className={styles.daysHead}>
@@ -379,11 +382,6 @@ export default function OperatingHoursForm({
                     </div>
                   ))}
                   {day.shifts.length === 0 ? renderShiftActions(day) : null}
-                  <TentativeRangesEditor
-                    ranges={day.tentative ?? []}
-                    shifts={day.shifts}
-                    onChange={(tentative) => updateDay(day.key, { tentative })}
-                  />
                 </div>
               ) : (
                 <span className={styles.closedHint}>סגור ביום זה</span>
@@ -416,8 +414,6 @@ export default function OperatingHoursForm({
       </fieldset>
 
       <div className={styles.formFoot}>
-        {status}
-        {readOnly ? null : <SaveHoursButton isSaving={isSaving} onClick={save} />}
         <p className={styles.todayHint}>
           היום: {formatHebrewDate(todayKey)}
         </p>

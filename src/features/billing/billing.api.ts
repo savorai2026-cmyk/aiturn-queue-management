@@ -1,6 +1,7 @@
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '../../supabaseClient';
 import { getErrorMessage } from '../../shared/errors';
+import { calendarLockedAfterCardRemoval } from './billing.mappers';
 import type {
   BillingSessionStatus,
   BillingSessionSummary,
@@ -184,6 +185,35 @@ export async function startBillingEnrollment(
     url: body.url,
     uniqueId: typeof body.uniqueid === 'string' ? body.uniqueid : '',
   };
+}
+
+export async function isCalendarLockedAfterCardRemoval(businessCode: string) {
+  const { data, error } = await supabase
+    .from('payment_methods')
+    .select('status')
+    .eq('business_code', businessCode)
+    .in('status', ['active', 'revoked']);
+
+  if (error) {
+    if (isMissingRelationError(error)) {
+      return false;
+    }
+    throw new Error(error.message);
+  }
+
+  return calendarLockedAfterCardRemoval(
+    ((data ?? []) as Array<{ status: string }>).map((row) => row.status),
+  );
+}
+
+export async function revokePaymentMethod(businessCode: string) {
+  const { error } = await supabase.rpc('revoke_business_payment_method', {
+    p_business_code: businessCode,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 export async function syncBillingSession(businessCode: string, uniqueId: string) {

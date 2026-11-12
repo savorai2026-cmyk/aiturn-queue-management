@@ -241,6 +241,12 @@
   cursor: grab;
 }
 
+:global(.fc-timegrid-event:hover),
+:global(.fc-daygrid-event:hover) {
+  filter: brightness(1.08);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.72);
+}
+
 :global(.fc-event-dragging),
 :global(.fc-event-mirror) {
   cursor: grabbing;
@@ -368,8 +374,8 @@
 :global(.fc .fc-button-primary:not(:disabled):active),
 :global(.fc .fc-button-primary:not(:disabled).fc-button-active:active),
 :global(.fc .fc-button-primary:not(:disabled):active:focus) {
-  transform: translateY(1px);
-  box-shadow: var(--shadow-button-press) !important;
+  transform: none;
+  box-shadow: none !important;
 }
 
 :global(.fc .fc-button-primary:disabled) {
@@ -390,8 +396,8 @@
 :global(.fc .fc-button-primary:not(:disabled).fc-button-active:focus),
 :global(.fc .fc-button-primary:not(:disabled).fc-button-active:hover:focus) {
   background-color: var(--color-navy-900);
-  transform: translateY(1px);
-  box-shadow: var(--shadow-button-press) !important;
+  transform: none;
+  box-shadow: none !important;
 }
 
 :global(.fc .fc-button-group:has(.fc-dayGridMonth-button)) {

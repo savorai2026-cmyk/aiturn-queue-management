@@ -61,6 +61,45 @@ import styles from './CalendarView.module.css';
 const MOBILE_QUERY = '(max-width: 767px)';
 const TODAY_HINT = 'מעבר להיום ביומן';
 
+function companionAppointmentIds(props: CalendarEventProps | undefined) {
+  return (props?.segments ?? [])
+    .map((segment) => segment.appointmentId)
+    .filter((id) => id !== props?.appointmentId);
+}
+
+function appointmentAtPointer(
+  props: CalendarEventProps,
+  element: HTMLElement,
+  clientY: number,
+) {
+  const segments = props.segments;
+  if (!segments || segments.length < 2) {
+    return {
+      appointmentId: props.appointmentId,
+      serviceId: props.serviceId,
+    };
+  }
+
+  const rect = element.getBoundingClientRect();
+  const ratio = rect.height
+    ? Math.min(1, Math.max(0, (clientY - rect.top) / rect.height))
+    : 0;
+  const start = segments[0].startMinutes;
+  const end = segments[segments.length - 1].endMinutes;
+  const minute = start + ratio * Math.max(end - start, 1);
+  const segment =
+    segments.find(
+      (item, index) =>
+        minute >= item.startMinutes &&
+        (minute < item.endMinutes || index === segments.length - 1),
+    ) ?? segments[0];
+
+  return {
+    appointmentId: segment.appointmentId,
+    serviceId: segment.serviceId,
+  };
+}
+
 function DragEdgeChevron({ direction }: { direction: 'prev' | 'next' }) {
   return (
     <svg className={styles.dragEdgeIcon} viewBox="0 0 24 24" aria-hidden="true">
@@ -78,6 +117,7 @@ export interface AppointmentDropRequest {
   appointmentId: number;
   serviceId: number;
   clientPhone: string | null;
+  companionAppointmentIds: number[];
   previousStart: Date;
   previousEnd: Date | null;
   nextStart: Date;
@@ -88,6 +128,7 @@ type DragOrigin = {
   appointmentId: number;
   serviceId: number;
   clientPhone: string | null;
+  companionAppointmentIds: number[];
   start: Date;
   end: Date | null;
   label: string;
@@ -102,8 +143,17 @@ interface CalendarViewProps {
   onRetry: () => void;
   onAddAppointment: () => void;
   onEventClick: (appointment: AppointmentDetails, serviceId: number) => void;
+  onEventContextMenu?: (
+    appointmentId: number,
+    serviceId: number,
+    x: number,
+    y: number,
+  ) => void;
+  onBackgroundClick?: (info: { date: Date; allDay: boolean }) => void;
+  onSelectedSlotContextMenu?: (x: number, y: number) => void;
   onSelectDate: (date: string) => void;
   onSelectTime?: (time: string | null) => void;
+  selectedTime: string | null;
   selectedAppointmentId: number | null;
   selectedServiceId: number | null;
   selectedDate: string | null;
@@ -154,6 +204,71 @@ function dateWhenLeavingMonth(
   return today;
 }
 
+function findTimegridSlotLane(root: HTMLElement, timeHm: string) {
+  const [hours, minutes] = timeHm.split(':').map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  const target = hours * 60 + minutes;
+  const lanes = [
+    ...root.querySelectorAll<HTMLElement>('.fc-timegrid-slot-lane[data-time]'),
+  ];
+  let match: HTMLElement | null = null;
+  for (const lane of lanes) {
+    const [laneHours, laneMinutes] = (lane.dataset.time ?? '').split(':').map(Number);
+    if (!Number.isFinite(laneHours) || !Number.isFinite(laneMinutes)) continue;
+    if (laneHours * 60 + laneMinutes <= target) match = lane;
+    else break;
+  }
+  return match;
+}
+
+function contextHitsSelectedEmptyArea(
+  root: HTMLElement,
+  event: MouseEvent,
+  selectedDate: string | null,
+  selectedTime: string | null,
+  selectedAppointmentId: number | null,
+  viewType: string,
+) {
+  const target = event.target;
+  if (!(target instanceof Element) || !selectedDate) return false;
+  if (
+    target.closest(
+      '.fc-event, .fc-header-toolbar, .fc-col-header, .fc-timegrid-slot-label, .fc-timegrid-axis, .fc-popover',
+    )
+  ) {
+    return false;
+  }
+
+  const dayCell = target.closest<HTMLElement>('.fc-daygrid-day[data-date]');
+  if (dayCell && viewType === 'dayGridMonth') {
+    if (dayCell.dataset.date !== selectedDate) return false;
+    return selectedAppointmentId == null || Boolean(selectedTime);
+  }
+
+  if (!selectedTime) return false;
+  const columns = root.querySelectorAll<HTMLElement>('.fc-timegrid-col[data-date]');
+  let column: HTMLElement | null = null;
+  for (const candidate of columns) {
+    if (candidate.dataset.date !== selectedDate) continue;
+    const box = candidate.getBoundingClientRect();
+    if (
+      event.clientX >= box.left &&
+      event.clientX <= box.right &&
+      event.clientY >= box.top &&
+      event.clientY <= box.bottom
+    ) {
+      column = candidate;
+      break;
+    }
+  }
+  if (!column) return false;
+
+  const lane = findTimegridSlotLane(root, selectedTime);
+  if (!lane) return false;
+  const laneBox = lane.getBoundingClientRect();
+  return event.clientY >= laneBox.top && event.clientY <= laneBox.bottom;
+}
+
 function getSlotDuration(slotDurationMinutes: number | null) {
   const minutes =
     slotDurationMinutes && slotDurationMinutes > 0 ? slotDurationMinutes : 30;
@@ -196,8 +311,12 @@ export default function CalendarView({
   onRetry,
   onAddAppointment,
   onEventClick,
+  onEventContextMenu,
+  onBackgroundClick,
+  onSelectedSlotContextMenu,
   onSelectDate,
   onSelectTime,
+  selectedTime,
   selectedAppointmentId,
   selectedServiceId,
   selectedDate,
@@ -297,17 +416,14 @@ export default function CalendarView({
 
     root.querySelectorAll<HTMLElement>('[data-date]').forEach((element) => {
       const dateKey = element.dataset.date ?? '';
-      element.classList.toggle(
-        'is-selected-day',
-        Boolean(selectedDate) && dateKey === selectedDate,
-      );
+      element.classList.remove('is-selected-day');
       element.classList.toggle(
         'is-closed-day',
         Boolean(dateKey) &&
           isClosedCalendarDay(parsedHours, exceptions, dateKey),
       );
     });
-  }, [exceptions, parsedHours, selectedDate]);
+  }, [exceptions, parsedHours]);
 
   const placeDaySelection = useCallback(() => {
     const root = rootRef.current;
@@ -318,9 +434,10 @@ export default function CalendarView({
       target: HTMLElement | null,
       className: string,
       alongBottom: boolean,
+      frame?: Pick<DOMRect, 'left' | 'top' | 'right' | 'bottom' | 'width' | 'height'>,
     ) => {
       root.querySelectorAll<HTMLElement>(`.${className}`).forEach((node) => {
-        if (!host || node.parentElement !== host) node.remove();
+        if (!host || !target || node.parentElement !== host) node.remove();
       });
       if (!host || !target) return;
 
@@ -337,7 +454,7 @@ export default function CalendarView({
       const borderLeft = Number.parseFloat(hostStyle.borderLeftWidth) || 0;
       const borderTop = Number.parseFloat(hostStyle.borderTopWidth) || 0;
       const hostBox = host.getBoundingClientRect();
-      const box = target.getBoundingClientRect();
+      const box = frame ?? target.getBoundingClientRect();
       const x = box.left - hostBox.left - borderLeft;
       const y = alongBottom
         ? box.bottom - hostBox.top - borderTop - 4
@@ -399,6 +516,15 @@ export default function CalendarView({
       });
     };
 
+    placeGlide(null, null, styles.dayLaneGlide, false);
+    placeGlide(null, null, styles.dayHeaderGlide, false);
+    placeGlide(null, null, styles.viewGlide, false);
+
+    if (selectedAppointmentId != null && !selectedTime) {
+      placeGlide(null, null, styles.dayGlide, false);
+      return;
+    }
+
     const dateKey = selectedDate ? CSS.escape(selectedDate) : '';
     const timeColumn = dateKey
       ? root.querySelector<HTMLElement>(`.fc-timegrid-col[data-date="${dateKey}"]`)
@@ -406,38 +532,33 @@ export default function CalendarView({
     const dayCell = dateKey
       ? root.querySelector<HTMLElement>(`.fc-daygrid-day[data-date="${dateKey}"]`)
       : null;
-    const column = timeColumn ?? dayCell;
-    placeGlide(
-      column?.closest<HTMLElement>('.fc-timegrid-cols, .fc-daygrid-body'),
-      column,
-      styles.dayGlide,
-      false,
-    );
-    placeGlide(
-      timeColumn ? dayCell?.closest<HTMLElement>('.fc-daygrid-body') : null,
-      timeColumn ? dayCell : null,
-      styles.dayLaneGlide,
-      false,
-    );
-
-    const header = dateKey
-      ? root.querySelector<HTMLElement>(`.fc-col-header-cell[data-date="${dateKey}"]`)
+    const slotLane = timeColumn && selectedTime
+      ? findTimegridSlotLane(root, selectedTime)
       : null;
-    const headerHost = header
-      ?.closest<HTMLElement>('.fc-scrollgrid-section-header')
-      ?.querySelector<HTMLElement>(':scope > td');
-    placeGlide(headerHost, header, styles.dayHeaderGlide, true);
+    const slotHost = timeColumn?.closest<HTMLElement>('.fc-timegrid-cols') ?? null;
 
-    const viewButton = root.querySelector<HTMLElement>(
-      '.fc-dayGridMonth-button.fc-button-active, .fc-timeGridWeek-button.fc-button-active, .fc-timeGridDay-button.fc-button-active',
-    );
-    placeGlide(
-      viewButton?.closest<HTMLElement>('.fc-button-group'),
-      viewButton,
-      styles.viewGlide,
-      true,
-    );
-  }, [selectedDate]);
+    if (timeColumn && slotLane && slotHost) {
+      const columnBox = timeColumn.getBoundingClientRect();
+      const laneBox = slotLane.getBoundingClientRect();
+      placeGlide(slotHost, timeColumn, styles.dayGlide, false, {
+        left: columnBox.left,
+        top: laneBox.top,
+        right: columnBox.right,
+        bottom: laneBox.bottom,
+        width: columnBox.width,
+        height: laneBox.height,
+      });
+    } else if (!timeColumn && dayCell && viewTypeRef.current === 'dayGridMonth') {
+      placeGlide(
+        dayCell.closest<HTMLElement>('.fc-daygrid-body'),
+        dayCell,
+        styles.dayGlide,
+        false,
+      );
+    } else {
+      placeGlide(null, null, styles.dayGlide, false);
+    }
+  }, [selectedAppointmentId, selectedDate, selectedTime]);
 
   useLayoutEffect(() => {
     placeDaySelection();
@@ -635,13 +756,24 @@ export default function CalendarView({
             ? [event.classNames]
             : [];
         const canMove = canEdit && !isCanceledStatus(props?.status ?? '');
+        const memberIds =
+          props?.segments?.map((segment) => segment.appointmentId) ??
+          (props?.appointmentId != null ? [props.appointmentId] : []);
+        const isSelected =
+          selectedAppointmentId != null &&
+          memberIds.includes(selectedAppointmentId);
+        const isFocused =
+          isSelected &&
+          (props?.segments?.some(
+            (segment) =>
+              segment.appointmentId === selectedAppointmentId &&
+              segment.serviceId === selectedServiceId,
+          ) ||
+            (!props?.segments && props?.serviceId === selectedServiceId));
         const classNames = [
           ...existingNames,
-          props?.appointmentId === selectedAppointmentId ? 'event-selected' : '',
-          props?.appointmentId === selectedAppointmentId &&
-          props.serviceId === selectedServiceId
-            ? 'event-focused'
-            : '',
+          isSelected ? 'event-selected' : '',
+          isFocused ? 'event-focused' : '',
         ].filter(Boolean);
 
         return {
@@ -690,23 +822,21 @@ export default function CalendarView({
             });
           }
 
-          if (!closed) {
-            const tentative =
-              resolveWorkingDay(parsedHours, exceptions, current)?.tentative ?? [];
-            tentative.forEach((range, index) => {
-              markers.push({
-                id: `tentative-${current}-${index}`,
-                title: 'שוקל סגירה',
-                start: toLocalDateFromKey(current, range.start),
-                end: toLocalDateFromKey(current, range.end),
-                display: 'background',
-                editable: false,
-                overlap: true,
-                classNames: ['tentative-fill'],
-                extendedProps: { specialDayLabel: true },
-              });
+          const tentative =
+            resolveWorkingDay(parsedHours, exceptions, current)?.tentative ?? [];
+          tentative.forEach((range, index) => {
+            markers.push({
+              id: `tentative-${current}-${index}`,
+              title: 'שוקל סגירה',
+              start: toLocalDateFromKey(current, range.start),
+              end: toLocalDateFromKey(current, range.end),
+              display: 'background',
+              editable: false,
+              overlap: true,
+              classNames: ['tentative-fill'],
+              extendedProps: { specialDayLabel: true },
             });
-          }
+          });
 
           current = addDaysToDateKey(current, 1);
           guard += 1;
@@ -742,11 +872,48 @@ export default function CalendarView({
 
   const onDropRequestRef = useRef(onDropRequest);
   const hasPendingMoveRef = useRef(hasPendingMove);
+  const onEventContextMenuRef = useRef(onEventContextMenu);
+  const onBackgroundClickRef = useRef(onBackgroundClick);
+  const onSelectedSlotContextMenuRef = useRef(onSelectedSlotContextMenu);
 
   useEffect(() => {
     onDropRequestRef.current = onDropRequest;
     hasPendingMoveRef.current = hasPendingMove;
-  }, [hasPendingMove, onDropRequest]);
+    onEventContextMenuRef.current = onEventContextMenu;
+    onBackgroundClickRef.current = onBackgroundClick;
+    onSelectedSlotContextMenuRef.current = onSelectedSlotContextMenu;
+  }, [
+    hasPendingMove,
+    onBackgroundClick,
+    onDropRequest,
+    onEventContextMenu,
+    onSelectedSlotContextMenu,
+  ]);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || !canEdit) return;
+
+    const onContextMenu = (event: MouseEvent) => {
+      if (
+        !contextHitsSelectedEmptyArea(
+          root,
+          event,
+          selectedDate,
+          selectedTime,
+          selectedAppointmentId,
+          viewTypeRef.current,
+        )
+      ) {
+        return;
+      }
+      event.preventDefault();
+      onSelectedSlotContextMenuRef.current?.(event.clientX, event.clientY);
+    };
+
+    root.addEventListener('contextmenu', onContextMenu);
+    return () => root.removeEventListener('contextmenu', onContextMenu);
+  }, [canEdit, selectedAppointmentId, selectedDate, selectedTime]);
 
   const hideDragTooltip = useCallback(() => {
     const tooltip = dragTooltipRef.current;
@@ -850,6 +1017,7 @@ export default function CalendarView({
         appointmentId: origin.appointmentId,
         serviceId: origin.serviceId,
         clientPhone: origin.clientPhone,
+        companionAppointmentIds: origin.companionAppointmentIds,
         previousStart: origin.start,
         previousEnd: origin.end,
         nextStart,
@@ -1047,6 +1215,7 @@ export default function CalendarView({
               appointmentId: props.appointmentId,
               serviceId: props.serviceId,
               clientPhone: props.clientPhone,
+              companionAppointmentIds: companionAppointmentIds(props),
               start,
               end: info.event.end,
               label: label || info.event.title || 'תור',
@@ -1108,6 +1277,7 @@ export default function CalendarView({
             appointmentId: props.appointmentId,
             serviceId: props.serviceId,
             clientPhone: props.clientPhone,
+            companionAppointmentIds: companionAppointmentIds(props),
             start: previousStart,
             end: info.oldEvent.end,
             label: '',
@@ -1193,7 +1363,6 @@ export default function CalendarView({
         stickyHeaderDates
         direction="rtl"
         allDaySlot={false}
-        eventMinHeight={22}
         displayEventTime={false}
         slotMinTime={slotRange.slotMinTime}
         slotMaxTime={slotRange.slotMaxTime}
@@ -1208,6 +1377,7 @@ export default function CalendarView({
         validRange={navigationRangeEnd ? { end: navigationRangeEnd } : undefined}
         businessHours={businessHours.length > 0 ? businessHours : undefined}
         eventOverlap={handleEventOverlap}
+        slotEventOverlap={false}
         editable={canEdit}
         eventDurationEditable={false}
         eventResizableFromStart={false}
@@ -1298,10 +1468,16 @@ export default function CalendarView({
           );
         }}
         dateClick={(info) => {
+          const target = info.jsEvent.target;
+          if (target instanceof Element && target.closest('.fc-event')) return;
           onSelectDate(toDateKey(info.date));
           onSelectTime?.(
             info.allDay ? null : snapTimeHm(toTimeHm(info.date)),
           );
+          onBackgroundClickRef.current?.({
+            date: info.date,
+            allDay: info.allDay,
+          });
         }}
         navLinkDayClick={(date, event) => {
           event.preventDefault();
@@ -1313,9 +1489,33 @@ export default function CalendarView({
         eventDragStop={handleEventDragStop}
         eventDrop={handleEventDrop}
         eventDidMount={(info) => {
-          const props = info.event.extendedProps as CalendarEventProps;
+          const props = info.event.extendedProps as CalendarEventProps & {
+            specialDayLabel?: boolean;
+          };
           if (props?.tooltip) {
             info.el.title = props.tooltip;
+          }
+          if (props?.specialDayLabel || props?.appointmentId == null) return;
+          const onMenu = (event: Event) => {
+            event.preventDefault();
+            const mouse = event as MouseEvent;
+            const target = appointmentAtPointer(props, info.el, mouse.clientY);
+            onEventContextMenuRef.current?.(
+              target.appointmentId,
+              target.serviceId,
+              mouse.clientX,
+              mouse.clientY,
+            );
+          };
+          info.el.addEventListener('contextmenu', onMenu);
+          (info.el as HTMLElement & { __appointmentMenu?: (event: Event) => void }).__appointmentMenu = onMenu;
+        }}
+        eventWillUnmount={(info) => {
+          const el = info.el as HTMLElement & {
+            __appointmentMenu?: (event: Event) => void;
+          };
+          if (el.__appointmentMenu) {
+            info.el.removeEventListener('contextmenu', el.__appointmentMenu);
           }
         }}
         eventContent={(arg: EventContentArg) => {
@@ -1324,21 +1524,19 @@ export default function CalendarView({
           }
 
           const props = arg.event.extendedProps as CalendarEventProps;
-          const isGroupContinuation =
-            props.groupRole === 'middle' || props.groupRole === 'end';
 
           return (
             <div className={styles.eventInner} title={props.tooltip}>
-              {isGroupContinuation ? null : (
+              {props.timeLabel ? (
                 <span className={styles.eventTime}>{props.timeLabel}</span>
-              )}
+              ) : null}
               {props.serviceTitle ? (
                 <span className={styles.eventService}>{props.serviceTitle}</span>
               ) : null}
-              {isGroupContinuation ? null : (
+              {props.clientName ? (
                 <span className={styles.eventName}>{props.clientName}</span>
-              )}
-              {!isGroupContinuation && props.holdLabel ? (
+              ) : null}
+              {props.holdLabel ? (
                 <span className={styles.eventHold}>{props.holdLabel}</span>
               ) : null}
             </div>
@@ -1352,11 +1550,16 @@ export default function CalendarView({
           if (props?.specialDayLabel) {
             return;
           }
+          const target = appointmentAtPointer(
+            props,
+            clickInfo.el,
+            clickInfo.jsEvent.clientY,
+          );
           const appointment = appointments.find(
-            (candidate) => candidate.id === props.appointmentId,
+            (candidate) => candidate.id === target.appointmentId,
           );
           if (appointment) {
-            onEventClick(appointment, props.serviceId);
+            onEventClick(appointment, target.serviceId);
           }
         }}
       />

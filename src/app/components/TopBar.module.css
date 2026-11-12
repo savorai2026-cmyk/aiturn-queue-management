@@ -1,6 +1,6 @@
 .topBar {
-  --top-ink: #02182b;
-  min-height: 84px;
+  --top-ink: #032e52;
+  min-height: 56px;
   min-width: 0;
   max-width: 100%;
   display: flex;
@@ -8,7 +8,7 @@
   align-items: stretch;
   gap: 24px;
   padding: 0 22px;
-  background: linear-gradient(180deg, var(--top-ink) 0%, var(--color-navy-900) 46%, #1a6f96 100%);
+  background: linear-gradient(180deg, var(--top-ink) 0%, var(--color-navy-900) 46%, var(--color-navy-700) 100%);
   color: #ffffff;
   box-shadow: 0 4px 16px rgba(7, 63, 103, 0.22);
 }
@@ -18,7 +18,7 @@
   align-items: center;
   gap: 14px;
   min-width: 0;
-  padding: 12px 0;
+  padding: 6px 0;
 }
 
 .navGroup {
@@ -67,8 +67,8 @@
 }
 
 .logo {
-  width: 168px;
-  height: 54px;
+  width: 116px;
+  height: 38px;
   padding: 2px 4px;
   box-sizing: border-box;
   object-fit: contain;

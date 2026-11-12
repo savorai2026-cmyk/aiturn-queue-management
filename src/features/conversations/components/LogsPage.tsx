@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ErrorState,
   LoadingState,
@@ -37,6 +37,10 @@ import {
 } from '../conversations.mappers';
 import type { LogLookup, LogPeriod } from '../conversations.types';
 import { useConversationLogs } from '../useConversationLogs';
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from '../../../shared/components/icons';
 import RecordingCell from './RecordingCell';
 import styles from './LogsPage.module.css';
 
@@ -79,6 +83,7 @@ function LogPager({
         disabled={isLoading || page === 0}
         onClick={() => onPage(Math.max(0, page - 1))}
       >
+        <ChevronRightIcon />
         הקודם
       </button>
       <button
@@ -88,6 +93,7 @@ function LogPager({
         onClick={() => onPage(page + 1)}
       >
         הבא
+        <ChevronLeftIcon />
       </button>
       <span className={styles.pageLabel}>
         עמוד {page + 1} מתוך {pageCount}
@@ -225,6 +231,49 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
     };
   }, [isDetailsOpen, selectedLog]);
 
+  const periodRef = useRef<HTMLDivElement>(null);
+  const [periodPill, setPeriodPill] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const [periodPillReady, setPeriodPillReady] = useState(false);
+
+  useLayoutEffect(() => {
+    const container = periodRef.current;
+    if (!container) return;
+
+    let cancelled = false;
+    const place = () => {
+      if (cancelled) return;
+      const current = container.querySelector<HTMLElement>('[aria-checked="true"]');
+      if (!current) {
+        setPeriodPill(null);
+        return;
+      }
+      const containerBox = container.getBoundingClientRect();
+      const itemBox = current.getBoundingClientRect();
+      setPeriodPill({
+        x: itemBox.left - containerBox.left + container.scrollLeft,
+        y: itemBox.top - containerBox.top + container.scrollTop,
+        width: itemBox.width,
+        height: itemBox.height,
+      });
+    };
+
+    place();
+    const frame = window.requestAnimationFrame(() => {
+      if (!cancelled) setPeriodPillReady(true);
+    });
+    window.addEventListener('resize', place);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', place);
+    };
+  }, [draft.period]);
+
   const selectPeriod = (period: LogPeriod) => {
     if (period === 'custom') {
       setDraft((current) => ({ ...current, period }));
@@ -255,89 +304,6 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
           });
         }}
       >
-        <label className={`${styles.field} ${styles.phoneField}`}>
-          <span>נייד</span>
-          <input
-            value={draft.phone}
-            dir="ltr"
-            inputMode="tel"
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, phone: event.target.value }))
-            }
-          />
-        </label>
-        <label className={`${styles.field} ${styles.idField}`}>
-          <span>תעודת זהות</span>
-          <input
-            value={draft.nationalId}
-            dir="ltr"
-            inputMode="numeric"
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, nationalId: event.target.value }))
-            }
-          />
-        </label>
-        <label className={`${styles.field} ${styles.nameField}`}>
-          <span>שם לקוח</span>
-          <input
-            value={draft.clientName}
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, clientName: event.target.value }))
-            }
-          />
-        </label>
-        <div className={styles.period} role="radiogroup" aria-label="תקופה">
-          {LOG_PERIODS.map((period) => (
-            <button
-              key={period.id}
-              type="button"
-              role="radio"
-              aria-checked={draft.period === period.id}
-              className={draft.period === period.id ? styles.periodActive : styles.periodButton}
-              onClick={() => selectPeriod(period.id)}
-            >
-              {period.label}
-            </button>
-          ))}
-        </div>
-        {draft.period === 'custom' ? (
-          <>
-            <label className={`${styles.field} ${styles.dateField}`}>
-              <span>מתאריך</span>
-              <DateField
-                aria-label="מתאריך"
-                value={draft.from}
-                max={draft.to || undefined}
-                onChange={(from) => setDraft((current) => ({ ...current, from, period: 'custom' }))}
-              />
-            </label>
-            <label className={`${styles.field} ${styles.dateField}`}>
-              <span>עד תאריך</span>
-              <DateField
-                aria-label="עד תאריך"
-                value={draft.to}
-                min={draft.from || undefined}
-                onChange={(to) => setDraft((current) => ({ ...current, to, period: 'custom' }))}
-              />
-            </label>
-          </>
-        ) : null}
-        <button type="submit" className={styles.searchButton} disabled={isLoading}>
-          חיפוש
-        </button>
-        {hasLookup ? (
-          <button
-            type="button"
-            className={styles.clearSearch}
-            onClick={() => {
-              const next = defaultLogLookup();
-              setDraft(next);
-              applyLookup(next);
-            }}
-          >
-            נקה
-          </button>
-        ) : null}
         <div className={styles.tableControls}>
           <DisplayToolbar
             fields={LOG_FIELDS}
@@ -362,6 +328,74 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
             </button>
           ) : null}
         </div>
+        <div className={styles.periodGroup}>
+          <div className={styles.periodField}>
+            <span>תקופה</span>
+            <div
+              ref={periodRef}
+              className={styles.period}
+              role="radiogroup"
+              aria-label="תקופת הסינון"
+            >
+              {periodPill ? (
+                <span
+                  className={`${styles.periodGlide} ${periodPillReady ? styles.periodGlideReady : ''}`}
+                  style={{
+                    width: periodPill.width,
+                    height: periodPill.height,
+                    transform: `translate(${periodPill.x}px, ${periodPill.y}px)`,
+                  }}
+                  aria-hidden="true"
+                />
+              ) : null}
+              {LOG_PERIODS.map((period) => (
+                <button
+                  key={period.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={draft.period === period.id}
+                  className={draft.period === period.id ? styles.periodActive : styles.periodButton}
+                  onClick={() => selectPeriod(period.id)}
+                >
+                  {period.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {draft.period === 'custom' ? (
+            <div className={styles.dateRange}>
+              <DateField
+                aria-label="מתאריך"
+                value={draft.from}
+                max={draft.to || undefined}
+                onChange={(from) => setDraft((current) => ({ ...current, from, period: 'custom' }))}
+              />
+              <span className={styles.dateRangeLine} aria-hidden="true" />
+              <DateField
+                aria-label="עד תאריך"
+                value={draft.to}
+                min={draft.from || undefined}
+                onChange={(to) => setDraft((current) => ({ ...current, to, period: 'custom' }))}
+              />
+            </div>
+          ) : null}
+        </div>
+        <button type="submit" className={styles.searchButton} disabled={isLoading}>
+          חיפוש
+        </button>
+        {hasLookup ? (
+          <button
+            type="button"
+            className={styles.clearSearch}
+            onClick={() => {
+              const next = defaultLogLookup();
+              setDraft(next);
+              applyLookup(next);
+            }}
+          >
+            נקה
+          </button>
+        ) : null}
       </form>
 
       {!error ? (

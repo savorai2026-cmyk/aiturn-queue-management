@@ -54,7 +54,6 @@ export type BusinessSettings = Pick<
 export type EditableBusinessProfile = Pick<
   BusinessSettings,
   'business_name' | 'contact_phone' | 'email' | 'agent_phone_number'
-  | 'owner_alert_channel' | 'owner_alert_phone' | 'owner_alert_lead_hours'
 >;
 
 export type EditableBusinessConfig = Pick<
@@ -77,6 +76,9 @@ export type EditableBusinessConfig = Pick<
   | 'subscription_plan'
   | 'storage_quota_gb'
   | 'is_active'
+  | 'owner_alert_channel'
+  | 'owner_alert_phone'
+  | 'owner_alert_lead_hours'
 >;
 
 export type EditableBusinessSettings = EditableBusinessProfile &

@@ -39,6 +39,9 @@ interface SidePanelProps {
   visibleFields: string[];
   onToggleField: (key: string) => void;
   onSave: (values: AppointmentEditValues) => Promise<void>;
+  onClose: () => void;
+  editToken?: number;
+  groupAppointments?: AppointmentDetails[];
 }
 
 export const SidePanel = ({
@@ -49,8 +52,15 @@ export const SidePanel = ({
   visibleFields,
   onToggleField,
   onSave,
+  onClose,
+  editToken = 0,
+  groupAppointments,
 }: SidePanelProps) => {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(editToken > 0);
+
+  useEffect(() => {
+    if (editToken > 0) setIsEditing(true);
+  }, [editToken]);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [formData, setFormData] = useState<AppointmentEditValues | null>(
     () => (appointment ? toAppointmentEditValues(appointment) : null),
@@ -62,16 +72,32 @@ export const SidePanel = ({
     setFormData(appointment ? toAppointmentEditValues(appointment) : null);
   }, [appointment, isEditing]);
 
+  const panelMembers = useMemo(() => {
+    if (!appointment) return [];
+    const members =
+      groupAppointments && groupAppointments.length > 0
+        ? groupAppointments
+        : [appointment];
+    return members.some((member) => member.id === appointment.id)
+      ? members
+      : [appointment];
+  }, [appointment, groupAppointments]);
+
   const totalPrice = useMemo(() => {
-    if (!formData) return 0;
-    if (formData.servicePrices.length === 0) {
-      return formData.price;
-    }
-    return formData.servicePrices.reduce(
-      (total, service) => total + service.price,
-      0,
-    );
-  }, [formData]);
+    if (!formData || !appointment) return 0;
+    const ownTotal =
+      formData.servicePrices.length === 0
+        ? formData.price
+        : formData.servicePrices.reduce((total, service) => total + service.price, 0);
+    const companionTotal = panelMembers
+      .filter((member) => member.id !== appointment.id)
+      .reduce(
+        (total, member) =>
+          total + member.services.reduce((sum, service) => sum + service.price, 0),
+        0,
+      );
+    return ownTotal + companionTotal;
+  }, [appointment, formData, panelMembers]);
 
   const baseline = useMemo(
     () => (appointment ? toAppointmentEditValues(appointment) : null),
@@ -109,7 +135,23 @@ export const SidePanel = ({
     }
   };
 
-  const timeRange = `${formatTimeHm(formData.start_time)} - ${formatTimeHm(formData.end_time)}`;
+  const groupStart = panelMembers[0]?.start_time ?? formData.start_time;
+  const groupEnd = panelMembers[panelMembers.length - 1]?.end_time ?? formData.end_time;
+  const timeRange = `${formatTimeHm(
+    panelMembers.length > 1 && !isEditing ? groupStart : formData.start_time,
+  )} - ${formatTimeHm(
+    panelMembers.length > 1 && !isEditing ? groupEnd : formData.end_time,
+  )}`;
+  const detailAppointment =
+    panelMembers.length > 1
+      ? {
+          ...appointment,
+          start_time: groupStart,
+          end_time: groupEnd,
+          services: panelMembers.flatMap((member) => member.services),
+          price: totalPrice,
+        }
+      : appointment;
   const isVisible = (key: string) => visibleFields.includes(key);
   const statusOptions = withCurrentStatus(statuses, formData.status);
 
@@ -126,6 +168,7 @@ export const SidePanel = ({
             canViewDetails
             variant="onDark"
             helpPosition="start"
+            compact
           />
           {readOnly ? null : (
             <>
@@ -151,6 +194,15 @@ export const SidePanel = ({
               </button>
             </>
           )}
+          <button
+            type="button"
+            className={styles.iconButton}
+            onClick={onClose}
+            aria-label="סגירת פרטי התור"
+            title="סגירה"
+          >
+            <span aria-hidden="true">×</span>
+          </button>
         </div>
       </div>
 
@@ -265,45 +317,53 @@ export const SidePanel = ({
         {isVisible('services') && (
         <div className={styles.services}>
           <span className={styles.fieldLabel}>שירותים ומחירים</span>
-          {appointment.services.map((service, index) => {
-            const priceValue = formData.servicePrices[index]?.price ?? service.price;
+          {panelMembers.flatMap((member) =>
+            member.services.map((service, index) => {
+              const ownsService = member.id === appointment.id;
+              const priceValue = ownsService
+                ? formData.servicePrices[index]?.price ?? service.price
+                : service.price;
 
-            return (
-              <div key={`${service.serviceId}-${service.position}`} className={styles.serviceRow}>
-                <div>
-                  <strong>{service.title}</strong>
-                  <div className={styles.serviceMeta}>
-                    {formatTimeHm(service.startTime)} - {formatTimeHm(service.endTime)}
+              return (
+                <div
+                  key={`${member.id}-${service.serviceId}-${service.position}-${index}`}
+                  className={styles.serviceRow}
+                >
+                  <div>
+                    <strong>{service.title}</strong>
+                    <div className={styles.serviceMeta}>
+                      {formatTimeHm(service.startTime)} - {formatTimeHm(service.endTime)}
+                    </div>
                   </div>
+                  {isEditing && ownsService ? (
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      className={styles.priceInput}
+                      value={priceValue}
+                      onChange={(event) => {
+                        const nextPrice = Number(event.target.value);
+                        setFormData((current) => {
+                          if (!current) return current;
+                          const servicePrices = current.servicePrices.map((item) =>
+                            item.serviceId === service.serviceId
+                              ? { ...item, price: Number.isFinite(nextPrice) ? nextPrice : 0 }
+                              : item,
+                          );
+                          return { ...current, servicePrices };
+                        });
+                      }}
+                    />
+                  ) : (
+                    <span className={styles.priceValue}>
+                      {ILS_FORMATTER.format(priceValue)}
+                    </span>
+                  )}
                 </div>
-                {isEditing ? (
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    className={styles.priceInput}
-                    value={priceValue}
-                    onChange={(event) => {
-                      const nextPrice = Number(event.target.value);
-                      setFormData((current) => {
-                        if (!current) return current;
-                        const servicePrices = current.servicePrices.map((item) =>
-                          item.serviceId === service.serviceId
-                            ? { ...item, price: Number.isFinite(nextPrice) ? nextPrice : 0 }
-                            : item,
-                        );
-                        return { ...current, servicePrices };
-                      });
-                    }}
-                  />
-                ) : (
-                  <span className={styles.priceValue}>
-                    {ILS_FORMATTER.format(priceValue)}
-                  </span>
-                )}
-              </div>
-            );
-          })}
+              );
+            }),
+          )}
           <div className={styles.totalRow}>
             <span>סה״כ</span>
             <strong>{ILS_FORMATTER.format(totalPrice)}</strong>
@@ -379,7 +439,7 @@ export const SidePanel = ({
       {isDetailsOpen && (
         <RecordDetailsModal
           title={`פרטי תור · ${appointment.patientName}`}
-          rows={toAppointmentDetailRows(appointment, statuses)}
+          rows={toAppointmentDetailRows(detailAppointment, statuses)}
           onClose={() => setIsDetailsOpen(false)}
         />
       )}

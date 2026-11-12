@@ -26,6 +26,10 @@ export function canManagePaymentMethods(role: BusinessRole | null | undefined) {
   return role != null && MANAGING_ROLES.has(role);
 }
 
+export function calendarLockedAfterCardRemoval(statuses: string[]) {
+  return !statuses.includes('active') && statuses.includes('revoked');
+}
+
 export function isActivePaymentMethod(
   method: Pick<PaymentMethodSummary, 'status'> | null | undefined,
 ) {

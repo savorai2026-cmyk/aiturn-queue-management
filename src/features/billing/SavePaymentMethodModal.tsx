@@ -14,7 +14,7 @@ import {
   isTerminalBillingSession,
 } from './billing.mappers';
 import type { PaymentMethodSummary } from './billing.types';
-import { getBusinessSubscriptionPlan } from '../settings/settings.api';
+import { getBusinessSubscriptionPlan, updateBusinessSettings } from '../settings/settings.api';
 import type { SubscriptionPlan } from '../usage/planPricing';
 import PlanRates from '../usage/components/PlanRates';
 import modal from '../../shared/components/modalShell.module.css';
@@ -123,6 +123,13 @@ export default function SavePaymentMethodModal({
           handled = true;
           popupRef.current?.close();
           setSavedLast4(formatCardLast4(method?.last4));
+          if (!isActivePaymentMethod(paymentMethod)) {
+            try {
+              await updateBusinessSettings(businessCode, { is_active: true });
+            } catch (restoreError) {
+              console.error('שגיאה בהפעלת הסוכנים אחרי שמירת כרטיס:', restoreError);
+            }
+          }
           setFlow('saved');
           await onSaved();
           return;
@@ -172,7 +179,7 @@ export default function SavePaymentMethodModal({
     };
   }, [businessCode, flow, onSaved, paymentMethod?.id, trackedSessionId]);
 
-  const handleStart = async (paymentType: 'validate' | 'regular') => {
+  const handleStart = async () => {
     setErrorMessage('');
     setTrackedSessionId(null);
     setFlow('starting');
@@ -182,7 +189,7 @@ export default function SavePaymentMethodModal({
     popupRef.current = popup;
 
     try {
-      const started = await startBillingEnrollment(businessCode, paymentType);
+      const started = await startBillingEnrollment(businessCode, 'validate');
       setStartUrl(started.url);
       setTrackedSessionId(started.uniqueId || null);
 
@@ -257,7 +264,7 @@ export default function SavePaymentMethodModal({
             <ul className={styles.points}>
               <li>דף ההזנה שייך למקס ואינו עובר דרך המערכת.</li>
               <li>אנחנו שומרים רק אסימון וארבע ספרות אחרונות.</li>
-              <li>אפשר לבדוק שמירה בלי חיוב, או שמירה עם חיוב של שקל אחד.</li>
+              <li>השמירה עצמה אינה כוללת חיוב.</li>
             </ul>
 
             {last4 && mode === 'update' && flow === 'ready' ? (
@@ -292,7 +299,7 @@ export default function SavePaymentMethodModal({
               <button
                 type="button"
                 className={styles.primary}
-                onClick={() => void handleStart('validate')}
+                onClick={() => void handleStart()}
                 disabled={flow === 'starting' || flow === 'waiting'}
               >
                 <CardIcon />
@@ -300,16 +307,7 @@ export default function SavePaymentMethodModal({
                   ? 'פותח דף מאובטח...'
                   : flow === 'waiting'
                     ? 'ממתין לשמירה'
-                    : 'שמירה בלי חיוב'}
-              </button>
-
-              <button
-                type="button"
-                className={styles.secondary}
-                onClick={() => void handleStart('regular')}
-                disabled={flow === 'starting' || flow === 'waiting'}
-              >
-                שמירה עם חיוב של 1 ש״ח
+                    : 'הזנת אשראי'}
               </button>
 
               {flow === 'waiting' && startUrl ? (

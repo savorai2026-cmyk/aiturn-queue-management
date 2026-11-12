@@ -14,6 +14,8 @@ interface DisplayToolbarProps {
   canViewDetails?: boolean;
   variant?: 'default' | 'onDark';
   helpPosition?: 'start' | 'end';
+  showHelp?: boolean;
+  compact?: boolean;
   filtersVisible?: boolean;
   filtersActive?: boolean;
   onToggleFilters?: () => void;
@@ -28,6 +30,8 @@ export default function DisplayToolbar({
   canViewDetails,
   variant = 'default',
   helpPosition = 'end',
+  showHelp = true,
+  compact = false,
   filtersVisible = false,
   filtersActive = false,
   onToggleFilters,
@@ -51,8 +55,8 @@ export default function DisplayToolbar({
   );
 
   return (
-    <div className={styles.group}>
-      {helpPosition === 'start' && help}
+    <div className={`${styles.group} ${compact ? styles.compact : ''}`}>
+      {showHelp && helpPosition === 'start' && help}
       <button
         ref={gearRef}
         type="button"
@@ -88,7 +92,7 @@ export default function DisplayToolbar({
           <GlassesIcon />
         </button>
       ) : null}
-      {helpPosition === 'end' && help}
+      {showHelp && helpPosition === 'end' && help}
       {isOpen && (
         <FieldChooser
           fields={fields}

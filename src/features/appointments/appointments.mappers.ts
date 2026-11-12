@@ -254,42 +254,92 @@ export function toCalendarEvents(
     })),
   );
 
-  return timedEvents.map((event) => {
-    const groupRole = roles.get(event.eventId) ?? 'single';
-    const copy = formatCalendarEventCopy({
-      time: event.startTime,
-      endTime: event.endTime,
-      serviceTitle: event.serviceTitle,
-      clientName: event.details.patientName,
-    });
+  const sorted = [...timedEvents].sort((left, right) => {
+    const leftDate = left.appointment.appointment_date;
+    const rightDate = right.appointment.appointment_date;
+    if (leftDate !== rightDate) return leftDate.localeCompare(rightDate);
+    if (left.startMinutes !== right.startMinutes) {
+      return left.startMinutes - right.startMinutes;
+    }
+    return left.eventId.localeCompare(right.eventId);
+  });
 
-    const hold = readPaymentHold(
-      event.appointment.status,
-      event.appointment.metadata,
-    );
+  const chunks: Array<typeof sorted> = [];
+  let index = 0;
+  while (index < sorted.length) {
+    const role = roles.get(sorted[index].eventId) ?? 'single';
+    if (role !== 'start') {
+      chunks.push([sorted[index]]);
+      index += 1;
+      continue;
+    }
+
+    const chunk = [sorted[index]];
+    index += 1;
+    while (index < sorted.length) {
+      const nextRole = roles.get(sorted[index].eventId) ?? 'single';
+      if (nextRole !== 'middle' && nextRole !== 'end') break;
+      chunk.push(sorted[index]);
+      index += 1;
+      if (nextRole === 'end') break;
+    }
+    chunks.push(chunk);
+  }
+
+  return chunks.map((chunk) => {
+    const first = chunk[0];
+    const last = chunk[chunk.length - 1];
+    const combined = chunk.length > 1;
+    const serviceTitle = chunk
+      .map((event) => event.serviceTitle.trim())
+      .filter(Boolean)
+      .join(', ');
+    const copy = formatCalendarEventCopy({
+      time: first.startTime,
+      endTime: last.endTime,
+      serviceTitle,
+      clientName: first.details.patientName,
+    });
+    const hold = chunk
+      .map((event) =>
+        readPaymentHold(event.appointment.status, event.appointment.metadata),
+      )
+      .find((item) => item != null);
+    const date = first.appointment.appointment_date;
     const extendedProps: CalendarEventProps = {
-      appointmentId: event.appointment.id,
-      serviceId: event.serviceId,
-      clientId: event.appointment.client_id,
-      clientPhone: event.details.clientPhone,
-      status: event.appointment.status,
-      groupRole,
+      appointmentId: first.appointment.id,
+      serviceId: first.serviceId,
+      clientId: first.appointment.client_id,
+      clientPhone: first.details.clientPhone,
+      status: first.appointment.status,
+      groupRole: combined ? 'combined' : 'single',
       timeLabel: copy.timeLabel,
       serviceTitle: copy.serviceTitle,
       clientName: copy.clientName,
       tooltip: hold ? `${copy.tooltip} · ${hold.label}` : copy.tooltip,
       ...(hold ? { holdLabel: hold.label } : {}),
+      ...(combined
+        ? {
+            segments: chunk.map((event) => ({
+              appointmentId: event.appointment.id,
+              serviceId: event.serviceId,
+              status: event.appointment.status,
+              startMinutes: event.startMinutes,
+              endMinutes: event.endMinutes,
+            })),
+          }
+        : {}),
     };
 
     return {
-      id: event.eventId,
+      id: combined ? `group-${chunk.map((event) => event.eventId).join('-')}` : first.eventId,
       title: copy.title,
-      start: `${event.appointment.appointment_date}T${formatTimeHm(event.startTime)}`,
-      end: `${event.appointment.appointment_date}T${formatTimeHm(event.endTime)}`,
-      backgroundColor: event.color,
-      borderColor: event.color,
+      start: `${date}T${formatTimeHm(first.startTime)}`,
+      end: `${date}T${formatTimeHm(last.endTime)}`,
+      backgroundColor: first.color,
+      borderColor: first.color,
       classNames: [
-        `event-group-${groupRole}`,
+        combined ? 'event-combined' : 'event-group-single',
         ...(hold?.awaiting ? ['event-payment-hold'] : []),
         ...(hold?.proof && !hold.awaiting ? ['event-payment-proof'] : []),
       ],

@@ -100,20 +100,24 @@ import TimezoneSelect from './TimezoneSelect';
 import styles from './Settings.module.css';
 
 type SettingsTab =
+  | 'subscription'
   | 'business'
   | 'config'
   | 'hours'
   | 'services'
   | 'statuses'
-  | 'payment';
+  | 'payment'
+  | 'account';
 
 const SETTINGS_TABS: SettingsTab[] = [
+  'subscription',
   'business',
   'config',
   'hours',
   'services',
   'statuses',
   'payment',
+  'account',
 ];
 
 function readStoredSettingsTab(businessCode: string): SettingsTab {
@@ -168,6 +172,12 @@ function SettingsTabs({
           aria-hidden="true"
         />
       ) : null}
+      {isOwner ? (
+        <>
+          {tab('subscription', 'מנוי')}
+          <span className={styles.tabDivider} aria-hidden="true" />
+        </>
+      ) : null}
       {tab('business', 'פרטי העסק')}
       {isOwner ? (
         <>
@@ -183,6 +193,8 @@ function SettingsTabs({
       {tab('statuses', 'הגדרת סטטוסים')}
       <span className={styles.tabDivider} aria-hidden="true" />
       {tab('payment', 'אמצעי תשלום')}
+      <span className={styles.tabDivider} aria-hidden="true" />
+      {tab('account', 'חשבון')}
     </div>
   );
 }
@@ -212,7 +224,7 @@ export default function Settings({
   }, [businessCode]);
 
   useEffect(() => {
-    if (!isOwner && activeTab === 'config') {
+    if (!isOwner && (activeTab === 'config' || activeTab === 'subscription')) {
       setActiveTab('business');
     }
   }, [activeTab, isOwner]);
@@ -226,7 +238,7 @@ export default function Settings({
   }, [activeTab, businessCode]);
 
   useEffect(() => {
-    if (!business || activeTab !== 'config') return;
+    if (!business || activeTab !== 'subscription') return;
     const key = `settingsScroll:${businessCode}`;
     let target: string | null = null;
     try {
@@ -271,35 +283,29 @@ export default function Settings({
       />
 
       <div className={styles.contentCard}>
-        {activeTab === 'business' ? (
-          <>
-            <BusinessProfileForm
-              key={business.business_code}
-              business={business}
-              readOnly={!canManage}
-              visibleFields={visibleFieldsFor('business')}
-              onToggleField={(key) => toggleField('business', key)}
-              onSaved={handleBusinessSaved}
-            />
-            {isOwner ? null : <TwoFactorPanel />}
-          </>
+        {activeTab === 'subscription' && isOwner ? (
+          <SubscriptionForm
+            key={`${business.business_code}-subscription`}
+            business={business}
+            onSaved={handleBusinessSaved}
+          />
+        ) : activeTab === 'business' ? (
+          <BusinessProfileForm
+            key={business.business_code}
+            business={business}
+            readOnly={!canManage}
+            visibleFields={visibleFieldsFor('business')}
+            onToggleField={(key) => toggleField('business', key)}
+            onSaved={handleBusinessSaved}
+          />
         ) : activeTab === 'config' && isOwner ? (
-          <div>
-            <BusinessConfigForm
-              key={`${business.business_code}-config`}
-              business={business}
-              visibleFields={visibleFieldsFor('businessConfig')}
-              onToggleField={(key) => toggleField('businessConfig', key)}
-              onSaved={handleBusinessSaved}
-            />
-            <BusinessAccountPanel
-              businessCode={business.business_code}
-              plan={parseSubscriptionPlan(business.subscription_plan)}
-              agentsActive={business.is_active !== false}
-              accountClosed={Boolean(business.closed_at)}
-            />
-            <TwoFactorPanel />
-          </div>
+          <BusinessConfigForm
+            key={`${business.business_code}-config`}
+            business={business}
+            visibleFields={visibleFieldsFor('businessConfig')}
+            onToggleField={(key) => toggleField('businessConfig', key)}
+            onSaved={handleBusinessSaved}
+          />
         ) : activeTab === 'hours' ? (
           <OperatingHoursForm
             key={`${business.business_code}-hours`}
@@ -336,9 +342,21 @@ export default function Settings({
             error={payment.error}
             onRefresh={() => {
               payment.refresh();
-              notifyBusinessAccessChanged(businessCode);
+              void handleBusinessSaved();
             }}
           />
+        ) : activeTab === 'account' ? (
+          <div>
+            {isOwner ? (
+              <BusinessAccountPanel
+                businessCode={business.business_code}
+                plan={parseSubscriptionPlan(business.subscription_plan)}
+                agentsActive={business.is_active !== false}
+                accountClosed={Boolean(business.closed_at)}
+              />
+            ) : null}
+            <TwoFactorPanel />
+          </div>
         ) : null}
       </div>
     </div>
@@ -353,9 +371,6 @@ function toEditableProfile(
     contact_phone: business.contact_phone,
     email: business.email,
     agent_phone_number: business.agent_phone_number,
-    owner_alert_channel: business.owner_alert_channel,
-    owner_alert_phone: business.owner_alert_phone,
-    owner_alert_lead_hours: business.owner_alert_lead_hours ?? 24,
   };
 }
 
@@ -402,6 +417,9 @@ function toEditableConfig(
       includedStorageGb(parseSubscriptionPlan(business.subscription_plan)),
     ),
     is_active: business.is_active !== false,
+    owner_alert_channel: business.owner_alert_channel,
+    owner_alert_phone: business.owner_alert_phone,
+    owner_alert_lead_hours: business.owner_alert_lead_hours ?? 24,
   };
 }
 
@@ -446,22 +464,9 @@ function BusinessProfileForm({
     setMessage(null);
 
     try {
-      const channel = formData.owner_alert_channel || null;
-      const phone = formData.owner_alert_phone?.trim() || null;
-      if (channel && !phone) {
-        setMessage({
-          text: 'כדי לשלוח התראה צריך גם מספר.',
-          type: 'error',
-        });
-        setIsSaving(false);
-        return;
-      }
       await updateBusinessSettings(business.business_code, {
         ...formData,
         business_name: formData.business_name.trim(),
-        owner_alert_channel: channel,
-        owner_alert_phone: phone,
-        owner_alert_lead_hours: formData.owner_alert_lead_hours,
       });
       await onSaved();
       setMessage({
@@ -480,15 +485,37 @@ function BusinessProfileForm({
   };
 
   return (
-    <div>
-      <div className={styles.sectionToolbar}>
-        <DisplayToolbar
-          fields={BUSINESS_FIELDS}
-          visibleKeys={visibleFields}
-          onToggle={onToggleField}
-          onViewDetails={() => setIsDetailsOpen(true)}
-          canViewDetails
-        />
+    <div className={styles.settingsColumn}>
+      <div className={styles.stickyBar}>
+        <div className={styles.sectionToolbar}>
+          <DisplayToolbar
+            fields={BUSINESS_FIELDS}
+            visibleKeys={visibleFields}
+            onToggle={onToggleField}
+            onViewDetails={() => setIsDetailsOpen(true)}
+            canViewDetails
+          />
+          {readOnly ? null : (
+            <button
+              type="button"
+              className={`${styles.btnPrimary} ${styles.toolbarSave}`}
+              onClick={() => void handleSave()}
+              disabled={isSaving}
+            >
+              {isSaving ? 'שומר...' : (
+                <>
+                  <SaveIcon />
+                  שמור פרטי עסק
+                </>
+              )}
+            </button>
+          )}
+        </div>
+        {message && (
+          <p className={styles[message.type]} role="status">
+            {message.text}
+          </p>
+        )}
       </div>
       {readOnly ? <p className={styles.readOnlyNote}>{READ_ONLY_NOTE}</p> : null}
       <fieldset className={styles.lockedFields} disabled={readOnly}>
@@ -543,78 +570,8 @@ function BusinessProfileForm({
             />
           </div>
         )}
-        <div className={styles.formGroup}>
-          <label>התראה על ביטול קרוב</label>
-          <select
-            name="owner_alert_channel"
-            value={formData.owner_alert_channel || ''}
-            onChange={(event) => {
-              const value = event.target.value;
-              setFormData((previous) => ({
-                ...previous,
-                owner_alert_channel: value || null,
-              }));
-            }}
-            className={styles.input}
-          >
-            <option value="">בלי התראה</option>
-            <option value="call">שיחה קולית</option>
-            <option value="whatsapp">וואטסאפ</option>
-          </select>
-        </div>
-        <div className={styles.formGroup}>
-          <label>מספר להתראה</label>
-          <input
-            type="text"
-            name="owner_alert_phone"
-            value={formData.owner_alert_phone || ''}
-            onChange={handleChange}
-            className={styles.input}
-            dir="ltr"
-          />
-        </div>
-        <div className={styles.formGroup}>
-          <label>חלון ההתראה בשעות</label>
-          <input
-            type="number"
-            min={1}
-            name="owner_alert_lead_hours"
-            value={formData.owner_alert_lead_hours}
-            onChange={(event) => {
-              const hours = Number(event.target.value);
-              setFormData((previous) => ({
-                ...previous,
-                owner_alert_lead_hours: Number.isFinite(hours) && hours > 0 ? hours : 24,
-              }));
-            }}
-            className={styles.input}
-            dir="ltr"
-          />
-        </div>
       </div>
       </fieldset>
-
-      {message && (
-        <p className={styles[message.type]} role="status">
-          {message.text}
-        </p>
-      )}
-
-      {readOnly ? null : (
-        <button
-          type="button"
-          className={styles.btnPrimary}
-          onClick={() => void handleSave()}
-          disabled={isSaving}
-        >
-          {isSaving ? 'שומר...' : (
-            <>
-              <SaveIcon />
-              שמור פרטי עסק
-            </>
-          )}
-        </button>
-      )}
 
       {isDetailsOpen && (
         <RecordDetailsModal
@@ -773,7 +730,7 @@ function BusinessConfigForm({
         return;
       }
 
-      const subscriptionPlan = parseSubscriptionPlan(formData.subscription_plan);
+      const subscriptionPlan = parseSubscriptionPlan(business.subscription_plan);
       const terms = tariffs.resolve(subscriptionPlan);
       const retentionDays = normalizeRetentionDays(
         formData.recordings_retention_days,
@@ -812,22 +769,19 @@ function BusinessConfigForm({
         return;
       }
 
-      const storedQuotaGb = normalizeStorageQuotaGb(formData.storage_quota_gb);
-      const quotaGb =
-        storedQuotaGb == null
-          ? null
-          : displayStorageQuotaGb(storedQuotaGb, terms.includedStorageGb);
-      if (quotaGb == null) {
-        setMessage({
-          text: 'מכסת האחסון חייבת להיות מספר שלם של לפחות 5 ג׳יגה.',
-          type: 'error',
-        });
-        return;
-      }
-
       const policy = cancellationPolicyPayload(policyDraft);
       if ('error' in policy) {
         setMessage({ text: policy.error, type: 'error' });
+        return;
+      }
+
+      const alertChannel = formData.owner_alert_channel || null;
+      const alertPhone = formData.owner_alert_phone?.trim() || null;
+      if (alertChannel && !alertPhone) {
+        setMessage({
+          text: 'כדי לשלוח התראה צריך גם מספר.',
+          type: 'error',
+        });
         return;
       }
 
@@ -842,14 +796,15 @@ function BusinessConfigForm({
         agent_prompt: formData.agent_prompt?.trim() || null,
         agent_voice_id: formData.agent_voice_id?.trim() || null,
         save_recordings: formData.save_recordings,
-        subscription_plan: subscriptionPlan,
         recordings_retention_days: retentionDays,
         history_retention_months: historyMonths,
         voice_log_retention_months: whatsappMonths,
         whatsapp_retention_months: whatsappMonths,
-        storage_quota_gb: quotaGb,
         is_active: formData.is_active,
         cancellation_policy: policy.value,
+        owner_alert_channel: alertChannel,
+        owner_alert_phone: alertPhone,
+        owner_alert_lead_hours: formData.owner_alert_lead_hours,
       });
       setFormData((previous) => ({
         ...previous,
@@ -858,13 +813,13 @@ function BusinessConfigForm({
         payment_instructions: paymentInstructions,
         agent_prompt: formData.agent_prompt?.trim() || null,
         agent_voice_id: formData.agent_voice_id?.trim() || null,
-        subscription_plan: subscriptionPlan,
         recordings_retention_days: retentionDays,
         history_retention_months: historyMonths,
         voice_log_retention_months: whatsappMonths,
         whatsapp_retention_months: whatsappMonths,
-        storage_quota_gb: quotaGb,
         cancellation_policy: policy.value,
+        owner_alert_channel: alertChannel,
+        owner_alert_phone: alertPhone,
       }));
       await onSaved();
       setMessage({
@@ -911,47 +866,8 @@ function BusinessConfigForm({
     }
   };
 
-  const selectedPlan = parseSubscriptionPlan(formData.subscription_plan);
+  const selectedPlan = parseSubscriptionPlan(business.subscription_plan);
   const terms = tariffs.resolve(selectedPlan);
-  const regularTerms = tariffs.resolve('regular');
-  const expandedTerms = tariffs.resolve('expanded');
-
-  const quotaGb = displayStorageQuotaGb(
-    normalizeStorageQuotaGb(formData.storage_quota_gb) ?? INCLUDED_STORAGE_GB,
-    terms.includedStorageGb,
-  );
-
-  const applyPlan = (subscriptionPlan: SubscriptionPlan) => {
-    const nextTerms = tariffs.resolve(subscriptionPlan);
-    const previousIncludedGb = tariffs.resolve(
-      parseSubscriptionPlan(formData.subscription_plan),
-    ).includedStorageGb;
-    setFormData((previous) => {
-      const correspondenceMonths = Math.min(
-        previous.whatsapp_retention_months,
-        nextTerms.correspondenceMaxMonths,
-      );
-      return {
-        ...previous,
-        subscription_plan: subscriptionPlan,
-        storage_quota_gb: alignStorageQuotaGb(
-          previous.storage_quota_gb,
-          previousIncludedGb,
-          nextTerms.includedStorageGb,
-        ),
-        recordings_retention_days: Math.min(
-          previous.recordings_retention_days,
-          nextTerms.recordingMaxDays,
-        ),
-        history_retention_months: Math.min(
-          previous.history_retention_months,
-          nextTerms.historyMaxMonths,
-        ),
-        voice_log_retention_months: correspondenceMonths,
-        whatsapp_retention_months: correspondenceMonths,
-      };
-    });
-  };
 
   return (
     <div className={styles.settingsColumn}>
@@ -1101,6 +1017,76 @@ function BusinessConfigForm({
             )}
           </SettingsGroup>
         )}
+
+        <SettingsGroup
+          title="התראה על ביטול קרוב"
+          description="כשלקוח מבטל תור בתוך חלון השעות, העסק מקבל על כך התראה."
+        >
+          <SettingsRow
+            label="ערוץ ההתראה"
+            htmlFor="business-owner-alert-channel"
+            help="שיחה קולית או וואטסאפ. בלי התראה, הביטול נשמר ביומן בלי הודעה לבעלים."
+          >
+            <select
+              id="business-owner-alert-channel"
+              className={styles.input}
+              value={formData.owner_alert_channel || ''}
+              onChange={(event) => {
+                const value = event.target.value;
+                setFormData((previous) => ({
+                  ...previous,
+                  owner_alert_channel: value || null,
+                }));
+              }}
+            >
+              <option value="">בלי התראה</option>
+              <option value="call">שיחה קולית</option>
+              <option value="whatsapp">וואטסאפ</option>
+            </select>
+          </SettingsRow>
+          <SettingsRow
+            label="מספר להתראה"
+            htmlFor="business-owner-alert-phone"
+            help="המספר שאליו נשלחת ההתראה. חובה כשיש ערוץ התראה."
+          >
+            <input
+              id="business-owner-alert-phone"
+              type="text"
+              className={styles.input}
+              dir="ltr"
+              value={formData.owner_alert_phone || ''}
+              onChange={(event) =>
+                setFormData((previous) => ({
+                  ...previous,
+                  owner_alert_phone: event.target.value || null,
+                }))
+              }
+            />
+          </SettingsRow>
+          <SettingsRow
+            label="חלון ההתראה"
+            htmlFor="business-owner-alert-hours"
+            help="כמה שעות לפני התור נחשבות ביטול קרוב."
+          >
+            <input
+              id="business-owner-alert-hours"
+              type="number"
+              min={1}
+              step="1"
+              dir="ltr"
+              className={styles.compactInput}
+              value={formData.owner_alert_lead_hours}
+              onChange={(event) => {
+                const hours = Number(event.target.value);
+                setFormData((previous) => ({
+                  ...previous,
+                  owner_alert_lead_hours: Number.isFinite(hours) && hours > 0 ? hours : 24,
+                }));
+              }}
+            />
+            <span className={styles.controlSuffix}>שעות</span>
+          </SettingsRow>
+        </SettingsGroup>
 
         {isVisible('deposit_percent') && (
           <SettingsGroup
@@ -1383,61 +1369,6 @@ function BusinessConfigForm({
           )}
         </SettingsGroup>
 
-        <SettingsGroup
-          id="cloud-storage"
-          defaultCollapsed
-          title="אחסון בענן"
-          description={`${terms.includedStorageGb} ג׳יגה כלולים במנוי. כל ג׳יגה נוספת עולה ${terms.extraStorageGbIls} ₪ לחודש, בלי תקרת מכסה.`}
-        >
-          <StorageUsageMeter
-            businessCode={business.business_code}
-            plan={selectedPlan}
-            rates={{
-              includedGb: terms.includedStorageGb,
-              extraGbIls: terms.extraStorageGbIls,
-            }}
-            quotaGb={quotaGb}
-          />
-          {isVisible('storage_quota_gb') && (
-            <SettingsRow
-              label="מכסה לעסק"
-              htmlFor="business-storage-quota"
-              help={`אפשר להגדיל מעבר ל־${terms.includedStorageGb} ג׳יגה הכלולות. כל ג׳יגה נוספת ${terms.extraStorageGbIls} ₪ לחודש, בלי הגבלה.`}
-            >
-              <input
-                id="business-storage-quota"
-                type="number"
-                name="storage_quota_gb"
-                min={terms.includedStorageGb}
-                step="1"
-                dir="ltr"
-                value={formData.storage_quota_gb}
-                onChange={(event) => {
-                  const { value } = event.target;
-                  setFormData((previous) => ({
-                    ...previous,
-                    storage_quota_gb:
-                      value === '' ? terms.includedStorageGb : Number(value),
-                  }));
-                }}
-                onBlur={() => {
-                  setFormData((previous) => ({
-                    ...previous,
-                    storage_quota_gb: displayStorageQuotaGb(
-                      normalizeStorageQuotaGb(previous.storage_quota_gb) ??
-                        terms.includedStorageGb,
-                      terms.includedStorageGb,
-                    ),
-                  }));
-                }}
-                className={styles.compactInput}
-                aria-label="מכסת אחסון בג׳יגה"
-              />
-              <span className={styles.controlSuffix}>ג׳יגה</span>
-            </SettingsRow>
-          )}
-        </SettingsGroup>
-
         {(isVisible('save_recordings') ||
           isVisible('recordings_retention_days') ||
           isVisible('history_retention_months') ||
@@ -1565,7 +1496,7 @@ function BusinessConfigForm({
             <SettingsRow
               label="הסוכנים פעילים"
               htmlFor="business-is-active"
-              help="כשכבוי, הסוכנים מושבתים והיומן נשאר פתוח. סגירת החשבון נמצאת למטה."
+              help="כשכבוי, הסוכנים מושבתים והיומן נשאר פתוח. סגירת החשבון נמצאת בלשונית חשבון."
             >
               <label className={styles.toggle}>
                 <input
@@ -1585,28 +1516,6 @@ function BusinessConfigForm({
           </SettingsGroup>
         )}
 
-        {isVisible('subscription_plan') && (
-          <SettingsGroup
-            id="subscription-plan"
-            title="מנוי"
-            description="הסכום הקבוע לחודש, ומה משתנה במחיר לפי המנוי שנבחר."
-          >
-            <div className={styles.planBoard}>
-              <PlanCard
-                plan="regular"
-                terms={regularTerms}
-                selected={selectedPlan === 'regular'}
-                onSelect={() => applyPlan('regular')}
-              />
-              <PlanCard
-                plan="expanded"
-                terms={expandedTerms}
-                selected={selectedPlan === 'expanded'}
-                onSelect={() => applyPlan('expanded')}
-              />
-            </div>
-          </SettingsGroup>
-        )}
       </SettingsStack>
 
       {isDetailsOpen && (
@@ -1637,6 +1546,201 @@ function BusinessConfigForm({
           }}
         />
       )}
+    </div>
+  );
+}
+
+function SubscriptionForm({
+  business,
+  onSaved,
+}: {
+  business: BusinessSettings;
+  onSaved: () => Promise<void>;
+}) {
+  const tariffs = usePlanTariffs(business.business_code);
+  const [plan, setPlan] = useState<SubscriptionPlan>(() =>
+    parseSubscriptionPlan(business.subscription_plan),
+  );
+  const [quotaGb, setQuotaGb] = useState(() =>
+    displayStorageQuotaGb(
+      normalizeStorageQuotaGb(business.storage_quota_gb) ?? INCLUDED_STORAGE_GB,
+      includedStorageGb(parseSubscriptionPlan(business.subscription_plan)),
+    ),
+  );
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState<{
+    text: string;
+    type: 'success' | 'error';
+  } | null>(null);
+
+  const terms = tariffs.resolve(plan);
+  const regularTerms = tariffs.resolve('regular');
+  const expandedTerms = tariffs.resolve('expanded');
+  const shownQuota = displayStorageQuotaGb(
+    normalizeStorageQuotaGb(quotaGb) ?? terms.includedStorageGb,
+    terms.includedStorageGb,
+  );
+
+  const applyPlan = (nextPlan: SubscriptionPlan) => {
+    const nextTerms = tariffs.resolve(nextPlan);
+    const previousIncludedGb = tariffs.resolve(plan).includedStorageGb;
+    setPlan(nextPlan);
+    setQuotaGb((current) =>
+      alignStorageQuotaGb(current, previousIncludedGb, nextTerms.includedStorageGb),
+    );
+  };
+
+  const handleSave = async () => {
+    setMessage(null);
+    const nextTerms = tariffs.resolve(plan);
+    const storedQuota = displayStorageQuotaGb(
+      normalizeStorageQuotaGb(quotaGb) ?? nextTerms.includedStorageGb,
+      nextTerms.includedStorageGb,
+    );
+    if (normalizeStorageQuotaGb(storedQuota) == null) {
+      setMessage({
+        text: 'מכסת האחסון חייבת להיות מספר שלם של לפחות 5 ג׳יגה.',
+        type: 'error',
+      });
+      return;
+    }
+
+    const retentionDays = normalizeRetentionDays(
+      business.recordings_retention_days,
+      plan,
+      nextTerms.recordingMaxDays,
+    );
+    const historyMonths = normalizeHistoryMonths(
+      business.history_retention_months,
+      plan,
+      nextTerms.historyMaxMonths,
+    );
+    const correspondenceMonths = normalizeHistoryMonths(
+      business.whatsapp_retention_months,
+      plan,
+      nextTerms.correspondenceMaxMonths,
+    );
+    if (retentionDays == null || historyMonths == null || correspondenceMonths == null) {
+      setMessage({
+        text: 'לא ניתן להתאים את תקופות השמירה למנוי שנבחר.',
+        type: 'error',
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await updateBusinessSettings(business.business_code, {
+        subscription_plan: plan,
+        storage_quota_gb: storedQuota,
+        recordings_retention_days: retentionDays,
+        history_retention_months: historyMonths,
+        voice_log_retention_months: correspondenceMonths,
+        whatsapp_retention_months: correspondenceMonths,
+      });
+      await onSaved();
+      setMessage({ text: 'המנוי נשמר.', type: 'success' });
+    } catch (error) {
+      console.error('שגיאה בשמירת מנוי:', error);
+      setMessage({ text: 'לא ניתן לשמור את המנוי.', type: 'error' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className={styles.settingsColumn}>
+      <div className={styles.stickyBar}>
+        <div className={styles.sectionToolbar}>
+          <span />
+          <button
+            type="button"
+            className={`${styles.btnPrimary} ${styles.toolbarSave}`}
+            onClick={() => void handleSave()}
+            disabled={isSaving}
+          >
+            {isSaving ? 'שומר...' : (
+              <>
+                <SaveIcon />
+                שמור מנוי
+              </>
+            )}
+          </button>
+        </div>
+        {message ? (
+          <p className={styles[message.type]} role="status">
+            {message.text}
+          </p>
+        ) : null}
+      </div>
+
+      <SettingsStack>
+        <SettingsGroup
+          id="subscription-plan"
+          title="מנוי"
+          description="הסכום הקבוע לחודש, ומה משתנה במחיר לפי המנוי שנבחר."
+        >
+          <div className={styles.planBoard}>
+            <PlanCard
+              plan="regular"
+              terms={regularTerms}
+              selected={plan === 'regular'}
+              onSelect={() => applyPlan('regular')}
+            />
+            <PlanCard
+              plan="expanded"
+              terms={expandedTerms}
+              selected={plan === 'expanded'}
+              onSelect={() => applyPlan('expanded')}
+            />
+          </div>
+        </SettingsGroup>
+
+        <SettingsGroup
+          id="cloud-storage"
+          title="אחסון בענן"
+          description={`${terms.includedStorageGb} ג׳יגה כלולים במנוי. כל ג׳יגה נוספת עולה ${terms.extraStorageGbIls} ₪ לחודש, בלי תקרת מכסה.`}
+        >
+          <StorageUsageMeter
+            businessCode={business.business_code}
+            plan={plan}
+            rates={{
+              includedGb: terms.includedStorageGb,
+              extraGbIls: terms.extraStorageGbIls,
+            }}
+            quotaGb={shownQuota}
+          />
+          <SettingsRow
+            label="מכסה לעסק"
+            htmlFor="business-storage-quota"
+            help={`אפשר להגדיל מעבר ל־${terms.includedStorageGb} ג׳יגה הכלולות. כל ג׳יגה נוספת ${terms.extraStorageGbIls} ₪ לחודש, בלי הגבלה.`}
+          >
+            <input
+              id="business-storage-quota"
+              type="number"
+              min={terms.includedStorageGb}
+              step="1"
+              dir="ltr"
+              value={quotaGb}
+              onChange={(event) => {
+                const { value } = event.target;
+                setQuotaGb(value === '' ? terms.includedStorageGb : Number(value));
+              }}
+              onBlur={() => {
+                setQuotaGb((current) =>
+                  displayStorageQuotaGb(
+                    normalizeStorageQuotaGb(current) ?? terms.includedStorageGb,
+                    terms.includedStorageGb,
+                  ),
+                );
+              }}
+              className={styles.compactInput}
+              aria-label="מכסת אחסון בג׳יגה"
+            />
+            <span className={styles.controlSuffix}>ג׳יגה</span>
+          </SettingsRow>
+        </SettingsGroup>
+      </SettingsStack>
     </div>
   );
 }

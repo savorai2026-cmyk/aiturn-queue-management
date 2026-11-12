@@ -56,7 +56,7 @@ function AuthenticatedApp({ userEmail, onLogout }: AuthenticatedAppProps) {
   const openBusinessSettings = (target: 'cloud-storage' | 'subscription-plan') => {
     if (!activeBusiness) return;
     try {
-      sessionStorage.setItem(`settingsTab:${activeBusiness.businessCode}`, 'config');
+      sessionStorage.setItem(`settingsTab:${activeBusiness.businessCode}`, 'subscription');
       sessionStorage.setItem(`settingsScroll:${activeBusiness.businessCode}`, target);
     } catch {
       /* ignore */

@@ -75,7 +75,7 @@ export const BUSINESS_CONFIG_FIELDS: DisplayField[] = [
   { key: 'whatsapp_retention_months', label: 'חודשי התכתבות וואטסאפ ותמלול', defaultVisible: true },
   { key: 'subscription_plan', label: 'מנוי', defaultVisible: true },
   { key: 'storage_quota_gb', label: 'מכסת אחסון', defaultVisible: true },
-  { key: 'is_active', label: 'הסוכנים פעילים', defaultVisible: true },
+  { key: 'is_active', label: 'מצב פעילות', defaultVisible: true },
 ];
 
 export const LOG_FIELDS: DisplayField[] = [

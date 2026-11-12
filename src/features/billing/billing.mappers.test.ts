@@ -3,6 +3,7 @@ import {
   canManagePaymentMethods,
   formatCardExpiry,
   formatCardLast4,
+  calendarLockedAfterCardRemoval,
   isActivePaymentMethod,
   isTerminalBillingSession,
 } from './billing.mappers';
@@ -21,6 +22,13 @@ describe('billing.mappers', () => {
     expect(formatCardLast4('12')).toBeNull();
     expect(formatCardExpiry('0128')).toBe('01/28');
     expect(formatCardExpiry('01/28')).toBe('01/28');
+  });
+
+  it('locks the calendar only after a saved card was removed', () => {
+    expect(calendarLockedAfterCardRemoval(['revoked'])).toBe(true);
+    expect(calendarLockedAfterCardRemoval(['active'])).toBe(false);
+    expect(calendarLockedAfterCardRemoval(['active', 'revoked'])).toBe(false);
+    expect(calendarLockedAfterCardRemoval([])).toBe(false);
   });
 
   it('treats only active methods as a saved card', () => {

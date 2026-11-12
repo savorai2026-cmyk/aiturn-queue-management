@@ -5,6 +5,15 @@
   gap: 6px;
 }
 
+.compact {
+  gap: 4px;
+}
+
+.compact .iconButton {
+  width: 28px;
+  height: 28px;
+}
+
 .iconButton {
   width: 36px;
   height: 36px;

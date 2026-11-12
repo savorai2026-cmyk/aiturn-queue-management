@@ -1,6 +1,10 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAsyncResource } from '../../shared/hooks/useAsyncResource';
-import { getActivePaymentMethod } from './billing.api';
+import { onBusinessAccessChanged } from './accessEvents';
+import {
+  getActivePaymentMethod,
+  isCalendarLockedAfterCardRemoval,
+} from './billing.api';
 import type { PaymentMethodSummary } from './billing.types';
 
 export function usePaymentMethod(businessCode: string) {
@@ -22,4 +26,23 @@ export function usePaymentMethod(businessCode: string) {
     isLoading: resource.isLoading,
     refresh: resource.refresh,
   };
+}
+
+export function useCalendarWriteLock(businessCode: string) {
+  const [locked, setLocked] = useState(false);
+
+  const load = useCallback(() => {
+    return isCalendarLockedAfterCardRemoval(businessCode)
+      .then(setLocked)
+      .catch(() => setLocked(false));
+  }, [businessCode]);
+
+  useEffect(() => {
+    void load();
+    return onBusinessAccessChanged(businessCode, () => {
+      void load();
+    });
+  }, [businessCode, load]);
+
+  return locked;
 }

@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   readCalendarLocation,
   writeCalendarLocation,
 } from '../../app/uiLocation';
+import { useCalendarWriteLock } from '../billing/usePaymentMethod';
 import AddAppointmentModal from './components/AddAppointmentModal';
+import AppointmentContextMenu from './components/AppointmentContextMenu';
 import CalendarView, {
   type AppointmentDropRequest,
 } from './components/CalendarView';
 import EditAppointmentModal from './components/EditAppointmentModal';
+import MoveAppointmentModal from './components/MoveAppointmentModal';
 import RescheduleConfirmModal from './components/RescheduleConfirmModal';
 import { SidePanel } from './components/SidePanel';
 import {
@@ -21,6 +24,7 @@ import {
   toAppointmentUpdate,
 } from './appointments.mappers';
 import { isCanceledStatus } from './appointmentStatuses';
+import { combinedAppointmentChain } from './calendarGrouping';
 import { pickDefaultAppointment } from './pickDefaultAppointment';
 import { useUiPreferences } from '../../shared/displayFields/useUiPreferences';
 import {
@@ -35,6 +39,13 @@ import { cancelAppointment, rescheduleAppointment } from './scheduler.api';
 import { useAppointments, useCalendarSettings } from './useAppointments';
 import { canEditRecords, useBusiness } from '../business/BusinessContextState';
 import { getAppointmentSaveErrorMessage, getErrorMessage } from '../../shared/errors';
+import {
+  BanIcon,
+  CalendarIcon,
+  CheckIcon,
+  MoveIcon,
+  PencilIcon,
+} from '../../shared/components/icons';
 import type {
   AppointmentDetails,
   AppointmentEditValues,
@@ -60,6 +71,16 @@ function formatMoveRange(start: Date, end: Date | null) {
   }
 
   return `${startLabel} – ${endTime}`;
+}
+
+function dateAt(dateKey: string, time: string) {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const [hours, minutes] = time.split(':').map(Number);
+  return new Date(year, (month || 1) - 1, day || 1, hours || 0, minutes || 0, 0, 0);
+}
+
+function isApprovedStatus(status: string) {
+  return status === '02' || status === 'scheduled';
 }
 
 function getDropDeltaMinutes(drop: AppointmentDropRequest) {
@@ -95,7 +116,8 @@ export default function AppointmentsPage({
   const calendarSettings = useCalendarSettings(businessCode);
   const timezone = calendarSettings.data.timezone;
   const { activeBusiness } = useBusiness();
-  const canEdit = canEditRecords(activeBusiness?.role);
+  const calendarLocked = useCalendarWriteLock(businessCode);
+  const canEdit = canEditRecords(activeBusiness?.role) && !calendarLocked;
   const { visibleFieldsFor, toggleField } = useUiPreferences(businessCode);
   const [selectedId, setSelectedId] = useState<number | null>(
     () => readCalendarLocation(businessCode)?.selectedId ?? null,
@@ -103,6 +125,7 @@ export default function AppointmentsPage({
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(
     () => readCalendarLocation(businessCode)?.selectedServiceId ?? null,
   );
+  const [panelDismissed, setPanelDismissed] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(
     () => readCalendarLocation(businessCode)?.selectedDate ?? null,
   );
@@ -117,6 +140,18 @@ export default function AppointmentsPage({
     ? `${calendarSettings.error} היומן מוצג בלי שעות פעילות.`
     : '';
   const [dropError, setDropError] = useState('');
+  const [editToken, setEditToken] = useState(0);
+  const [moveRequest, setMoveRequest] = useState<{
+    appointmentId: number;
+    serviceId: number;
+  } | null>(null);
+  const [menu, setMenu] = useState<{
+    appointmentId: number;
+    serviceId: number;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [slotMenu, setSlotMenu] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     writeCalendarLocation(businessCode, {
@@ -140,15 +175,30 @@ export default function AppointmentsPage({
 
   const displayedAppointment =
     selectedAppointment ??
-    (isLoading ? null : pickDefaultAppointment(appointmentDetails, nowInTimeZone(timezone)));
+    (isLoading || panelDismissed
+      ? null
+      : pickDefaultAppointment(appointmentDetails, nowInTimeZone(timezone)));
   const displayedServiceId = selectedAppointment
     ? selectedServiceId
     : displayedAppointment?.services[0]?.serviceId ?? null;
   const displayedDate =
     selectedDate ?? displayedAppointment?.appointment_date ?? null;
+  const displayedGroup = useMemo(
+    () =>
+      displayedAppointment
+        ? combinedAppointmentChain(appointmentDetails, displayedAppointment.id)
+        : [],
+    [appointmentDetails, displayedAppointment],
+  );
+  const menuAppointment =
+    appointmentDetails.find((appointment) => appointment.id === menu?.appointmentId) ??
+    null;
 
   const pendingAppointment = appointmentDetails.find(
     (appointment) => appointment.id === pendingDrop?.appointmentId,
+  );
+  const moveAppointment = appointmentDetails.find(
+    (appointment) => appointment.id === moveRequest?.appointmentId,
   );
   const pendingService = pendingAppointment?.services.find(
     (service) => service.serviceId === pendingDrop?.serviceId,
@@ -243,6 +293,28 @@ export default function AppointmentsPage({
     });
   };
 
+  const closePanel = () => {
+    setPanelDismissed(true);
+    setSelectedId(null);
+    setSelectedServiceId(null);
+    setEditToken(0);
+  };
+
+  const applyStatus = (appointment: AppointmentDetails, status: string) => {
+    const values = { ...toAppointmentEditValues(appointment), status };
+    void runBusy(async () => {
+      await saveAppointmentEdits(
+        appointment,
+        values,
+        appointment.services[0]?.serviceId ?? 0,
+      );
+      refresh();
+    });
+  };
+
+  const closeMenu = useCallback(() => setMenu(null), []);
+  const closeSlotMenu = useCallback(() => setSlotMenu(null), []);
+
   const closePendingDrop = (shouldRevert: boolean) => {
     if (shouldRevert) {
       pendingDrop?.revert();
@@ -252,25 +324,62 @@ export default function AppointmentsPage({
     setDropError('');
   };
 
-  const persistReschedule = async (values?: AppointmentEditValues) => {
-    if (!pendingDrop || !pendingAppointment) {
+  const persistReschedule = async (
+    drop: AppointmentDropRequest,
+    values?: AppointmentEditValues,
+  ) => {
+    const appointment = appointmentDetails.find(
+      (item) => item.id === drop.appointmentId,
+    );
+    if (!appointment) {
       return;
     }
 
-    const target = values ?? toMovedEditValues(pendingAppointment, pendingDrop);
+    const target = values ?? toMovedEditValues(appointment, drop);
     const savedDate = target.appointment_date;
 
     setDropError('');
     setIsBusy(true);
 
     try {
-      await saveAppointmentEdits(pendingAppointment, target, pendingDrop.serviceId);
+      await saveAppointmentEdits(appointment, target, drop.serviceId);
 
-      setSelectedId(pendingAppointment.id);
-      setSelectedServiceId(pendingDrop.serviceId);
+      const originalStart = dateAt(
+        appointment.appointment_date,
+        appointment.start_time,
+      );
+      const savedStart = dateAt(target.appointment_date, target.start_time);
+      const deltaMinutes = Math.round(
+        (savedStart.getTime() - originalStart.getTime()) / 60000,
+      );
+      for (const companionId of drop.companionAppointmentIds) {
+        if (companionId === appointment.id || deltaMinutes === 0) continue;
+        const companion = appointmentDetails.find((item) => item.id === companionId);
+        if (!companion) continue;
+        const shifted = shiftedAppointmentTimes(
+          companion.appointment_date,
+          companion.start_time,
+          companion.end_time,
+          deltaMinutes,
+        );
+        await saveAppointmentEdits(
+          companion,
+          {
+            ...toAppointmentEditValues(companion),
+            appointment_date: shifted.appointment_date,
+            start_time: formatTimeHm(shifted.start_time),
+            end_time: formatTimeHm(shifted.end_time),
+          },
+          companion.services[0]?.serviceId ?? 0,
+        );
+      }
+
+      setSelectedId(appointment.id);
+      setSelectedServiceId(drop.serviceId);
       setSelectedDate(savedDate);
       setPendingDrop(null);
       setIsDropEditOpen(false);
+      setMoveRequest(null);
       refresh();
     } catch (error) {
       setDropError(getAppointmentSaveErrorMessage(error));
@@ -282,18 +391,23 @@ export default function AppointmentsPage({
 
   return (
     <>
-      <aside className="side-panel-wrapper">
-        <SidePanel
-          key={`${displayedAppointment?.id ?? 'empty'}-${displayedAppointment?.appointment_date ?? ''}-${displayedAppointment?.start_time ?? ''}`}
-          appointment={displayedAppointment}
-          statuses={statuses}
-          isBusy={isBusy}
-          readOnly={!canEdit}
-          visibleFields={visibleFieldsFor('appointments')}
-          onToggleField={(key) => toggleField('appointments', key)}
-          onSave={handleSave}
-        />
-      </aside>
+      {displayedAppointment ? (
+        <aside className="side-panel-wrapper">
+          <SidePanel
+            key={`${displayedAppointment.id}-${displayedAppointment.appointment_date}-${displayedAppointment.start_time}`}
+            appointment={displayedAppointment}
+            statuses={statuses}
+            isBusy={isBusy}
+            readOnly={!canEdit}
+            visibleFields={visibleFieldsFor('appointments')}
+            onToggleField={(key) => toggleField('appointments', key)}
+            onSave={handleSave}
+            editToken={editToken}
+            groupAppointments={displayedGroup}
+            onClose={closePanel}
+          />
+        </aside>
+      ) : null}
 
       <main className="calendar-area">
         {actionError && (
@@ -301,6 +415,11 @@ export default function AppointmentsPage({
             {actionError}
           </div>
         )}
+        {calendarLocked ? (
+          <div className="calendar-note" role="status">
+            אין כרטיס אשראי פעיל. היומן זמין לצפייה בלבד עד שיוזן כרטיס אחר.
+          </div>
+        ) : null}
         <div className="calendar-stage">
           <CalendarView
             businessCode={businessCode}
@@ -311,14 +430,38 @@ export default function AppointmentsPage({
             onRetry={refresh}
             onAddAppointment={() => setIsAddModalOpen(true)}
             onEventClick={(appointment, serviceId) => {
+              setMenu(null);
+              setSlotMenu(null);
+              setEditToken(0);
               setSelectedId(appointment.id);
               setSelectedServiceId(serviceId);
               setSelectedDate(appointment.appointment_date);
               setDraftStartTime(null);
             }}
+            onEventContextMenu={
+              canEdit
+                ? (appointmentId, serviceId, x, y) => {
+                    setSlotMenu(null);
+                    setMenu({ appointmentId, serviceId, x, y });
+                  }
+                : undefined
+            }
+            onSelectedSlotContextMenu={
+              canEdit
+                ? (x, y) => {
+                    setMenu(null);
+                    setSlotMenu({ x, y });
+                  }
+                : undefined
+            }
+            onBackgroundClick={() => {
+              setMenu(null);
+              setSlotMenu(null);
+            }}
             onSelectDate={setSelectedDate}
             onSelectTime={setDraftStartTime}
-            selectedAppointmentId={displayedAppointment?.id ?? null}
+            selectedTime={draftStartTime}
+            selectedAppointmentId={selectedId}
             selectedServiceId={displayedServiceId}
             selectedDate={displayedDate}
             hasPendingMove={pendingDrop !== null}
@@ -350,14 +493,17 @@ export default function AppointmentsPage({
               pendingDrop.previousEnd,
             ),
             toLabel: formatMoveRange(pendingDrop.nextStart, pendingDrop.nextEnd),
-            movesAllServices: (pendingAppointment.services.length ?? 0) > 1,
+            movesAllServices:
+              (pendingAppointment.services.length ?? 0) > 1 ||
+              pendingDrop.companionAppointmentIds.length > 0,
             isPastTarget:
               pendingDrop.nextStart.getTime() < nowInTimeZone(timezone).getTime(),
           }}
           isSaving={isBusy}
           errorMessage={dropError}
           onConfirm={() => {
-            void persistReschedule().catch(() => undefined);
+            if (!pendingDrop) return;
+            void persistReschedule(pendingDrop).catch(() => undefined);
           }}
           onCancel={() => closePendingDrop(true)}
           onEdit={() => {
@@ -375,7 +521,7 @@ export default function AppointmentsPage({
           statuses={statuses}
           isSaving={isBusy}
           errorMessage={dropError}
-          onSave={(values) => persistReschedule(values)}
+          onSave={(values) => persistReschedule(pendingDrop, values)}
           onClose={() => {
             if (!isBusy) {
               setIsDropEditOpen(false);
@@ -399,6 +545,114 @@ export default function AppointmentsPage({
           }}
         />
       )}
+
+      {slotMenu && canEdit ? (
+        <AppointmentContextMenu
+          x={slotMenu.x}
+          y={slotMenu.y}
+          onClose={closeSlotMenu}
+          actions={[
+            {
+              id: 'create',
+              label: 'יצירת תור חדש',
+              icon: <CalendarIcon />,
+              onSelect: () => setIsAddModalOpen(true),
+            },
+          ]}
+        />
+      ) : null}
+
+      {menu && menuAppointment ? (
+        <AppointmentContextMenu
+          x={menu.x}
+          y={menu.y}
+          onClose={closeMenu}
+          actions={[
+            {
+              id: 'approve',
+              label: 'אישור',
+              icon: <CheckIcon />,
+              disabled: isApprovedStatus(menuAppointment.status) || isCanceledStatus(menuAppointment.status),
+              onSelect: () => applyStatus(menuAppointment, '02'),
+            },
+            {
+              id: 'cancel',
+              label: 'ביטול',
+              icon: <BanIcon />,
+              disabled: isCanceledStatus(menuAppointment.status),
+              onSelect: () => applyStatus(menuAppointment, '10'),
+            },
+            {
+              id: 'edit',
+              label: 'עריכה',
+              icon: <PencilIcon />,
+              onSelect: () => {
+                setSelectedId(menuAppointment.id);
+                setSelectedServiceId(menu.serviceId);
+                setSelectedDate(menuAppointment.appointment_date);
+                setEditToken((current) => current + 1);
+              },
+            },
+            {
+              id: 'move',
+              label: 'הזזה',
+              icon: <MoveIcon />,
+              disabled: isCanceledStatus(menuAppointment.status),
+              onSelect: () => {
+                setSelectedId(menuAppointment.id);
+                setSelectedServiceId(menu.serviceId);
+                setSelectedDate(menuAppointment.appointment_date);
+                setMoveRequest({
+                  appointmentId: menuAppointment.id,
+                  serviceId: menu.serviceId,
+                });
+              },
+            },
+          ]}
+        />
+      ) : null}
+
+      {moveRequest && moveAppointment ? (
+        <MoveAppointmentModal
+          appointment={moveAppointment}
+          timezone={timezone}
+          isSaving={isBusy}
+          onClose={() => {
+            if (!isBusy) setMoveRequest(null);
+          }}
+          onMove={async (times) => {
+            const previousStart = dateAt(
+              moveAppointment.appointment_date,
+              moveAppointment.start_time,
+            );
+            const previousEnd = dateAt(
+              moveAppointment.appointment_date,
+              moveAppointment.end_time,
+            );
+            const nextStart = dateAt(times.appointment_date, times.start_time);
+            const nextEnd = dateAt(times.appointment_date, times.end_time);
+            await persistReschedule(
+              {
+                revert: () => undefined,
+                appointmentId: moveAppointment.id,
+                serviceId: moveRequest.serviceId,
+                clientPhone: moveAppointment.clientPhone,
+                companionAppointmentIds: [],
+                previousStart,
+                previousEnd,
+                nextStart,
+                nextEnd,
+              },
+              {
+                ...toAppointmentEditValues(moveAppointment),
+                appointment_date: times.appointment_date,
+                start_time: times.start_time,
+                end_time: times.end_time,
+              },
+            );
+          }}
+        />
+      ) : null}
     </>
   );
 }

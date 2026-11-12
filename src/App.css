@@ -1,7 +1,7 @@
 :root {
-  --color-navy-900: #073f67;
-  --color-navy-800: #0a527f;
-  --color-navy-700: #12648f;
+  --color-navy-900: #054779;
+  --color-navy-800: #0a5280;
+  --color-navy-700: #11708e;
   --color-teal-700: #0f766e;
   --color-teal-600: #0d9488;
   --color-teal-500: #14b8a6;
@@ -15,16 +15,16 @@
   --color-surface: #ffffff;
   --color-surface-muted: #f7fafb;
   --color-line: #dce7eb;
-  --color-text: #132a3a;
+  --color-text: #054779;
   --color-text-muted: #607482;
   --color-table-odd: #ffffff;
   --color-table-even: #e7f1f4;
   --shadow-card: 0 5px 18px rgba(7, 63, 103, 0.1);
   --shadow-floating: 0 16px 45px rgba(7, 48, 75, 0.18);
-  --shadow-button-hover: 0 8px 16px -4px rgba(7, 63, 103, 0.28);
+  --shadow-button-hover: inset 0 0 0 999px rgba(5, 71, 121, 0.14);
   --shadow-button-press: inset 0 3px 7px rgba(7, 48, 75, 0.32), inset 0 1px 1px rgba(7, 48, 75, 0.16);
   --radius-card: 10px;
-  --font-sans: "IBM Plex Sans Hebrew", "IBM Plex Sans", "Segoe UI", sans-serif;
+  --font-sans: "Rubik", "Segoe UI", sans-serif;
   font-synthesis: none;
 }
 
@@ -99,19 +99,16 @@ button:not(:disabled):hover:focus {
   box-shadow: var(--shadow-button-hover);
 }
 
-button:not(:disabled):active {
-  transform: translateY(1px);
-  box-shadow: var(--shadow-button-press);
-}
-
+button:not(:disabled):active,
 button:not(:disabled):active:focus {
-  box-shadow: var(--shadow-button-press);
+  transform: none;
+  box-shadow: none;
 }
 
 button[aria-current='page']:not(:disabled),
 button[aria-pressed='true']:not(:disabled) {
-  transform: translateY(1px);
-  box-shadow: var(--shadow-button-press);
+  transform: none;
+  box-shadow: none;
 }
 
 button[aria-current='page']:not(:disabled):hover,
@@ -122,8 +119,8 @@ button[aria-pressed='true']:not(:disabled):hover,
 button[aria-pressed='true']:not(:disabled):hover:focus,
 button[aria-pressed='true']:not(:disabled):active,
 button[aria-pressed='true']:not(:disabled):active:focus {
-  transform: translateY(1px);
-  box-shadow: var(--shadow-button-press);
+  transform: none;
+  box-shadow: none;
 }
 
 button:disabled {
@@ -145,7 +142,7 @@ button:disabled {
   button[aria-current='page']:not(:disabled),
   button[aria-pressed='true']:not(:disabled) {
     transform: none;
-    box-shadow: var(--shadow-button-press);
+    box-shadow: none;
   }
 }
 
@@ -296,6 +293,33 @@ textarea:focus-visible {
   background: #fef2f2;
   color: #b91c1c;
   font-weight: 600;
+}
+
+.calendar-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 7px;
+  background: #ecfdf8;
+  color: var(--color-navy-900);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.calendar-note button {
+  padding: 4px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: #ffffff;
+  color: var(--color-navy-900);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .feature-area {

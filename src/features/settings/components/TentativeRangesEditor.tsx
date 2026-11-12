@@ -11,21 +11,25 @@ import styles from './TentativeRangesEditor.module.css';
 interface TentativeRangesEditorProps {
   ranges: TentativeRange[];
   shifts: WorkingShift[];
+  beside?: boolean;
   onChange: (ranges: TentativeRange[]) => void;
 }
 
 export default function TentativeRangesEditor({
   ranges,
   shifts,
+  beside = false,
   onChange,
 }: TentativeRangesEditorProps) {
   return (
-    <div className={styles.tentative}>
+    <div className={`${styles.tentative} ${beside ? styles.beside : ''}`}>
       <div className={styles.head}>
-        <span className={styles.title}>
-          שוקל סגירה
-          <HelpTip text="השעות נשארות פתוחות, ותורים שכבר קיימים לא מבוטלים. לקוח שמבקש תור בטווח נשאל אם הוא מתעקש. כשמספיק לקוחות מתעקשים, הטווח הזה יורד והעסק מקבל הודעה. לא נקבע עבורם תור." />
-        </span>
+        {beside ? null : (
+          <span className={styles.title}>
+            שוקל סגירה
+            <HelpTip text="השעות נשארות פתוחות, ותורים שכבר קיימים לא מבוטלים. לקוח שמבקש תור בטווח נשאל אם הוא מתעקש. כשמספיק לקוחות מתעקשים, הטווח הזה יורד והעסק מקבל הודעה. לא נקבע עבורם תור." />
+          </span>
+        )}
         <button
           type="button"
           className={styles.add}

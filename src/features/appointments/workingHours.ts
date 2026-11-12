@@ -350,6 +350,65 @@ export function suggestNextShift(shifts: WorkingShift[]): WorkingShift {
   };
 }
 
+function sameClock(left: string, right: string) {
+  return left.slice(0, 5) === right.slice(0, 5);
+}
+
+export function rangeMatchesShift(range: TentativeRange, shift: WorkingShift) {
+  return sameClock(range.start, shift.start) && sameClock(range.end, shift.end);
+}
+
+export function rangeInsideShift(range: TentativeRange, shift: WorkingShift) {
+  return (
+    parseTimeToMinutes(range.start) >= parseTimeToMinutes(shift.start) &&
+    parseTimeToMinutes(range.end) <= parseTimeToMinutes(shift.end)
+  );
+}
+
+export function toggleShiftTentative(
+  ranges: TentativeRange[],
+  shift: WorkingShift,
+  marked: boolean,
+  minInsists = 1,
+): TentativeRange[] {
+  const rest = ranges.filter((range) => !rangeMatchesShift(range, shift));
+  if (!marked) return rest;
+  const insists = Number.isInteger(minInsists) && minInsists >= 1 ? minInsists : 1;
+  return [
+    ...rest,
+    {
+      start: shift.start.slice(0, 5),
+      end: shift.end.slice(0, 5),
+      min_insists: insists,
+    },
+  ];
+}
+
+export function moveTentativeWithShift(
+  ranges: TentativeRange[],
+  previous: WorkingShift,
+  next: WorkingShift,
+): TentativeRange[] {
+  return ranges.map((range) =>
+    rangeMatchesShift(range, previous)
+      ? {
+          ...range,
+          start: next.start.slice(0, 5),
+          end: next.end.slice(0, 5),
+        }
+      : range,
+  );
+}
+
+export function tentativeInsideShifts(
+  ranges: TentativeRange[],
+  shifts: WorkingShift[],
+) {
+  return ranges.filter((range) =>
+    shifts.some((shift) => rangeInsideShift(range, shift)),
+  );
+}
+
 export function suggestTentativeRange(shifts: WorkingShift[]): TentativeRange {
   const shift = shifts[0] ?? { start: DEFAULT_OPEN_START, end: '12:00' };
   const startMinutes = parseTimeToMinutes(shift.start);
@@ -455,7 +514,7 @@ export function toWorkingHoursPayload(
       is_closed: item.is_closed,
       shifts: item.is_closed ? [] : item.shifts,
       ...(item.note?.trim() ? { note: item.note.trim().slice(0, 80) } : {}),
-      ...(!item.is_closed && item.tentative && item.tentative.length > 0
+      ...(item.tentative && item.tentative.length > 0
         ? {
             tentative: item.tentative.map((range) => ({ ...range })),
           }
@@ -791,7 +850,7 @@ export function expandSpecialDayDrafts(
         ...(draft.note?.trim()
           ? { note: draft.note.trim().slice(0, 80) }
           : {}),
-        ...(!draft.is_closed && draft.tentative && draft.tentative.length > 0
+        ...(draft.tentative && draft.tentative.length > 0
           ? {
               tentative: draft.tentative.map((range) => ({ ...range })),
             }

@@ -361,6 +361,30 @@ button.headerHit:not(:disabled):hover:focus {
   min-width: 0;
 }
 
+.settingsControl:has(> .compactInput) {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.settingsRow:not(.settingsRowStacked) .settingsControl > .input {
+  width: 100%;
+  min-width: 0;
+}
+
+.settingsControl:has(> .compactInput) > .compactInput {
+  width: 88px;
+  flex: 0 0 88px;
+}
+
+.settingsControl:has(> .compactInput) > .controlSuffix {
+  width: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .settingsControlFill,
 .settingsRowStacked .settingsControl {
   justify-content: stretch;

@@ -79,6 +79,33 @@
   background: #0f766e;
 }
 
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 7px;
+  background: #b91c1c;
+  color: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.danger:hover {
+  background: #991b1b;
+}
+
 .secondary {
   display: inline-flex;
   align-items: center;

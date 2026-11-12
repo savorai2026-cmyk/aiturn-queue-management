@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSlidingIndicator } from '../../../shared/useSlidingIndicator';
 import {
   createClient,
   updateClient,
@@ -29,6 +30,48 @@ import HelpTip from '../../../shared/components/HelpTip';
 import { SaveIcon, WhatsAppIcon } from '../../../shared/components/icons';
 import modal from '../../../shared/components/modalShell.module.css';
 import styles from './AddClientModal.module.css';
+
+type ClientSection = 'personal' | 'settings';
+
+function ClientSectionTabs({
+  active,
+  onChange,
+}: {
+  active: ClientSection;
+  onChange: (section: ClientSection) => void;
+}) {
+  const { containerRef, box, ready } = useSlidingIndicator(active);
+  const tab = (id: ClientSection, label: string) => (
+    <button
+      type="button"
+      role="tab"
+      className={`${styles.tabBtn} ${active === id ? styles.activeTab : ''}`}
+      aria-selected={active === id}
+      aria-current={active === id ? 'page' : undefined}
+      onClick={() => onChange(id)}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div className={styles.tabs} ref={containerRef} role="tablist">
+      {box ? (
+        <span
+          className={`${styles.tabIndicator} ${ready ? styles.tabIndicatorReady : ''}`}
+          style={{
+            width: box.width,
+            transform: `translate(${box.x}px, ${box.y}px)`,
+          }}
+          aria-hidden="true"
+        />
+      ) : null}
+      {tab('personal', 'פרטים אישיים')}
+      <span className={styles.tabDivider} aria-hidden="true" />
+      {tab('settings', 'הגדרות לקוח')}
+    </div>
+  );
+}
 
 interface AddClientModalProps {
   businessCode: string;
@@ -75,6 +118,7 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
   );
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [section, setSection] = useState<ClientSection>('personal');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -87,8 +131,16 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
     setErrorMessage('');
     setIsSaving(true);
 
+    if (!formData.full_name.trim() || !formData.mobile_phone.trim()) {
+      setSection('personal');
+      setErrorMessage('שם מלא וטלפון נייד הם שדות חובה.');
+      setIsSaving(false);
+      return;
+    }
+
     const policy = cancellationPolicyPayload(policyDraft);
     if ('error' in policy) {
+      setSection('settings');
       setErrorMessage(policy.error);
       setIsSaving(false);
       return;
@@ -140,16 +192,16 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
         )}
 
         <form className={modal.form} onSubmit={handleSubmit}>
+          <ClientSectionTabs active={section} onChange={setSection} />
           <div className={modal.scroll}>
           <div className={styles.formGrid}>
+            {section === 'personal' ? (
             <section className={styles.policySection}>
-            <h3 className={styles.policyHeading}>פרטים אישיים</h3>
             <div className={styles.formGroup}>
               <label>שם מלא *</label>
               <input 
                 type="text" 
                 name="full_name" 
-                required
                 value={formData.full_name} 
                 onChange={handleChange}
                 className={styles.input}
@@ -161,7 +213,6 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
               <input 
                 type="text" 
                 name="mobile_phone" 
-                required
                 dir="ltr"
                 value={formData.mobile_phone} 
                 onChange={handleChange}
@@ -376,9 +427,10 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
             </div>
 
             </section>
+            ) : null}
 
+            {section === 'settings' ? (
             <section className={styles.policySection}>
-            <h3 className={styles.policyHeading}>הגדרות לקוח</h3>
             <div className={styles.formGroup}>
               <label htmlFor="preferred_channel">ערוץ מועדף</label>
               <select
@@ -576,6 +628,7 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
               </>
             )}
             </section>
+            ) : null}
           </div>
           </div>
 

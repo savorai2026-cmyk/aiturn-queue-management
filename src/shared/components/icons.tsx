@@ -249,3 +249,38 @@ export function MailIcon() {
     </Svg>
   );
 }
+
+export function BanIcon() {
+  return (
+    <Svg icon="ban">
+      <circle cx="12" cy="12" r="9" />
+      <path d="m5.6 5.6 12.8 12.8" />
+    </Svg>
+  );
+}
+
+export function MoveIcon() {
+  return (
+    <Svg icon="move">
+      <path data-part="left" d="M9 7 4 12l5 5" />
+      <path data-part="right" d="m15 7 5 5-5 5" />
+      <path d="M4 12h16" />
+    </Svg>
+  );
+}
+
+export function ChevronRightIcon() {
+  return (
+    <Svg icon="chevron-right">
+      <path d="m9 6 6 6-6 6" />
+    </Svg>
+  );
+}
+
+export function ChevronLeftIcon() {
+  return (
+    <Svg icon="chevron-left">
+      <path d="m15 6-6 6 6 6" />
+    </Svg>
+  );
+}

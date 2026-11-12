@@ -247,7 +247,7 @@ export function formatBusinessField(
   }
 
   if (key === 'is_active') {
-    return business.is_active === false ? 'הסוכנים כבויים' : 'הסוכנים פעילים';
+    return business.is_active === false ? 'לא פעיל' : 'פעיל';
   }
 
   if (key === 'subscription_plan') {

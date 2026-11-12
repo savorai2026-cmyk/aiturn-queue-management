@@ -18,6 +18,10 @@ import {
   ErrorState,
   LoadingState,
 } from '../../../shared/components/PageState';
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from '../../../shared/components/icons';
 import DisplayToolbar from '../../../shared/displayFields/DisplayToolbar';
 import RecordDetailsModal from '../../../shared/displayFields/RecordDetailsModal';
 import { CLIENT_FIELDS } from '../../../shared/displayFields/catalogs';
@@ -88,6 +92,7 @@ function ClientPager({
         disabled={page === 0}
         onClick={() => onPage(Math.max(0, page - 1))}
       >
+        <ChevronRightIcon />
         הקודם
       </button>
       <button
@@ -97,6 +102,7 @@ function ClientPager({
         onClick={() => onPage(page + 1)}
       >
         הבא
+        <ChevronLeftIcon />
       </button>
     </div>
   );

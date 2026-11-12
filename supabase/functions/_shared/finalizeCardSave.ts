@@ -129,6 +129,12 @@ async function persistToken(
   },
 ) {
   const now = new Date().toISOString();
+  const { count: activeCount } = await admin
+    .from('payment_methods')
+    .select('id', { count: 'exact', head: true })
+    .eq('business_code', session.business_code)
+    .eq('status', 'active');
+  const restoreAgents = (activeCount ?? 0) === 0;
   const { data: method, error: methodError } = await admin
     .from('payment_methods')
     .insert({
@@ -175,6 +181,13 @@ async function persistToken(
     .eq('business_code', session.business_code)
     .eq('status', 'active')
     .neq('id', method.id);
+
+  if (restoreAgents) {
+    await admin
+      .from('businesses')
+      .update({ is_active: true, updated_at: now })
+      .eq('business_code', session.business_code);
+  }
 
   return true;
 }

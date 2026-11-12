@@ -80,7 +80,12 @@ function TimePartPicker({
 
     const update = () => placeMenu(trigger, menu);
     update();
-    selectedRef.current?.scrollIntoView({ block: 'nearest' });
+    const selected = selectedRef.current;
+    if (selected) {
+      const top =
+        selected.offsetTop - (menu.clientHeight - selected.offsetHeight) / 2;
+      menu.scrollTop = Math.max(0, top);
+    }
 
     window.addEventListener('resize', update);
     window.addEventListener('scroll', update, true);

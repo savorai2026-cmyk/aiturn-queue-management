@@ -18,7 +18,7 @@
 }
 
 .header {
-  padding: 14px 17px;
+  padding: 14px 12px;
   border-bottom: 3px solid var(--color-teal-500);
   background: linear-gradient(110deg, var(--color-navy-900), var(--color-navy-700));
   color: #ffffff;
@@ -27,26 +27,26 @@
   align-items: center;
   gap: 8px;
   font-weight: 600;
-  font-size: 16px;
+  font-size: 18px;
   flex-shrink: 0;
 }
 
 .header > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex: 0 0 auto;
   white-space: nowrap;
 }
 
 .headerActions {
   display: flex;
   flex: 0 0 auto;
-  gap: 6px;
+  gap: 4px;
 }
 
 .iconButton {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
+  font-size: 18px;
+  line-height: 1;
   display: grid;
   place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.22);

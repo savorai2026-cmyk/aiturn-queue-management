@@ -70,18 +70,27 @@ export interface BusinessCalendarSettings {
   timezone: string | null;
 }
 
+export interface CalendarEventSegment {
+  appointmentId: number;
+  serviceId: number;
+  status: string;
+  startMinutes: number;
+  endMinutes: number;
+}
+
 export interface CalendarEventProps {
   appointmentId: number;
   serviceId: number;
   clientId: number;
   clientPhone: string | null;
   status: string;
-  groupRole: 'single' | 'start' | 'middle' | 'end';
+  groupRole: 'single' | 'combined';
   timeLabel: string;
   serviceTitle: string;
   clientName: string;
   tooltip: string;
   holdLabel?: string;
+  segments?: CalendarEventSegment[];
 }
 
 export interface SchedulerSlot {

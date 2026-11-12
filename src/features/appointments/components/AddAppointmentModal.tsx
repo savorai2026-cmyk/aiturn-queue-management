@@ -413,56 +413,6 @@ export default function AddAppointmentModal({
             </select>
           </div>
 
-          <fieldset className={styles.servicesFieldset}>
-            <legend>טיפולים ושירותים *</legend>
-            <div className={styles.serviceList}>
-              {services.map((service) => {
-                const isSelected = selectedServiceIds.includes(service.id);
-                const occupiedMinutes =
-                  service.duration_minutes +
-                  (service.buffer_time_minutes ?? 0);
-
-                return (
-                  <label
-                    key={service.id}
-                    className={`${styles.serviceOption} ${isSelected ? styles.serviceOptionSelected : ''}`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleService(service.id)}
-                    />
-                    <span className={styles.serviceInfo}>
-                      <strong>{service.title}</strong>
-                      <span>
-                        {occupiedMinutes} דקות ·{' '}
-                        {ILS_FORMATTER.format(service.price)}
-                      </span>
-                      {service.description && (
-                        <small>{service.description}</small>
-                      )}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </fieldset>
-
-          {selectedServices.length > 0 && (
-            <div className={styles.summary} aria-live="polite">
-              <span>
-                <strong>{selectedServices.length}</strong> שירותים
-              </span>
-              <span>
-                משך כולל: <strong>{totalDurationMinutes} דקות</strong>
-              </span>
-              <span>
-                מחיר כולל:{' '}
-                <strong>{ILS_FORMATTER.format(totalPrice)}</strong>
-              </span>
-            </div>
-          )}
-
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="appointment-date">תאריך התור *</label>
@@ -512,6 +462,56 @@ export default function AddAppointmentModal({
               </div>
             </div>
           </div>
+
+          <fieldset className={styles.servicesFieldset}>
+            <legend>טיפולים ושירותים *</legend>
+            <div className={styles.serviceList}>
+              {services.map((service) => {
+                const isSelected = selectedServiceIds.includes(service.id);
+                const occupiedMinutes =
+                  service.duration_minutes +
+                  (service.buffer_time_minutes ?? 0);
+
+                return (
+                  <label
+                    key={service.id}
+                    className={`${styles.serviceOption} ${isSelected ? styles.serviceOptionSelected : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleService(service.id)}
+                    />
+                    <span className={styles.serviceInfo}>
+                      <strong>{service.title}</strong>
+                      <span>
+                        {occupiedMinutes} דקות ·{' '}
+                        {ILS_FORMATTER.format(service.price)}
+                      </span>
+                      {service.description && (
+                        <small>{service.description}</small>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          {selectedServices.length > 0 && (
+            <div className={styles.summary} aria-live="polite">
+              <span>
+                <strong>{selectedServices.length}</strong> שירותים
+              </span>
+              <span>
+                משך כולל: <strong>{totalDurationMinutes} דקות</strong>
+              </span>
+              <span>
+                מחיר כולל:{' '}
+                <strong>{ILS_FORMATTER.format(totalPrice)}</strong>
+              </span>
+            </div>
+          )}
 
           <button
             type="button"

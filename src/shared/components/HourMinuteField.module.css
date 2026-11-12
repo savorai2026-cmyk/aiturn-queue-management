@@ -11,6 +11,9 @@
   border-radius: 7px;
   background: #ffffff;
   color: var(--color-text);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 
 .field:focus-within {
@@ -90,7 +93,9 @@
 
 .menu {
   position: fixed;
-  z-index: 10050;
+  z-index: 12000;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
   box-sizing: border-box;
   overflow-x: hidden;
   overflow-y: auto;

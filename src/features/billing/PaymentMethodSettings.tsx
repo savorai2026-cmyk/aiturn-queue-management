@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import HelpTip from '../../shared/components/HelpTip';
-import { CardIcon } from '../../shared/components/icons';
+import { CardIcon, TrashIcon } from '../../shared/components/icons';
 import type { BusinessRole } from '../business/BusinessContextState';
-import { chargeSavedCard } from './billing.api';
+import { chargeSavedCard, revokePaymentMethod } from './billing.api';
+import ConfirmDeleteModal from '../settings/components/ConfirmDeleteModal';
 import {
   canManagePaymentMethods,
   formatCardExpiry,
@@ -45,11 +46,30 @@ export default function PaymentMethodSettings({
   const [chargeState, setChargeState] = useState<'idle' | 'charging' | 'done'>('idle');
   const [chargeMessage, setChargeMessage] = useState('');
   const [chargeError, setChargeError] = useState('');
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState('');
   const canManage = canManagePaymentMethods(role);
   const last4 = formatCardLast4(paymentMethod?.last4);
   const expiry = formatCardExpiry(paymentMethod?.cardExp);
   const savedAt = formatSavedAt(paymentMethod?.tokenizedAt ?? paymentMethod?.updatedAt ?? null);
   const hasCard = isActivePaymentMethod(paymentMethod);
+
+  const handleRemove = async () => {
+    setRemoveError('');
+    setRemoving(true);
+    try {
+      await revokePaymentMethod(businessCode);
+      setRemoveOpen(false);
+      await onRefresh();
+    } catch (caught) {
+      setRemoveError(
+        caught instanceof Error ? caught.message : 'לא ניתן להסיר את הכרטיס.',
+      );
+    } finally {
+      setRemoving(false);
+    }
+  };
 
   const handleCharge = async () => {
     const amount = Number(chargeAmount);
@@ -163,19 +183,51 @@ export default function PaymentMethodSettings({
       ) : null}
 
       {canManage ? (
-        <button
-          type="button"
-          className={styles.primary}
-          onClick={() => setIsEditorOpen(true)}
-        >
-          <CardIcon />
-          {hasCard ? 'עדכון כרטיס' : 'שמירת כרטיס'}
-        </button>
+        <div className={styles.cardActions}>
+          <button
+            type="button"
+            className={styles.primary}
+            onClick={() => setIsEditorOpen(true)}
+          >
+            <CardIcon />
+            {hasCard ? 'עדכון כרטיס' : 'שמירת כרטיס'}
+          </button>
+          {hasCard ? (
+            <button
+              type="button"
+              className={styles.danger}
+              onClick={() => {
+                setRemoveError('');
+                setRemoveOpen(true);
+              }}
+            >
+              <TrashIcon />
+              הסרת כרטיס
+            </button>
+          ) : null}
+        </div>
       ) : (
         <p className={styles.muted}>
           רק בעלים או מנהל יכולים לעדכן אמצעי תשלום.
         </p>
       )}
+
+      {removeOpen ? (
+        <ConfirmDeleteModal
+          title="הסרת כרטיס אשראי"
+          message="הסרת הכרטיס תכבה את הסוכנים, והיומן יישאר זמין רק לצפייה עד שיוזן כרטיס אחר."
+          confirmLabel="הסרת כרטיס"
+          busyLabel="מסיר..."
+          isBusy={removing}
+          errorMessage={removeError}
+          onConfirm={() => void handleRemove()}
+          onCancel={() => {
+            if (removing) return;
+            setRemoveOpen(false);
+            setRemoveError('');
+          }}
+        />
+      ) : null}
 
       {isEditorOpen ? (
         <SavePaymentMethodModal

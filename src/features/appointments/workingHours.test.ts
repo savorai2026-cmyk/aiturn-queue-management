@@ -12,6 +12,9 @@ import {
   isUpcomingSpecialDay,
   toSpecialDayDrafts,
   toWorkingHoursPayload,
+  moveTentativeWithShift,
+  tentativeInsideShifts,
+  toggleShiftTentative,
   validateSpecialDayDrafts,
   validateWorkingDayDrafts,
   validateWorkingHourExceptions,
@@ -342,6 +345,22 @@ describe('working hours', () => {
     expect(
       isUpcomingSpecialDay({ date: '2026-10-23' }, '2026-10-23'),
     ).toBe(true);
+  });
+
+  it('marks only the selected shift and keeps its interested-customer count', () => {
+    const morning = { start: '09:00', end: '13:00' };
+    const evening = { start: '16:00', end: '20:00' };
+    const marked = toggleShiftTentative([], morning, true, 3);
+
+    expect(marked).toEqual([{ start: '09:00', end: '13:00', min_insists: 3 }]);
+    expect(toggleShiftTentative(marked, evening, true, 1)).toEqual([
+      { start: '09:00', end: '13:00', min_insists: 3 },
+      { start: '16:00', end: '20:00', min_insists: 1 },
+    ]);
+    expect(
+      moveTentativeWithShift(marked, morning, { start: '10:00', end: '13:00' }),
+    ).toEqual([{ start: '10:00', end: '13:00', min_insists: 3 }]);
+    expect(tentativeInsideShifts(marked, [evening])).toEqual([]);
   });
 
   it('keeps tentative ranges on a weekday and a special day', () => {

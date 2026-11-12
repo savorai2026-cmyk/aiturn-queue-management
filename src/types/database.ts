@@ -1101,6 +1101,10 @@ export type Database = {
         Args: { p_business_code: string }
         Returns: undefined
       }
+      revoke_business_payment_method: {
+        Args: { p_business_code: string }
+        Returns: undefined
+      }
       expired_recording_paths: {
         Args: { p_limit?: number }
         Returns: { storage_path: string }[]

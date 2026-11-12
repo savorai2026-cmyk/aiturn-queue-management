@@ -7,13 +7,19 @@ import { DateField } from '../../../shared/components/DateField';
 import { HourMinuteField } from '../../../shared/components/HourMinuteField';
 import type {
   SpecialDayDraft,
+  TentativeRange,
   WorkingDayDraft,
 } from '../../appointments/workingHours';
 import {
   createBlankSpecialDay,
+  moveTentativeWithShift,
+  rangeInsideShift,
+  rangeMatchesShift,
   suggestNextShift,
+  suggestTentativeRange,
+  tentativeInsideShifts,
+  toggleShiftTentative,
 } from '../../appointments/workingHours';
-import TentativeRangesEditor from './TentativeRangesEditor';
 import { addDaysToDateKey, toDateKey } from '../../appointments/time';
 import styles from './SpecialDaysEditor.module.css';
 
@@ -68,6 +74,31 @@ function nextRangeAfter(day: SpecialDayDraft): { date: string; endDate: string }
   return { date, endDate: addDaysToDateKey(date, span) };
 }
 
+const TENTATIVE_HELP =
+  'הסימון חל רק על פרק השעות הזה, לא על שאר היום. אם מספיק מתעניינים לא קיבלו את המועד וויתרו על תור בכלל, הסגירה של הפרק הזה מתבטלת והמערכת חוזרת אליהם.';
+
+function applySpecialDayPatch(
+  day: SpecialDayDraft,
+  patch: Partial<SpecialDayDraft>,
+): SpecialDayDraft {
+  const next = { ...day, ...patch };
+  if (patch.tentative !== undefined) {
+    return next;
+  }
+  if (patch.is_closed && next.is_closed) {
+    return { ...next, tentative: day.tentative ?? [] };
+  }
+  if (patch.shifts || patch.is_closed) {
+    return {
+      ...next,
+      tentative: next.is_closed
+        ? (day.tentative ?? [])
+        : tentativeInsideShifts(day.tentative ?? [], next.shifts),
+    };
+  }
+  return { ...next, tentative: day.tentative ?? [] };
+}
+
 const SHIFT_PRESETS: Array<{
   label: string;
   isClosed: boolean;
@@ -97,7 +128,7 @@ export default function SpecialDaysEditor({
 }: SpecialDaysEditorProps) {
   const updateDay = (id: string, patch: Partial<SpecialDayDraft>) => {
     onChange(
-      days.map((day) => (day.id === id ? { ...day, ...patch } : day)),
+      days.map((day) => (day.id === id ? applySpecialDayPatch(day, patch) : day)),
     );
   };
 
@@ -106,17 +137,30 @@ export default function SpecialDaysEditor({
     index: number,
     patch: { start?: string; end?: string },
   ) => {
-    onChange(
-      days.map((day) => {
-        if (day.id !== id) return day;
-        return {
-          ...day,
-          shifts: day.shifts.map((shift, shiftIndex) =>
-            shiftIndex === index ? { ...shift, ...patch } : shift,
-          ),
-        };
-      }),
-    );
+    const day = days.find((item) => item.id === id);
+    if (!day) return;
+    const previous = day.shifts[index];
+    if (!previous) return;
+    const nextShift = { ...previous, ...patch };
+    updateDay(id, {
+      shifts: day.shifts.map((shift, shiftIndex) =>
+        shiftIndex === index ? nextShift : shift,
+      ),
+      tentative: moveTentativeWithShift(day.tentative ?? [], previous, nextShift),
+    });
+  };
+
+  const setMinInsists = (
+    day: SpecialDayDraft,
+    matches: (range: TentativeRange, index: number) => boolean,
+    minInsists: number,
+  ) => {
+    const insists = Number.isInteger(minInsists) && minInsists >= 1 ? minInsists : 1;
+    updateDay(day.id, {
+      tentative: (day.tentative ?? []).map((range, index) =>
+        matches(range, index) ? { ...range, min_insists: insists } : range,
+      ),
+    });
   };
 
   return (
@@ -252,17 +296,90 @@ export default function SpecialDaysEditor({
                     </button>
                   );
                 })}
+                {day.is_closed ? (
+                  <label className={styles.tentativeMark}>
+                    <input
+                      type="checkbox"
+                      checked={(day.tentative?.length ?? 0) > 0}
+                      onChange={(event) => {
+                        updateDay(day.id, {
+                          tentative: event.target.checked
+                            ? day.tentative && day.tentative.length > 0
+                              ? day.tentative.map((range) => ({ ...range }))
+                              : [suggestTentativeRange([])]
+                            : [],
+                        });
+                      }}
+                    />
+                    <span>שוקל סגירה</span>
+                    <HelpTip text={TENTATIVE_HELP} />
+                  </label>
+                ) : (
+                  <HelpTip text={TENTATIVE_HELP} />
+                )}
               </div>
 
               {day.is_closed ? (
-                <p className={styles.closedNote}>
-                  {isRange
-                    ? 'הימים בטווח הזה סגורים. לא ניתן לקבוע בהם תור.'
-                    : 'היום הזה סגור. לא ניתן לקבוע בו תור.'}
-                </p>
+                <>
+                  <p className={styles.closedNote}>
+                    {isRange
+                      ? 'הימים בטווח הזה סגורים. לא ניתן לקבוע בהם תור.'
+                      : 'היום הזה סגור. לא ניתן לקבוע בו תור.'}
+                  </p>
+                  {(day.tentative ?? []).map((range, index) => (
+                    <div key={`${day.id}-tentative-${index}`} className={styles.shiftRow}>
+                      <HourMinuteField
+                        aria-label={`תחילת סגירה טנטטיבית ${index + 1}`}
+                        value={range.start}
+                        onChange={(start) =>
+                          updateDay(day.id, {
+                            tentative: (day.tentative ?? []).map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, start } : item,
+                            ),
+                          })
+                        }
+                      />
+                      <span className={styles.shiftSep}>עד</span>
+                      <HourMinuteField
+                        aria-label={`סיום סגירה טנטטיבית ${index + 1}`}
+                        value={range.end}
+                        onChange={(end) =>
+                          updateDay(day.id, {
+                            tentative: (day.tentative ?? []).map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, end } : item,
+                            ),
+                          })
+                        }
+                      />
+                      <label className={styles.insist}>
+                        <span>מתעניינים</span>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          dir="ltr"
+                          aria-label={`מתעניינים שמבטלים את הסגירה ${index + 1}`}
+                          value={range.min_insists}
+                          onChange={(event) =>
+                            setMinInsists(
+                              day,
+                              (_, itemIndex) => itemIndex === index,
+                              Number(event.target.value),
+                            )
+                          }
+                        />
+                      </label>
+                    </div>
+                  ))}
+                </>
               ) : (
                 <div className={styles.shifts}>
-                  {day.shifts.map((shift, index) => (
+                  {day.shifts.map((shift, index) => {
+                    const markedRange = (day.tentative ?? []).find((range) =>
+                      rangeMatchesShift(range, shift),
+                    );
+                    const marked = Boolean(markedRange);
+                    return (
                     <div key={`${day.id}-${index}`} className={styles.shiftRow}>
                       <HourMinuteField
                         aria-label={`תחילת משמרת ${index + 1}`}
@@ -284,14 +401,118 @@ export default function SpecialDaysEditor({
                               shifts: day.shifts.filter(
                                 (_, shiftIndex) => shiftIndex !== index,
                               ),
+                              tentative: (day.tentative ?? []).filter(
+                                (range) => !rangeInsideShift(range, shift),
+                              ),
                             })
                           }
                         >
                           <TrashIcon />
                         </IconButton>
                       ) : null}
+                      <label className={styles.tentativeMark}>
+                        <input
+                          type="checkbox"
+                          checked={marked}
+                          onChange={(event) => {
+                            const withoutThisShift = (day.tentative ?? []).filter(
+                              (range) => !rangeInsideShift(range, shift),
+                            );
+                            updateDay(day.id, {
+                              tentative: toggleShiftTentative(
+                                event.target.checked ? withoutThisShift : (day.tentative ?? []),
+                                shift,
+                                event.target.checked,
+                                markedRange?.min_insists ?? 1,
+                              ),
+                            });
+                          }}
+                        />
+                        <span>שוקל סגירה</span>
+                      </label>
+                      {markedRange ? (
+                        <label className={styles.insist}>
+                          <span>מתעניינים</span>
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            dir="ltr"
+                            aria-label={`מתעניינים שמבטלים את הסגירה של משמרת ${index + 1}`}
+                            value={markedRange.min_insists}
+                            onChange={(event) =>
+                              setMinInsists(
+                                day,
+                                (range) => rangeMatchesShift(range, shift),
+                                Number(event.target.value),
+                              )
+                            }
+                          />
+                        </label>
+                      ) : null}
                     </div>
-                  ))}
+                    );
+                  })}
+                  {(day.tentative ?? []).map((range, index) =>
+                    day.shifts.some((shift) => rangeMatchesShift(range, shift)) ? null : (
+                      <div key={`${day.id}-partial-${index}`} className={styles.shiftRow}>
+                        <HourMinuteField
+                          aria-label={`תחילת סגירה טנטטיבית ${index + 1}`}
+                          value={range.start}
+                          onChange={(start) =>
+                            updateDay(day.id, {
+                              tentative: (day.tentative ?? []).map((item, itemIndex) =>
+                                itemIndex === index ? { ...item, start } : item,
+                              ),
+                            })
+                          }
+                        />
+                        <span className={styles.shiftSep}>עד</span>
+                        <HourMinuteField
+                          aria-label={`סיום סגירה טנטטיבית ${index + 1}`}
+                          value={range.end}
+                          onChange={(end) =>
+                            updateDay(day.id, {
+                              tentative: (day.tentative ?? []).map((item, itemIndex) =>
+                                itemIndex === index ? { ...item, end } : item,
+                              ),
+                            })
+                          }
+                        />
+                        <label className={styles.insist}>
+                          <span>מתעניינים</span>
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            dir="ltr"
+                            aria-label={`מתעניינים שמבטלים את הסגירה ${index + 1}`}
+                            value={range.min_insists}
+                            onChange={(event) =>
+                              setMinInsists(
+                                day,
+                                (_range, itemIndex) => itemIndex === index,
+                                Number(event.target.value),
+                              )
+                            }
+                          />
+                        </label>
+                        <IconButton
+                          label={`מחק סגירה טנטטיבית ${index + 1}`}
+                          variant="danger"
+                          onClick={() =>
+                            updateDay(day.id, {
+                              tentative: (day.tentative ?? []).filter(
+                                (_item, itemIndex) => itemIndex !== index,
+                              ),
+                            })
+                          }
+                        >
+                          <TrashIcon />
+                        </IconButton>
+                      </div>
+                    ),
+                  )}
                   <button
                     type="button"
                     className={styles.addShift}
@@ -306,11 +527,6 @@ export default function SpecialDaysEditor({
                   >
                     הוסף משמרת
                   </button>
-                  <TentativeRangesEditor
-                    ranges={day.tentative ?? []}
-                    shifts={day.shifts}
-                    onChange={(tentative) => updateDay(day.id, { tentative })}
-                  />
                 </div>
               )}
 
