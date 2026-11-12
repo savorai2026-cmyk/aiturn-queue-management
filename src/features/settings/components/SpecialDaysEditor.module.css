@@ -19,8 +19,9 @@
   align-items: center;
   gap: 8px;
   margin: 0;
-  color: var(--color-navy-900);
+  color: var(--color-text);
   font-size: 14px;
+  font-weight: 650;
 }
 
 .addBtn,
@@ -69,8 +70,8 @@
 
 .preset.presetActive {
   border-color: var(--color-teal-600);
-  background: #e6f5f3;
-  color: #0f766e;
+  background: var(--color-teal-100);
+  color: var(--color-navy-900);
 }
 
 .empty,
@@ -91,7 +92,7 @@
   padding: 12px;
   border: 1px solid var(--color-line);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--color-surface);
 }
 
 .cardTop {
@@ -178,7 +179,7 @@
   padding: 8px;
   border: 1px solid var(--color-line);
   border-radius: 7px;
-  background: #ffffff;
+  background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
   font-size: 14px;

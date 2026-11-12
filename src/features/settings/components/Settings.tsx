@@ -439,6 +439,8 @@ function BusinessProfileForm({
   onSaved: () => Promise<void>;
 }) {
   const [formData, setFormData] = useState(() => toEditableProfile(business));
+  const savedProfile = useMemo(() => toEditableProfile(business), [business]);
+  const hasChanges = JSON.stringify(formData) !== JSON.stringify(savedProfile);
   const [isSaving, setIsSaving] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [message, setMessage] = useState<{
@@ -500,7 +502,8 @@ function BusinessProfileForm({
               type="button"
               className={`${styles.btnPrimary} ${styles.toolbarSave}`}
               onClick={() => void handleSave()}
-              disabled={isSaving}
+              disabled={isSaving || !hasChanges}
+              title={hasChanges ? 'שמירת פרטי עסק' : 'אין שינויים לשמירה'}
             >
               {isSaving ? 'שומר...' : (
                 <>
@@ -689,6 +692,14 @@ function BusinessConfigForm({
   const [policyDraft, setPolicyDraft] = useState(() =>
     cancellationPolicyDraft(business.cancellation_policy),
   );
+  const savedConfig = useMemo(() => toEditableConfig(business), [business]);
+  const savedPolicy = useMemo(
+    () => cancellationPolicyDraft(business.cancellation_policy),
+    [business],
+  );
+  const hasChanges =
+    JSON.stringify(formData) !== JSON.stringify(savedConfig) ||
+    JSON.stringify(policyDraft) !== JSON.stringify(savedPolicy);
   const [isSaving, setIsSaving] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [rewriteOpen, setRewriteOpen] = useState(false);
@@ -884,7 +895,8 @@ function BusinessConfigForm({
             type="button"
             className={`${styles.btnPrimary} ${styles.toolbarSave}`}
             onClick={() => void handleSave()}
-            disabled={isSaving}
+            disabled={isSaving || !hasChanges}
+            title={hasChanges ? 'שמירת הגדרות' : 'אין שינויים לשמירה'}
           >
             {isSaving ? 'שומר...' : (
               <>
@@ -1573,6 +1585,11 @@ function SubscriptionForm({
     type: 'success' | 'error';
   } | null>(null);
 
+  const savedPlan = parseSubscriptionPlan(business.subscription_plan);
+  const savedQuota = displayStorageQuotaGb(
+    normalizeStorageQuotaGb(business.storage_quota_gb) ?? INCLUDED_STORAGE_GB,
+    includedStorageGb(savedPlan),
+  );
   const terms = tariffs.resolve(plan);
   const regularTerms = tariffs.resolve('regular');
   const expandedTerms = tariffs.resolve('expanded');
@@ -1580,6 +1597,7 @@ function SubscriptionForm({
     normalizeStorageQuotaGb(quotaGb) ?? terms.includedStorageGb,
     terms.includedStorageGb,
   );
+  const hasPlanChanges = plan !== savedPlan || String(shownQuota) !== String(savedQuota);
 
   const applyPlan = (nextPlan: SubscriptionPlan) => {
     const nextTerms = tariffs.resolve(nextPlan);
@@ -1657,7 +1675,8 @@ function SubscriptionForm({
             type="button"
             className={`${styles.btnPrimary} ${styles.toolbarSave}`}
             onClick={() => void handleSave()}
-            disabled={isSaving}
+            disabled={isSaving || !hasPlanChanges}
+            title={hasPlanChanges ? 'שמירת מנוי' : 'אין שינויים לשמירה'}
           >
             {isSaving ? 'שומר...' : (
               <>

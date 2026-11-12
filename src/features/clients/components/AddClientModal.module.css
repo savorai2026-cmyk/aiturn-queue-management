@@ -15,9 +15,9 @@
 
 .title {
   font-size: 18px;
-  font-weight: 600;
-  color: var(--color-navy-900);
-  border-bottom: 2px solid var(--color-logo-orange);
+  font-weight: 650;
+  color: var(--color-text);
+  border-bottom: 2px solid var(--color-teal-500);
   padding-bottom: 10px;
   margin-bottom: 20px;
   margin-top: 0;
@@ -55,8 +55,7 @@
   z-index: 1;
   height: 2px;
   border-radius: 999px;
-  background: var(--color-logo-orange);
-  box-shadow: 0 0 8px rgba(241, 92, 49, 0.45);
+  background: #0d9488;
   pointer-events: none;
 }
 

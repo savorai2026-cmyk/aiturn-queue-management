@@ -6,7 +6,7 @@ import styles from './HelpTip.module.css';
 interface HelpTipProps {
   text: string;
   label?: string;
-  variant?: 'default' | 'onDark';
+  variant?: 'default' | 'onDark' | 'solid';
 }
 
 const VIEW_MARGIN = 8;
@@ -111,7 +111,9 @@ export default function HelpTip({
       <button
         ref={triggerRef}
         type="button"
-        className={`${styles.trigger} ${variant === 'onDark' ? styles.onDark : ''}`}
+        className={`${styles.trigger} ${
+          variant === 'onDark' ? styles.onDark : variant === 'solid' ? styles.solid : ''
+        }`}
         aria-label={label}
         aria-expanded={isOpen}
         aria-controls={tooltipId}

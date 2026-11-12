@@ -172,15 +172,15 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
   const hasTableControls = hasActiveFilters || visibleSort !== null;
   const rangeStart = visibleClients.length === 0 ? 0 : currentPage * CLIENT_PAGE_SIZE + 1;
   const rangeEnd = Math.min(visibleClients.length, (currentPage + 1) * CLIENT_PAGE_SIZE);
-  const listTitle = visibleClients.length > CLIENT_PAGE_SIZE
-    ? `ניהול לקוחות (${rangeStart.toLocaleString('he-IL')}–${rangeEnd.toLocaleString('he-IL')} מתוך ${
+  const countLabel = visibleClients.length > CLIENT_PAGE_SIZE
+    ? `${rangeStart.toLocaleString('he-IL')}–${rangeEnd.toLocaleString('he-IL')} מתוך ${
         hasTableControls
           ? `${visibleClients.length.toLocaleString('he-IL')} מסוננים, ${clients.length.toLocaleString('he-IL')} בסה״כ`
           : visibleClients.length.toLocaleString('he-IL')
-      })`
+      }`
     : hasTableControls
-      ? `ניהול לקוחות (${visibleClients.length} מתוך ${clients.length})`
-      : `ניהול לקוחות (${clients.length})`;
+      ? `${visibleClients.length} מתוך ${clients.length}`
+      : String(clients.length);
 
   const handleEdit = (client: Client) => {
     setEditingClient(client);
@@ -258,7 +258,10 @@ export default function ClientManagement({ businessCode }: ClientManagementProps
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h2 className={styles.title}>{listTitle}</h2>
+        <h2 className={styles.title}>
+          ניהול לקוחות
+          <span className={styles.count}>{countLabel}</span>
+        </h2>
 
         <div className={styles.tableControls}>
           <DisplayToolbar

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useSlidingIndicator } from '../../../shared/useSlidingIndicator';
 import {
   createClient,
@@ -119,6 +119,11 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [section, setSection] = useState<ClientSection>('personal');
+  const savedForm = useRef(formData);
+  const savedPolicy = useRef(policyDraft);
+  const hasChanges =
+    JSON.stringify(formData) !== JSON.stringify(savedForm.current) ||
+    JSON.stringify(policyDraft) !== JSON.stringify(savedPolicy.current);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -634,7 +639,12 @@ export default function AddClientModal({ businessCode, clientToEdit, onClose, on
 
           <div className={styles.actions}>
             <button type="button" className={styles.btnCancel} onClick={onClose}>ביטול</button>
-            <button type="submit" className={styles.btnSave} disabled={isSaving}>
+            <button
+              type="submit"
+              className={styles.btnSave}
+              disabled={isSaving || !hasChanges}
+              title={hasChanges ? 'שמירת לקוח' : 'אין שינויים לשמירה'}
+            >
               {isSaving ? 'שומר...' : clientToEdit ? (
                 <>
                   <SaveIcon />

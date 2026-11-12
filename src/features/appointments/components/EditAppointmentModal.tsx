@@ -9,9 +9,11 @@ import type {
 } from '../appointments.types';
 import { formatTimeHm } from '../time';
 import { getAppointmentSaveErrorMessage } from '../../../shared/errors';
+import { areAppointmentEditsEqual } from '../appointments.mappers';
 import { DateField } from '../../../shared/components/DateField';
 import { HourMinuteField } from '../../../shared/components/HourMinuteField';
 import { SaveIcon } from '../../../shared/components/icons';
+import { WaitingOverlay } from '../../../shared/components/QLoader';
 import modal from '../../../shared/components/modalShell.module.css';
 import styles from './EditAppointmentModal.module.css';
 
@@ -63,10 +65,12 @@ export default function EditAppointmentModal({
     );
   }, [formData]);
 
+  const hasChanges = !areAppointmentEditsEqual(initialValues, formData);
   const statusOptions = withCurrentStatus(statuses, formData.status);
   const displayedError = localError || errorMessage;
 
   const handleSave = async () => {
+    if (!hasChanges || isSaving) return;
     setLocalError('');
 
     if (formData.end_time <= formData.start_time) {
@@ -274,7 +278,8 @@ export default function EditAppointmentModal({
             onClick={() => {
               void handleSave();
             }}
-            disabled={isSaving}
+            disabled={isSaving || !hasChanges}
+            title={hasChanges ? 'שמירה' : 'אין שינויים לשמירה'}
           >
             {isSaving ? 'שומר...' : (
               <>
@@ -285,12 +290,7 @@ export default function EditAppointmentModal({
           </button>
         </div>
 
-        {isSaving && (
-          <div className={styles.blockingOverlay} role="status">
-            <span className={styles.spinner} aria-hidden="true" />
-            שומר...
-          </div>
-        )}
+        {isSaving && <WaitingOverlay message="שומר..." />}
       </section>
     </div>
   );

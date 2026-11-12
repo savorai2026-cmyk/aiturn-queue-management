@@ -23,6 +23,7 @@ import HelpTip from '../../../shared/components/HelpTip';
 import { DateField } from '../../../shared/components/DateField';
 import { HourMinuteField } from '../../../shared/components/HourMinuteField';
 import { PencilIcon, SaveIcon } from '../../../shared/components/icons';
+import { WaitingOverlay } from '../../../shared/components/QLoader';
 import PaymentHoldNotice from './PaymentHoldNotice';
 import styles from './SidePanel.module.css';
 
@@ -166,7 +167,7 @@ export const SidePanel = ({
             onToggle={onToggleField}
             onViewDetails={() => setIsDetailsOpen(true)}
             canViewDetails
-            variant="onDark"
+            variant="solid"
             helpPosition="start"
             compact
           />
@@ -330,7 +331,7 @@ export const SidePanel = ({
                   className={styles.serviceRow}
                 >
                   <div>
-                    <strong>{service.title}</strong>
+                    <span className={styles.serviceTitle}>{service.title}</span>
                     <div className={styles.serviceMeta}>
                       {formatTimeHm(service.startTime)} - {formatTimeHm(service.endTime)}
                     </div>
@@ -429,12 +430,7 @@ export const SidePanel = ({
         )}
       </div>
 
-      {isBusy && (
-        <div className={styles.blockingOverlay} role="status">
-          <span className={styles.spinner} aria-hidden="true" />
-          שומר...
-        </div>
-      )}
+      {isBusy && <WaitingOverlay message="שומר..." />}
 
       {isDetailsOpen && (
         <RecordDetailsModal

@@ -4,6 +4,7 @@ import type { AppTab } from '../navigation';
 import type { BusinessMembership } from '../../features/business/BusinessContextState';
 import SupportRequestModal from '../../features/support/SupportRequestModal';
 import { LogoutIcon, MailIcon } from '../../shared/components/icons';
+import { applyColorScheme, readColorScheme, type ColorScheme } from '../colorScheme';
 import styles from './TopBar.module.css';
 
 interface TopBarProps {
@@ -39,6 +40,7 @@ export default function TopBar({
   onBusinessChange,
 }: TopBarProps) {
   const [supportOpen, setSupportOpen] = useState(false);
+  const [colorScheme, setColorScheme] = useState<ColorScheme>(readColorScheme);
   const navRef = useRef<HTMLElement>(null);
   const [indicator, setIndicator] = useState<{ x: number; width: number } | null>(null);
   const [indicatorReady, setIndicatorReady] = useState(false);
@@ -107,23 +109,41 @@ export default function TopBar({
       </nav>
 
       <div className={styles.leftSection}>
-        {businesses.length > 1 && (
-          <select
-            className={styles.businessSelect}
-            value={activeBusinessCode}
-            onChange={(event) => onBusinessChange(event.target.value)}
-            aria-label="בחירת עסק פעיל"
-          >
-            {businesses.map((business) => (
-              <option key={business.businessCode} value={business.businessCode}>
-                {business.businessName}
-              </option>
-            ))}
-          </select>
+        {businesses.length > 1 ? (
+          <label className={styles.greeting}>
+            שלום,{' '}
+            <select
+              className={styles.businessSelect}
+              value={activeBusinessCode}
+              onChange={(event) => onBusinessChange(event.target.value)}
+              aria-label="בחירת עסק פעיל"
+            >
+              {businesses.map((business) => (
+                <option key={business.businessCode} value={business.businessCode}>
+                  {business.businessName}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <span className={styles.greeting}>
+            שלום, {businessName || userEmail?.split('@')[0] || 'משתמש'}
+          </span>
         )}
-        <span className={styles.greeting}>
-          שלום, {businessName || userEmail?.split('@')[0] || 'משתמש'}
-        </span>
+        <button
+          type="button"
+          className={styles.themeBtn}
+          aria-pressed={colorScheme === 'dark'}
+          aria-label={colorScheme === 'dark' ? 'מצב בהיר' : 'מצב כהה'}
+          title={colorScheme === 'dark' ? 'מצב בהיר' : 'מצב כהה'}
+          onClick={() => {
+            const next: ColorScheme = colorScheme === 'dark' ? 'light' : 'dark';
+            applyColorScheme(next);
+            setColorScheme(next);
+          }}
+        >
+          {colorScheme === 'dark' ? '☀' : '☾'}
+        </button>
         <button
           type="button"
           className={styles.mailBtn}

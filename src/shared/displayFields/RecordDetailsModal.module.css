@@ -17,8 +17,9 @@
   margin: 0 0 18px;
   padding-bottom: 10px;
   border-bottom: 2px solid var(--color-teal-500);
-  color: var(--color-navy-900);
+  color: var(--color-text);
   font-size: 18px;
+  font-weight: 650;
 }
 
 .groups {

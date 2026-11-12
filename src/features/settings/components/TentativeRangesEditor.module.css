@@ -34,7 +34,7 @@
   padding: 4px 10px;
   border: 1px solid var(--color-line);
   border-radius: 7px;
-  background: #ffffff;
+  background: var(--color-surface);
   color: var(--color-navy-900);
   font: inherit;
   font-size: 12px;
@@ -72,5 +72,5 @@
   font: inherit;
   font-size: 14px;
   color: var(--color-text);
-  background: #ffffff;
+  background: var(--color-surface);
 }

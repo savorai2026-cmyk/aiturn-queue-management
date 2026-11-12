@@ -12,7 +12,7 @@ interface DisplayToolbarProps {
   onReorder?: (keys: string[]) => void;
   onViewDetails?: () => void;
   canViewDetails?: boolean;
-  variant?: 'default' | 'onDark';
+  variant?: 'default' | 'onDark' | 'solid';
   helpPosition?: 'start' | 'end';
   showHelp?: boolean;
   compact?: boolean;
@@ -38,10 +38,12 @@ export default function DisplayToolbar({
 }: DisplayToolbarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const gearRef = useRef<HTMLButtonElement>(null);
-  const buttonClass = `${styles.iconButton} ${variant === 'onDark' ? styles.onDark : ''}`;
+  const buttonClass = `${styles.iconButton} ${
+    variant === 'onDark' ? styles.onDark : variant === 'solid' ? styles.solid : ''
+  }`;
   const help = (
     <HelpTip
-      variant={variant}
+      variant={variant === 'onDark' ? 'onDark' : 'solid'}
       text={
         onReorder
           ? `גלגל השיניים בוחר אילו שדות יופיעו ואת הסדר שלהם. אפשר גם לגרור כותרת עמודה.${onToggleFilters ? ' המשפך מציג או מסתיר את שורת הסינון.' : ''}${onViewDetails ? ' המשקפיים מציגים את כל פרטי הרשומה שנבחרה.' : ''}`

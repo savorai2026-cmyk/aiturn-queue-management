@@ -155,9 +155,9 @@
 
 .copy h2 {
   margin: 0;
-  color: var(--color-navy-900);
+  color: var(--color-text);
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 650;
 }
 
 .copy p {
@@ -190,4 +190,24 @@
   color: var(--color-teal-600);
   font-weight: 700;
   cursor: pointer;
+}
+
+:global(html[data-theme='dark']) .total,
+:global(html[data-theme='dark']) .row {
+  background: var(--color-surface-muted);
+}
+
+:global(html[data-theme='dark']) .lines,
+:global(html[data-theme='dark']) .line {
+  border-color: var(--color-line);
+}
+
+:global(html[data-theme='dark']) .track {
+  background: #102228;
+}
+
+:global(html[data-theme='dark']) .pending,
+:global(html[data-theme='dark']) .pendingNote,
+:global(html[data-theme='dark']) .error {
+  color: #fdba74;
 }

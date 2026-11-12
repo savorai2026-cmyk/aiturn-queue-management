@@ -70,3 +70,11 @@ button.planOption:hover {
   font-size: 13px;
   line-height: 1.45;
 }
+
+:global(html[data-theme='dark']) .planOption {
+  background: var(--color-surface);
+}
+
+:global(html[data-theme='dark']) .planOption[data-selected='true'] {
+  background: #14383e;
+}

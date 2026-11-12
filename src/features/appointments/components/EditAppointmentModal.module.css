@@ -18,8 +18,9 @@
   margin: 0 0 14px;
   padding-bottom: 10px;
   border-bottom: 2px solid var(--color-teal-500);
-  color: var(--color-navy-900);
+  color: var(--color-text);
   font-size: 18px;
+  font-weight: 650;
 }
 
 .banner {
@@ -199,17 +200,3 @@
   font-weight: 700;
 }
 
-.spinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid #cce2e6;
-  border-top-color: var(--color-teal-600);
-  border-radius: 50%;
-  animation: spin 0.75s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}

@@ -5,13 +5,14 @@
   padding: 12px 14px;
   border: 1px solid var(--color-line);
   border-radius: 8px;
-  background: #fbfdfd;
+  background: var(--color-surface-muted);
 }
 
 .panel h3 {
   margin: 0;
-  color: var(--color-navy-900);
+  color: var(--color-text);
   font-size: 14px;
+  font-weight: 650;
 }
 
 .panel p {

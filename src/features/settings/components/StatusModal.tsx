@@ -50,6 +50,8 @@ export default function StatusModal({
   onSuccess,
 }: StatusModalProps) {
   const [color, setColor] = useState(status.color || DEFAULT_STATUS_COLOR);
+  const savedColor = (status.color || DEFAULT_STATUS_COLOR).toLowerCase();
+  const hasChanges = color.toLowerCase() !== savedColor;
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -171,7 +173,8 @@ export default function StatusModal({
             <button
               type="submit"
               className={styles.btnSave}
-              disabled={isSaving}
+              disabled={isSaving || !hasChanges}
+              title={hasChanges ? 'שמירת צבע' : 'אין שינויים לשמירה'}
             >
               {isSaving ? 'שומר...' : (
                 <>

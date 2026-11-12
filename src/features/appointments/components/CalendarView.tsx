@@ -55,6 +55,7 @@ import {
   ErrorState,
   LoadingState,
 } from '../../../shared/components/PageState';
+import { WaitingOverlay } from '../../../shared/components/QLoader';
 import type { Json } from '../../../types/database';
 import styles from './CalendarView.module.css';
 
@@ -464,12 +465,13 @@ export default function CalendarView({
       const transform = `translate(${x}px, ${y}px)`;
       const previous = glideOriginRef.current.get(className);
       const sameView = previous?.view === viewTypeRef.current;
+      const crossView = className === styles.viewGlide;
       glide.dataset.endWidth = width;
       glide.dataset.endHeight = height;
       glide.dataset.endTransform = transform;
       if (glide.dataset.glideHold === '1') {
         /* Destination is already stored for the flight that is about to start. */
-      } else if (created && previous && sameView && previous.width > 0) {
+      } else if (created && previous && (sameView || crossView) && previous.width > 0) {
         const startX = previous.left - hostBox.left - borderLeft;
         const startY = alongBottom
           ? previous.bottom - hostBox.top - borderTop - 4
@@ -518,7 +520,15 @@ export default function CalendarView({
 
     placeGlide(null, null, styles.dayLaneGlide, false);
     placeGlide(null, null, styles.dayHeaderGlide, false);
-    placeGlide(null, null, styles.viewGlide, false);
+    const viewGroup = root.querySelector<HTMLElement>(
+      '.fc-button-group:has(.fc-dayGridMonth-button)',
+    );
+    placeGlide(
+      viewGroup,
+      viewGroup?.querySelector<HTMLElement>('.fc-button-active') ?? null,
+      styles.viewGlide,
+      false,
+    );
 
     if (selectedAppointmentId != null && !selectedTime) {
       placeGlide(null, null, styles.dayGlide, false);
@@ -1351,9 +1361,9 @@ export default function CalendarView({
               }
             : {
                 left: canEdit
-                  ? 'newAppointmentBtn prev,next goTodayBtn'
-                  : 'prev,next goTodayBtn',
-                center: 'title',
+                  ? 'newAppointmentBtn goTodayBtn'
+                  : 'goTodayBtn',
+                center: 'prev,title,next',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay',
               }
         }
@@ -1428,18 +1438,16 @@ export default function CalendarView({
         }}
         dayHeaderContent={(arg) => {
           const holiday = holidaysByDate.get(toDateKey(arg.date)) ?? null;
-          const note = specialNoteForDate(exceptions, arg.date);
+          const dayName = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'][arg.date.getDay()];
+          const headerLabel = arg.view.type === 'dayGridMonth'
+            ? dayName
+            : `${arg.date.getDate()}.${arg.date.getMonth() + 1} ${dayName}`;
           return (
             <span className={styles.dayHeaderInner}>
-              <span>{arg.text}</span>
+              <span>{headerLabel}</span>
               {holiday ? (
                 <span className={styles.holidayNote} title={holiday}>
                   {holiday}
-                </span>
-              ) : null}
-              {note ? (
-                <span className={styles.specialNote} title={note}>
-                  {note}
                 </span>
               ) : null}
             </span>
@@ -1564,12 +1572,7 @@ export default function CalendarView({
         }}
       />
 
-      {isBlocked && (
-        <div className={styles.blockingOverlay} role="status">
-          <span className={styles.spinner} aria-hidden="true" />
-          מעדכן תור...
-        </div>
-      )}
+      {isBlocked && <WaitingOverlay message="מעדכן תור..." />}
       </div>
 
       <div

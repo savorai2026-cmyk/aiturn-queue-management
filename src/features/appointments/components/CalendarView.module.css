@@ -1,7 +1,7 @@
 .calendarShell {
   display: flex;
   align-items: stretch;
-  gap: 8px;
+  gap: 0;
   min-width: 0;
   overflow-anchor: none;
 }
@@ -55,11 +55,13 @@
 }
 
 .dragEdge {
-  flex: 0 0 34px;
+  flex: 0 0 0;
+  width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 3.35em;
+  margin: 0;
+  overflow: hidden;
   border-radius: 10px;
   background: transparent;
   color: #9bb0bd;
@@ -73,6 +75,10 @@
 
 .isDragging .dragEdge,
 :global(body.featurn-is-event-dragging) .dragEdge {
+  flex-basis: 34px;
+  width: 34px;
+  margin-top: 3.35em;
+  overflow: visible;
   opacity: 1;
   pointer-events: auto;
   background: rgba(155, 176, 189, 0.18);
@@ -114,21 +120,6 @@
   font-weight: 700;
 }
 
-.spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #cce2e6;
-  border-top-color: var(--color-teal-600);
-  border-radius: 50%;
-  animation: spin 0.75s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 :global(.fc) {
   height: auto;
   font-family: inherit;
@@ -154,8 +145,10 @@
 }
 
 :global(.fc-theme-standard .fc-scrollgrid) {
-  border: 1px solid var(--color-line);
-  border-radius: 7px;
+  border: 1px solid #e3eeef;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(15, 118, 110, 0.06);
   overflow: visible;
 }
 
@@ -170,20 +163,25 @@
 :global(.fc .fc-scrollgrid-section-header.fc-scrollgrid-section-sticky > *) {
   top: 0;
   z-index: 11;
-  background: var(--color-navy-800);
-  box-shadow: 0 8px 16px rgba(7, 63, 103, 0.18);
+  background: var(--color-header-bg);
+  background-image: var(--header-fill);
+  box-shadow: 0 1px 0 var(--color-header-line);
 }
 
-:global(.fc .fc-col-header-cell) {
+:global(.fc .fc-col-header-cell),
+:global(.fc th.fc-timegrid-axis) {
   border-width: 0 0 1px 1px;
-  background: var(--color-navy-800);
-  color: #ffffff;
+  background-color: var(--color-header-bg);
+  background-image: var(--header-fill);
+  color: var(--color-header-text);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 :global(.fc .fc-col-header-cell-cushion) {
   position: relative;
   z-index: 5;
-  padding: 8px 5px;
+  padding: 10px 8px;
   color: inherit;
   cursor: pointer;
 }
@@ -201,33 +199,35 @@
 }
 
 :global(.fc .fc-col-header-cell.fc-day-today) {
-  background: var(--color-navy-800);
-  color: #ffffff;
-  box-shadow: inset 0 -3px 0 var(--color-today-mark);
+  background-color: var(--color-header-bg);
+  background-image: var(--header-fill);
+  color: #0f766e;
+  box-shadow: inset 0 -2px 0 #0d9488;
 }
 
 :global(.fc .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion) {
-  color: #ffffff;
-  font-weight: 800;
+  color: #0f766e;
+  font-weight: 700;
 }
 
 :global(.fc .fc-col-header-cell.is-selected-day) {
-  color: #ffffff;
+  background: #e7f6f4;
+  color: #0f766e;
 }
 
 :global(.fc .fc-col-header-cell.is-selected-day .fc-col-header-cell-cushion) {
-  color: #ffffff;
-  font-weight: 800;
+  color: #0f766e;
+  font-weight: 700;
 }
 
 :global(.fc .fc-col-header-cell.fc-day-today.is-selected-day) {
-  background: var(--color-navy-800);
-  color: #ffffff;
-  box-shadow: inset 0 -3px 0 var(--color-today-mark);
+  background: #e7f6f4;
+  color: #0f766e;
+  box-shadow: inset 0 -2px 0 #0d9488;
 }
 
 :global(.fc .fc-col-header-cell.fc-day-today.is-selected-day .fc-col-header-cell-cushion) {
-  color: #ffffff;
+  color: #0f766e;
 }
 
 :global(.fc-timegrid-col.is-selected-day),
@@ -241,10 +241,10 @@
   cursor: grab;
 }
 
-:global(.fc-timegrid-event:hover),
-:global(.fc-daygrid-event:hover) {
-  filter: brightness(1.08);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.72);
+:global(.fc-timegrid-event:hover:not(.event-selected):not(.event-focused)),
+:global(.fc-daygrid-event:hover:not(.event-selected):not(.event-focused)) {
+  filter: brightness(1.06);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
 }
 
 :global(.fc-event-dragging),
@@ -252,16 +252,12 @@
   cursor: grabbing;
 }
 
-:global(.fc-event.event-selected) {
-  box-shadow:
-    inset 0 0 0 1px #ffffff,
-    inset 0 0 0 3px var(--color-navy-800) !important;
-}
-
+:global(.fc-event.event-selected),
 :global(.fc-event.event-focused) {
+  filter: none;
   box-shadow:
-    inset 0 0 0 1px #ffffff,
-    inset 0 0 0 3px var(--color-teal-500) !important;
+    inset 0 0 0 1px rgba(255, 255, 255, 0.92),
+    0 0 0 1px rgba(8, 60, 56, 0.55) !important;
   z-index: 5;
 }
 
@@ -332,25 +328,65 @@
 }
 
 :global(.fc-toolbar-title) {
-  color: var(--color-navy-900);
-  font-size: 20px !important;
-  font-weight: 700;
+  margin: 0;
+  padding: 0 8px;
+  color: #115e59;
+  font-size: 14px !important;
+  font-weight: 600;
+  line-height: 34px;
+  white-space: nowrap;
 }
 
 :global(.fc) {
   --fc-button-focus-box-shadow: none;
 }
 
+:global(.fc .fc-header-toolbar) {
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+:global(.fc .fc-toolbar-chunk) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+:global(.fc .fc-toolbar-chunk > *) {
+  margin: 0 !important;
+}
+
+:global(.fc .fc-toolbar-chunk:has(.fc-toolbar-title)) {
+  gap: 2px;
+  height: 34px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #e3f3f1;
+}
+
+:global(.fc .fc-toolbar-chunk:has(.fc-toolbar-title) > div) {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  background: transparent;
+}
+
 :global(.fc .fc-button),
 :global(.fc .fc-button-primary) {
-  border: 0;
-  border-radius: 6px;
-  background-color: var(--color-navy-800);
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background-color: transparent;
   box-shadow: none;
   outline: none !important;
+  color: #0f766e;
+  font-size: 14px;
   font-weight: 600;
-  transform: translateY(0);
-  transition: transform 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease, color 0.16s ease;
+  line-height: 32px;
+  transform: none;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
 }
 
 :global(.fc .fc-button:focus),
@@ -367,8 +403,8 @@
 }
 
 :global(.fc .fc-button-primary:not(:disabled):hover) {
-  background-color: var(--color-navy-900);
-  box-shadow: var(--shadow-button-hover) !important;
+  background-color: rgba(13, 148, 136, 0.08);
+  box-shadow: none !important;
 }
 
 :global(.fc .fc-button-primary:not(:disabled):active),
@@ -379,47 +415,53 @@
 }
 
 :global(.fc .fc-button-primary:disabled) {
-  background-color: #9bb0bd;
-  color: rgba(255, 255, 255, 0.78);
+  background-color: transparent;
+  color: #94a3aa;
   transform: none;
   box-shadow: none;
   opacity: 1;
 }
 
 :global(.fc .fc-goTodayBtn-button:disabled) {
-  background-color: #9bb0bd !important;
-  color: rgba(255, 255, 255, 0.78) !important;
+  border-color: #e3eeef !important;
+  background-color: #f7fafb !important;
+  color: #94a3aa !important;
 }
 
 :global(.fc .fc-button-primary:not(:disabled).fc-button-active),
 :global(.fc .fc-button-primary:not(:disabled).fc-button-active:hover),
 :global(.fc .fc-button-primary:not(:disabled).fc-button-active:focus),
 :global(.fc .fc-button-primary:not(:disabled).fc-button-active:hover:focus) {
-  background-color: var(--color-navy-900);
+  background-color: #0d9488;
+  color: #ffffff;
   transform: none;
   box-shadow: none !important;
 }
 
 :global(.fc .fc-button-group:has(.fc-dayGridMonth-button)) {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 34px;
+  padding: 3px;
+  border: 1px solid #cfe6e3;
+  border-radius: 999px;
+  background: #ffffff;
 }
 
-:global(.fc.fc-direction-rtl .fc-button-group > .fc-button.fc-dayGridMonth-button) {
-  border-radius: 0 6px 6px 0 !important;
-}
-
-:global(.fc.fc-direction-rtl .fc-button-group > .fc-button.fc-timeGridWeek-button) {
-  border-radius: 0 !important;
-}
-
-:global(.fc.fc-direction-rtl .fc-button-group > .fc-button.fc-timeGridDay-button) {
-  border-radius: 6px 0 0 6px !important;
+:global(.fc .fc-button-group > .fc-button) {
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 999px !important;
 }
 
 :global(.fc .fc-button.fc-dayGridMonth-button),
 :global(.fc .fc-button.fc-timeGridWeek-button),
 :global(.fc .fc-button.fc-timeGridDay-button) {
-  padding-bottom: 8px;
+  height: 28px;
+  padding: 0 12px;
+  line-height: 28px;
 }
 
 :global(.fc .fc-dayGridMonth-button),
@@ -456,21 +498,85 @@
   box-shadow: none !important;
 }
 
+:global(.fc .fc-button-group:has(.fc-dayGridMonth-button) > .fc-button) {
+  position: relative;
+  z-index: 5;
+  background: transparent !important;
+  color: #0f766e !important;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+:global(.fc .fc-button-primary:not(:disabled).fc-dayGridMonth-button:not(.fc-button-active):hover),
+:global(.fc .fc-button-primary:not(:disabled).fc-timeGridWeek-button:not(.fc-button-active):hover),
+:global(.fc .fc-button-primary:not(:disabled).fc-timeGridDay-button:not(.fc-button-active):hover) {
+  background: rgba(15, 118, 110, 0.1) !important;
+  color: #0b5f59 !important;
+}
+
 :global(.fc .fc-button-primary:not(:disabled).fc-dayGridMonth-button.fc-button-active),
 :global(.fc .fc-button-primary:not(:disabled).fc-timeGridWeek-button.fc-button-active),
 :global(.fc .fc-button-primary:not(:disabled).fc-timeGridDay-button.fc-button-active) {
-  background-color: var(--color-navy-800);
+  background-color: transparent !important;
+  color: #ffffff !important;
+}
+
+:global(.fc .fc-button-primary:not(:disabled).fc-dayGridMonth-button.fc-button-active:hover),
+:global(.fc .fc-button-primary:not(:disabled).fc-timeGridWeek-button.fc-button-active:hover),
+:global(.fc .fc-button-primary:not(:disabled).fc-timeGridDay-button.fc-button-active:hover) {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
+:global(.fc .fc-prev-button),
+:global(.fc .fc-next-button),
+:global(.fc .fc-prev-button:focus),
+:global(.fc .fc-next-button:focus),
+:global(.fc .fc-prev-button:disabled),
+:global(.fc .fc-next-button:disabled) {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: #0f766e !important;
+  line-height: 28px;
+  box-shadow: none !important;
+}
+
+:global(.fc .fc-prev-button:not(:disabled):hover),
+:global(.fc .fc-next-button:not(:disabled):hover) {
+  background: rgba(13, 148, 136, 0.16) !important;
+  color: #0f766e !important;
+}
+
+:global(.fc .fc-prev-button:disabled),
+:global(.fc .fc-next-button:disabled) {
+  color: #94a3aa !important;
+}
+
+:global(.fc .fc-goTodayBtn-button),
+:global(.fc .fc-goTodayBtn-button:not(:disabled):hover),
+:global(.fc .fc-goTodayBtn-button:not(:disabled):focus) {
+  border: 1px solid #b7ddd8 !important;
+  background: #ffffff !important;
+  color: #0f766e !important;
+  box-shadow: none !important;
 }
 
 :global(.fc-newAppointmentBtn-button) {
   display: inline-flex !important;
   align-items: center;
-  background-color: var(--color-teal-600) !important;
+  border-color: #0d9488 !important;
+  background-color: #0d9488 !important;
+  color: #ffffff !important;
   font-weight: 700 !important;
 }
 
 :global(.fc-newAppointmentBtn-button:not(:disabled):hover) {
-  background-color: var(--color-teal-700) !important;
+  border-color: #0f766e !important;
+  background-color: #0f766e !important;
+  color: #ffffff !important;
 }
 
 :global(.fc-bg-event.closed-day-fill),
@@ -621,7 +727,7 @@
 }
 
 .viewGlide {
-  background: #99f6e4;
+  background: #0d9488;
   box-shadow: 0 0 8px rgba(153, 246, 228, 0.7);
 }
 
@@ -648,7 +754,6 @@
   text-decoration: none;
 }
 
-.specialNote,
 .holidayNote,
 .monthNote,
 .monthHoliday {
@@ -660,13 +765,6 @@
   line-height: 1.3;
   white-space: nowrap;
   text-decoration: none !important;
-}
-
-.specialNote {
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
-  color: #ecfdf8;
 }
 
 .holidayNote {
@@ -698,7 +796,7 @@
 .monthDayNum {
   flex: 0 0 auto;
   min-width: 1.5em;
-  color: var(--color-navy-900);
+  color: var(--color-text);
   font-size: 13px;
   font-weight: 700;
   line-height: 1.2;
@@ -749,13 +847,21 @@
   text-align: left;
 }
 
-:global(.fc .fc-timegrid-slot-label-cushion),
+:global(.fc .fc-timegrid-slot-label-cushion) {
+  padding: 0 8px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
 :global(.fc .fc-daygrid-day-number),
 :global(.fc a.fc-daygrid-day-number),
 :global(.fc .fc-daygrid-day-number:hover),
 :global(.fc .fc-daygrid-day-number:focus),
 :global(.fc .fc-daygrid-day-number:active) {
-  color: var(--color-navy-800);
+  color: var(--color-text);
   text-decoration: none !important;
 }
 
@@ -816,7 +922,7 @@
   }
 
   :global(.fc .fc-toolbar-title) {
-    font-size: 16px !important;
+    font-size: 14px !important;
   }
 
   :global(.fc .fc-toolbar-chunk) {
@@ -829,4 +935,120 @@
   :global(.fc .fc-button) {
     font-size: 13px;
   }
+}
+
+:global(html[data-theme='dark'] .fc) {
+  --fc-page-bg-color: var(--color-surface);
+  --fc-neutral-bg-color: var(--color-surface-muted);
+  --fc-border-color: var(--color-line);
+  --fc-neutral-text-color: var(--color-text-muted);
+  --fc-today-bg-color: var(--color-today-wash);
+}
+
+:global(html[data-theme='dark'] .fc-theme-standard .fc-scrollgrid),
+:global(html[data-theme='dark'] .fc .fc-daygrid-day-frame),
+:global(html[data-theme='dark'] .fc .fc-timegrid-slot),
+:global(html[data-theme='dark'] .fc .fc-timegrid-axis),
+:global(html[data-theme='dark'] .fc .fc-timegrid-col) {
+  background: var(--color-surface);
+  border-color: var(--color-line);
+}
+
+:global(html[data-theme='dark'] .fc-theme-standard .fc-scrollgrid) {
+  border-color: var(--color-line);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+:global(html[data-theme='dark'] .fc .fc-col-header-cell.fc-day-today),
+:global(html[data-theme='dark'] .fc .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion) {
+  color: #5eead4;
+}
+
+:global(html[data-theme='dark'] .fc .fc-col-header-cell.is-selected-day),
+:global(html[data-theme='dark'] .fc .fc-col-header-cell.fc-day-today.is-selected-day) {
+  background: #1a3f3c;
+  color: #d8f4ef;
+}
+
+:global(html[data-theme='dark'] .fc .fc-col-header-cell.is-selected-day .fc-col-header-cell-cushion),
+:global(html[data-theme='dark'] .fc .fc-col-header-cell.fc-day-today.is-selected-day .fc-col-header-cell-cushion) {
+  color: #d8f4ef;
+}
+
+:global(html[data-theme='dark'] .fc-toolbar-title) {
+  color: var(--color-text);
+}
+
+:global(html[data-theme='dark'] .fc .fc-toolbar-chunk:has(.fc-toolbar-title)) {
+  background: #183238;
+}
+
+:global(html[data-theme='dark'] .fc .fc-button-group:has(.fc-dayGridMonth-button)) {
+  border-color: #2c555c;
+  background: #183238;
+}
+
+:global(html[data-theme='dark'] .fc .fc-button-group:has(.fc-dayGridMonth-button) > .fc-button),
+:global(html[data-theme='dark'] .fc .fc-prev-button),
+:global(html[data-theme='dark'] .fc .fc-next-button) {
+  color: #d8f4ef !important;
+}
+
+:global(html[data-theme='dark'] .fc .fc-button-primary:not(:disabled).fc-dayGridMonth-button:not(.fc-button-active):hover),
+:global(html[data-theme='dark'] .fc .fc-button-primary:not(:disabled).fc-timeGridWeek-button:not(.fc-button-active):hover),
+:global(html[data-theme='dark'] .fc .fc-button-primary:not(:disabled).fc-timeGridDay-button:not(.fc-button-active):hover),
+:global(html[data-theme='dark'] .fc .fc-prev-button:not(:disabled):hover),
+:global(html[data-theme='dark'] .fc .fc-next-button:not(:disabled):hover) {
+  background: rgba(45, 212, 191, 0.16) !important;
+  color: #f4fffd !important;
+}
+
+:global(html[data-theme='dark'] .fc .fc-goTodayBtn-button),
+:global(html[data-theme='dark'] .fc .fc-goTodayBtn-button:not(:disabled):hover),
+:global(html[data-theme='dark'] .fc .fc-goTodayBtn-button:not(:disabled):focus) {
+  border-color: #2c555c !important;
+  background: #183238 !important;
+  color: #d8f4ef !important;
+}
+
+:global(html[data-theme='dark'] .fc-newAppointmentBtn-button) {
+  border-color: var(--solid-btn-border) !important;
+  background: var(--solid-btn-bg) !important;
+}
+
+:global(html[data-theme='dark'] .fc-newAppointmentBtn-button:not(:disabled):hover) {
+  border-color: var(--solid-btn-border-hover) !important;
+  background: var(--solid-btn-bg-hover) !important;
+}
+
+:global(html[data-theme='dark']) .monthNote {
+  background: #14383e;
+  color: #99f6e4;
+}
+
+:global(html[data-theme='dark']) .holidayNote {
+  background: #3f2a12;
+  color: #fdba74;
+}
+
+:global(html[data-theme='dark']) .monthHoliday {
+  color: #fdba74;
+}
+
+:global(html[data-theme='dark'] .fc .fc-daygrid-day.fc-day-other) {
+  background: #0f1e24;
+}
+
+:global(html[data-theme='dark'] .fc-event) {
+  color: #ffffff;
+}
+
+:global(html[data-theme='dark']) .moveBanner {
+  background: #14383e;
+  color: var(--color-text);
+}
+
+:global(html[data-theme='dark']) .dragTooltip {
+  background: #0f766e;
+  color: #ffffff;
 }

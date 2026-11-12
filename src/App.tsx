@@ -19,18 +19,12 @@ import { BusinessProvider } from './features/business/BusinessContext';
 import { useBusiness } from './features/business/BusinessContextState';
 import PaymentMethodGate from './features/billing/PaymentMethodGate';
 import CardAccess from './features/billing/CardAccess';
+import { WaitingOverlay } from './shared/components/QLoader';
 import './shared/components/icons.css';
 import './App.css';
 
 function LoadingScreen({ message }: { message: string }) {
-  return (
-    <div className="centered-screen">
-      <div className="loading-card" role="status">
-        <span className="loading-indicator" aria-hidden="true" />
-        <div>{message}</div>
-      </div>
-    </div>
-  );
+  return <WaitingOverlay message={message} />;
 }
 
 interface AuthenticatedAppProps {

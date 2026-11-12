@@ -1,5 +1,5 @@
 .topBar {
-  --top-ink: #032e52;
+  --top-ink: var(--topbar-ink);
   min-height: 56px;
   min-width: 0;
   max-width: 100%;
@@ -8,9 +8,10 @@
   align-items: stretch;
   gap: 24px;
   padding: 0 22px;
-  background: linear-gradient(180deg, var(--top-ink) 0%, var(--color-navy-900) 46%, var(--color-navy-700) 100%);
-  color: #ffffff;
-  box-shadow: 0 4px 16px rgba(7, 63, 103, 0.22);
+  border-bottom: 1px solid var(--topbar-line);
+  background: var(--topbar-bg);
+  color: var(--topbar-ink);
+  box-shadow: none;
 }
 
 .rightSection, .leftSection {
@@ -38,9 +39,9 @@
   bottom: 0;
   left: 0;
   z-index: 2;
-  height: 3px;
-  border-radius: 0;
-  background: var(--color-today-mark);
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: #0d9488;
   pointer-events: none;
 }
 
@@ -63,17 +64,17 @@
   align-self: center;
   width: 1px;
   height: 16px;
-  background: rgba(255, 255, 255, 0.32);
+  background: var(--topbar-chip-line);
 }
 
 .logo {
-  width: 116px;
-  height: 38px;
-  padding: 2px 4px;
+  width: 134px;
+  height: 44px;
+  padding: 0;
   box-sizing: border-box;
   object-fit: contain;
-  background: #ffffff;
-  border-radius: 6px;
+  background: transparent;
+  border-radius: 0;
 }
 
 button.navBtn:not(:disabled),
@@ -93,10 +94,10 @@ button.navBtn:not(:disabled):active:focus {
   box-shadow: none;
   transform: none;
   transition: transform 140ms ease, color 160ms ease;
-  color: rgba(255, 255, 255, 0.86);
+  color: #1c6f69;
   cursor: pointer;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .navLabel {
@@ -104,8 +105,10 @@ button.navBtn:not(:disabled):active:focus {
 }
 
 button.navBtn:not(:disabled):hover,
-button.navBtn:not(:disabled):focus {
-  color: #ffffff;
+button.navBtn:not(:disabled):focus,
+button.navBtn:not(:disabled):hover:focus {
+  color: #0b6e66;
+  box-shadow: none;
 }
 
 button.navBtn.activeNavBtn[aria-current='page'],
@@ -116,7 +119,7 @@ button.navBtn.activeNavBtn[aria-current='page']:hover:focus,
 button.navBtn.activeNavBtn[aria-current='page']:active:focus {
   border-radius: 0;
   background: transparent;
-  color: #ffffff;
+  color: #0b6e66;
   font-weight: 700;
   box-shadow: none;
   transform: none;
@@ -142,8 +145,12 @@ button.navBtn.activeNavBtn[aria-current='page']:not(:disabled):active {
 }
 
 .greeting {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
   overflow: hidden;
+  color: #1c6f69;
   font-size: 14px;
   font-weight: 600;
   text-overflow: ellipsis;
@@ -151,30 +158,67 @@ button.navBtn.activeNavBtn[aria-current='page']:not(:disabled):active {
 }
 
 .businessSelect {
+  height: 34px;
   max-width: 180px;
-  padding: 6px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 7px;
-  background: #ffffff;
-  color: var(--color-navy-900);
+  padding: 0 12px;
+  border: 1px solid #d5ebe8;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #1c6f69;
   font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.themeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--solid-btn-border);
+  border-radius: 10px;
+  background: var(--solid-btn-bg);
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+
+button.themeBtn:not(:disabled):hover,
+button.themeBtn:not(:disabled):focus,
+button.themeBtn:not(:disabled):hover:focus {
+  border-color: var(--solid-btn-border-hover);
+  background: var(--solid-btn-bg-hover);
+  color: #ffffff;
+  box-shadow: none;
+  transform: none;
 }
 
 .mailBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 7px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.1);
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--solid-btn-border);
+  border-radius: 10px;
+  background: var(--solid-btn-bg);
   color: #ffffff;
   cursor: pointer;
   line-height: 0;
 }
 
-.mailBtn:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+button.mailBtn:not(:disabled):hover,
+button.mailBtn:not(:disabled):focus,
+button.mailBtn:not(:disabled):hover:focus {
+  border-color: var(--solid-btn-border-hover);
+  background: var(--solid-btn-bg-hover);
+  color: #ffffff;
+  box-shadow: none;
+  transform: none;
 }
 
 .logoutBtn {
@@ -182,18 +226,25 @@ button.navBtn.activeNavBtn[aria-current='page']:not(:disabled):active {
   flex: 0 0 auto;
   align-items: center;
   gap: 7px;
-  padding: 7px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--topbar-chip-line);
+  border-radius: 999px;
+  background: var(--topbar-chip);
+  color: var(--topbar-ink);
   cursor: pointer;
-  font-weight: 500;
-  font-size: 13px;
+  font-weight: 600;
+  font-size: 14px;
 }
 
-.logoutBtn:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+button.logoutBtn:not(:disabled):hover,
+button.logoutBtn:not(:disabled):focus,
+button.logoutBtn:not(:disabled):hover:focus {
+  border-color: #b7ddd8;
+  background: var(--color-surface);
+  color: var(--topbar-ink);
+  box-shadow: none;
+  transform: none;
 }
 
 @media (max-width: 1200px) {
@@ -225,7 +276,7 @@ button.navBtn.activeNavBtn[aria-current='page']:not(:disabled):active {
     justify-content: flex-start;
     flex-wrap: wrap;
     overflow: hidden;
-    border-top: 1px solid rgba(255, 255, 255, 0.16);
+    border-top: 1px solid var(--topbar-line);
   }
 
   .navDivider,
@@ -243,7 +294,7 @@ button.navBtn.activeNavBtn[aria-current='page']:not(:disabled):active {
   button.navBtn.activeNavBtn[aria-current='page']:active,
   button.navBtn.activeNavBtn[aria-current='page']:hover:focus,
   button.navBtn.activeNavBtn[aria-current='page']:active:focus {
-    box-shadow: inset 0 -3px 0 var(--color-today-mark);
+    box-shadow: inset 0 -2px 0 #0d9488;
   }
 
   button.navBtn:not(:disabled),
@@ -266,10 +317,10 @@ button.navBtn.activeNavBtn[aria-current='page']:not(:disabled):active {
 @media (max-width: 720px) {
   .topBar {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
     grid-template-areas:
-      "logo business mail logout"
-      "nav nav nav nav";
+      "logo business theme mail logout"
+      "nav nav nav nav nav";
     align-items: center;
     column-gap: 8px;
     row-gap: 8px;
@@ -290,8 +341,8 @@ button.navBtn.activeNavBtn[aria-current='page']:not(:disabled):active {
   }
 
   .logo {
-    width: 104px;
-    height: 36px;
+    width: 118px;
+    height: 40px;
   }
 
   .greeting {
@@ -311,6 +362,10 @@ button.navBtn.activeNavBtn[aria-current='page']:not(:disabled):active {
     max-width: none;
   }
 
+  .themeBtn {
+    grid-area: theme;
+  }
+
   .mailBtn {
     grid-area: mail;
   }
@@ -324,7 +379,9 @@ button.navBtn.activeNavBtn[aria-current='page']:not(:disabled):active {
   }
 
   .logoutBtn {
-    padding: 7px;
+    width: 34px;
+    padding: 0;
+    justify-content: center;
   }
 
   button.navBtn:not(:disabled),
@@ -340,8 +397,8 @@ button.navBtn.activeNavBtn[aria-current='page']:not(:disabled):active {
 
 @media (max-width: 400px) {
   .logo {
-    width: 92px;
-    height: 32px;
+    width: 104px;
+    height: 36px;
   }
 
   button.navBtn:not(:disabled),

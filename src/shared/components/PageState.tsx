@@ -1,11 +1,8 @@
+import { WaitingOverlay } from './QLoader';
 import styles from './PageState.module.css';
 
 export function LoadingState({ message }: { message: string }) {
-  return (
-    <div className={styles.state} role="status">
-      {message}
-    </div>
-  );
+  return <WaitingOverlay message={message} />;
 }
 
 interface ErrorStateProps {

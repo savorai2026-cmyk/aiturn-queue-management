@@ -263,7 +263,7 @@ export default function BusinessAccountPanel({
           />
           {formError ? <p className={styles.error}>{formError}</p> : null}
           {formMessage ? <p className={styles.success}>{formMessage}</p> : null}
-          <button type="submit" className={styles.primary} disabled={creating}>
+          <button type="submit" className={styles.primary} disabled={creating || !email.trim() || !password}>
             {creating ? 'יוצר...' : 'יצירת משתמש'}
           </button>
         </form>

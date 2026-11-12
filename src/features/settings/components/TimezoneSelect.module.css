@@ -13,12 +13,16 @@
   padding: 8px 12px;
   border: 1px solid var(--color-line);
   border-radius: 7px;
-  background: #ffffff;
+  background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
   font-size: 14px;
   text-align: start;
   cursor: pointer;
+}
+
+:global(html[data-theme='dark']) .trigger {
+  background: var(--color-surface-muted);
 }
 
 .trigger:focus,
@@ -48,9 +52,10 @@
   overflow-x: hidden;
   overflow-y: auto;
   border: 1px solid var(--color-line);
-  border-radius: 8px;
-  background: var(--color-surface, #ffffff);
-  box-shadow: var(--shadow-floating, 0 8px 24px rgba(7, 48, 75, 0.18));
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: 0 12px 32px rgba(15, 90, 86, 0.16);
 }
 
 .searchRow {
@@ -123,6 +128,16 @@
   background: #ecfdf8;
   color: var(--color-teal-700, #0f766e);
   font-weight: 600;
+}
+
+:global(html[data-theme='dark']) .option:hover,
+:global(html[data-theme='dark']) .option:focus-visible {
+  background: #1c383e;
+}
+
+:global(html[data-theme='dark']) .selected {
+  background: #14383e;
+  color: #5eead4;
 }
 
 .empty {

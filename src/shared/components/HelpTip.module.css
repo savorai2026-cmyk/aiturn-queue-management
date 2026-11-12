@@ -51,6 +51,22 @@
   background: rgba(255, 255, 255, 0.16);
 }
 
+.solid {
+  border-color: var(--solid-btn-border);
+  background: var(--solid-btn-bg);
+  color: #ffffff;
+}
+
+:global(button).solid:hover,
+:global(button).solid:focus-visible,
+:global(button).solid[aria-expanded='true'] {
+  border-color: var(--solid-btn-border-hover);
+  background: var(--solid-btn-bg-hover);
+  color: #ffffff;
+  box-shadow: none;
+  transform: none;
+}
+
 .tooltip {
   position: fixed;
   z-index: 10000;

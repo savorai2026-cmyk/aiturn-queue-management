@@ -9,7 +9,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .tableControls {
@@ -19,9 +19,9 @@
 }
 
 .title {
-  color: var(--color-navy-900);
-  font-size: 21px;
-  font-weight: 700;
+  color: var(--color-text);
+  font-size: 20px;
+  font-weight: 650;
   margin: 0;
 }
 
@@ -51,8 +51,8 @@
   padding: 0 10px;
   border: 1px solid var(--color-line);
   border-radius: 7px;
-  background: #ffffff;
-  color: var(--color-text);
+  background: var(--color-surface);
+  color: var(--color-field);
   font: inherit;
   font-size: 14px;
   font-weight: 500;
@@ -110,21 +110,26 @@
 
 .clearSearch,
 .pageButton {
-  border: 1px solid var(--color-line);
-  background: #ffffff;
-  color: var(--color-navy-900);
+  border: 1px solid #b7ddd8;
+  background: var(--color-surface);
+  color: #0f766e;
 }
 
 .pageButton {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
 }
 
 .clearSearch:hover,
 .pageButton:hover:not(:disabled) {
   border-color: var(--color-teal-600);
-  color: var(--color-teal-600);
+  background: rgba(15, 118, 110, 0.08);
+  color: #0b5f59;
+  box-shadow: none;
 }
 
 .note {
@@ -158,9 +163,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--color-navy-900);
+  color: var(--color-text);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .period {
@@ -168,11 +173,11 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  height: 36px;
+  height: 34px;
   padding: 3px;
-  border: 1px solid var(--color-line);
+  border: 1px solid color-mix(in srgb, var(--color-teal-600) 28%, var(--color-line));
   border-radius: 999px;
-  background: #f3f7f8;
+  background: color-mix(in srgb, var(--color-teal-100) 72%, var(--color-surface));
   box-sizing: border-box;
 }
 
@@ -182,8 +187,8 @@
   left: 0;
   z-index: 0;
   border-radius: 999px;
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(7, 48, 75, 0.12);
+  background: var(--solid-btn-bg);
+  box-shadow: none;
   pointer-events: none;
 }
 
@@ -210,11 +215,11 @@
 }
 
 .periodButton {
-  color: var(--color-text-muted);
+  color: #0f766e;
 }
 
 .periodActive {
-  color: var(--color-teal-600);
+  color: #ffffff;
 }
 
 button.periodButton:hover,
@@ -230,7 +235,8 @@ button.periodActive:not(:disabled):active {
 
 button.periodButton:hover,
 button.periodButton:not(:disabled):hover {
-  color: var(--color-navy-900);
+  background: rgba(15, 118, 110, 0.1);
+  color: #0b5f59;
   box-shadow: none;
 }
 
@@ -240,7 +246,13 @@ button.periodActive:active,
 button.periodActive:not(:disabled):hover,
 button.periodActive:not(:disabled):active {
   background: transparent;
+  color: #ffffff;
   box-shadow: none;
+}
+
+button.periodActive:hover,
+button.periodActive:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.16);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -267,7 +279,7 @@ button.periodActive:not(:disabled):active {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--color-navy-900);
+  color: var(--color-text-muted);
   font-size: 13px;
   font-weight: 600;
 }
@@ -277,8 +289,8 @@ button.periodActive:not(:disabled):active {
   padding: 0 8px;
   border: 1px solid var(--color-line);
   border-radius: 7px;
-  background: #ffffff;
-  color: var(--color-navy-900);
+  background: var(--color-surface);
+  color: var(--color-field);
   font: inherit;
   font-size: 13px;
 }
@@ -377,4 +389,27 @@ button.periodActive:not(:disabled):active {
   margin: 0 0 8px;
   color: var(--color-text-muted);
   font-size: 0.85rem;
+}
+
+:global(html[data-theme='dark']) .periodButton {
+  color: var(--color-text-muted);
+}
+
+:global(html[data-theme='dark']) button.periodButton:hover,
+:global(html[data-theme='dark']) button.periodButton:not(:disabled):hover {
+  background: rgba(45, 212, 191, 0.16);
+  color: #f4fffd;
+}
+
+:global(html[data-theme='dark']) .clearSearch,
+:global(html[data-theme='dark']) .pageButton {
+  border-color: var(--color-line);
+  color: var(--color-text);
+}
+
+:global(html[data-theme='dark']) .clearSearch:hover,
+:global(html[data-theme='dark']) .pageButton:hover:not(:disabled) {
+  border-color: #3d8f86;
+  background: rgba(45, 212, 191, 0.16);
+  color: #f4fffd;
 }

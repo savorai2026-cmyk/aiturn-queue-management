@@ -9,7 +9,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .tableControls {
@@ -54,10 +54,19 @@
 }
 
 .title {
-  color: var(--color-navy-900);
-  font-size: 21px;
-  font-weight: 700;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
   margin: 0;
+  color: var(--color-text);
+  font-size: 20px;
+  font-weight: 650;
+}
+
+.count {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .tableResponsive {
@@ -77,18 +86,20 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid var(--color-teal-600);
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--solid-btn-border);
   border-radius: 7px;
-  background-color: var(--color-teal-600);
+  background: var(--solid-btn-bg);
   color: #ffffff;
-  padding: 8px 16px;
   cursor: pointer;
-  font-weight: 500;
-  font-size: 14px;
+  font-weight: 600;
+  font-size: 13px;
 }
 
 .btnPrimary:hover {
-  background-color: #0f766e;
+  border-color: var(--solid-btn-border-hover);
+  background: var(--solid-btn-bg-hover);
 }
 
 .btnSecondary,
@@ -141,21 +152,23 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 36px;
-  padding: 0 16px;
-  border: 1px solid var(--color-line);
-  border-radius: 7px;
-  background: #ffffff;
-  color: var(--color-navy-900);
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid #b7ddd8;
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: #0f766e;
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .pageButton:hover:not(:disabled) {
   border-color: var(--color-teal-600);
-  color: var(--color-teal-600);
+  background: rgba(15, 118, 110, 0.08);
+  color: #0b5f59;
+  box-shadow: none;
 }
 
 .pageButton:disabled {
@@ -184,4 +197,15 @@
   .pageButton {
     flex: 1 1 auto;
   }
+}
+
+:global(html[data-theme='dark']) .pageButton {
+  border-color: var(--color-line);
+  color: var(--color-text);
+}
+
+:global(html[data-theme='dark']) .pageButton:hover:not(:disabled) {
+  border-color: #3d8f86;
+  background: rgba(45, 212, 191, 0.16);
+  color: #f4fffd;
 }

@@ -7,16 +7,16 @@
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 8px;
-  color: var(--color-navy-900);
+  color: var(--color-text);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 650;
 }
 
 .track {
   height: 10px;
   overflow: hidden;
   border-radius: 999px;
-  background: #e6eef0;
+  background: var(--color-line);
 }
 
 .fill {

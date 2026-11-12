@@ -8,7 +8,7 @@
   padding: 4px 6px;
   border: 1px solid var(--color-line);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--color-surface);
   z-index: 1;
 }
 
@@ -25,10 +25,10 @@
   width: 28px;
   height: 28px;
   padding: 0;
-  border: 1px solid #99f6e4;
+  border: 1px solid var(--color-line);
   border-radius: 7px;
-  background: #f0fdfa;
-  color: #0f766e;
+  background: var(--color-teal-100);
+  color: var(--color-navy-900);
   font: inherit;
   font-size: 12px;
   font-weight: 700;
@@ -123,7 +123,7 @@
   padding: 10px;
   border: 1px solid var(--color-line);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--color-surface);
   box-shadow: var(--shadow-floating);
 }
 
@@ -142,10 +142,10 @@
 
 .download {
   padding: 6px 8px;
-  border: 1px solid #99f6e4;
+  border: 1px solid var(--color-line);
   border-radius: 7px;
-  background: #f0fdfa;
-  color: #0f766e;
+  background: var(--color-teal-100);
+  color: var(--color-navy-900);
   font: inherit;
   font-size: 12px;
   font-weight: 700;
@@ -155,7 +155,7 @@
 
 .download:hover:not(:disabled) {
   border-color: var(--color-teal-600);
-  background: #ccfbf1;
+  background: color-mix(in srgb, var(--color-teal-600) 18%, var(--color-surface));
 }
 
 .download:disabled {

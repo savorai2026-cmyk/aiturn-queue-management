@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
   type FormEvent,
@@ -125,6 +126,10 @@ export default function AddAppointmentModal({
   const [isLoadingOptions, setIsLoadingOptions] = useState(true);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const initialForm = useRef(formData);
+  const hasChanges =
+    JSON.stringify(formData) !== JSON.stringify(initialForm.current) ||
+    selectedServiceIds.length > 0;
 
   useEffect(() => {
     let isCancelled = false;
@@ -349,6 +354,7 @@ export default function AddAppointmentModal({
   };
 
   const canSubmit =
+    hasChanges &&
     !isLoadingOptions &&
     !isSaving &&
     clients.length > 0 &&
@@ -621,6 +627,7 @@ export default function AddAppointmentModal({
               type="submit"
               className={styles.btnSave}
               disabled={!canSubmit}
+              title={hasChanges ? 'שמירת תור' : 'אין שינויים לשמירה'}
             >
               {isSaving ? 'יוצר תור...' : 'צור תור'}
             </button>

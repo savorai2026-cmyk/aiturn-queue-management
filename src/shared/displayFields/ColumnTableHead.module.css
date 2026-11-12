@@ -67,13 +67,13 @@
 :global(.data-table) thead tr.filterRow th {
   top: 36px;
   height: auto;
-  background: #eef4f6;
-  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-header-bg) 72%, var(--color-surface));
+  color: var(--color-header-text-soft);
   font-weight: 500;
-  border-color: rgba(7, 63, 103, 0.1);
+  border-color: var(--color-header-line);
   box-shadow:
-    0 1px 0 #eef4f6,
-    0 -1px 0 #eef4f6;
+    0 1px 0 var(--color-header-bg),
+    0 -1px 0 var(--color-header-bg);
 }
 
 .filterInput,
@@ -84,7 +84,7 @@
   border: 1px solid var(--color-line);
   border-radius: 6px;
   background: #ffffff;
-  color: var(--color-text);
+  color: var(--color-field);
   font: inherit;
   font-size: 12.5px;
 }

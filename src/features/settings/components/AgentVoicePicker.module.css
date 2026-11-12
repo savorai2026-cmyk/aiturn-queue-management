@@ -17,7 +17,7 @@
   padding: 8px 12px;
   border: 1px solid var(--color-line);
   border-radius: 7px;
-  background: #ffffff;
+  background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
   font-size: 14px;
@@ -49,7 +49,7 @@
   text-align: center;
   border: 1px solid var(--color-line);
   border-radius: 7px;
-  background: #ffffff;
+  background: var(--color-surface);
   color: var(--color-navy-800);
   font: inherit;
   font-size: 13px;
@@ -60,6 +60,15 @@
 
 .preview:hover:not(:disabled) {
   background: #f4f8f9;
+}
+
+:global(html[data-theme='dark']) .preview {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+}
+
+:global(html[data-theme='dark']) .preview:hover:not(:disabled) {
+  background: #1c383e;
 }
 
 .preview:disabled {

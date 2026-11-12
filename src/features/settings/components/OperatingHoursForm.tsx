@@ -37,9 +37,11 @@ interface OperatingHoursFormProps {
 
 function SaveHoursButton({
   isSaving,
+  disabled,
   onClick,
 }: {
   isSaving: boolean;
+  disabled: boolean;
   onClick: () => void;
 }) {
   return (
@@ -47,7 +49,8 @@ function SaveHoursButton({
       type="button"
       className={styles.saveBtn}
       onClick={onClick}
-      disabled={isSaving}
+      disabled={disabled}
+      title={disabled && !isSaving ? 'אין שינויים לשמירה' : 'שמירת שעות פעילות'}
     >
       {isSaving ? (
         'שומר...'
@@ -71,20 +74,53 @@ function formatHebrewDate(dateKey: string) {
   }).format(new Date(year, month - 1, day));
 }
 
+function hoursFingerprint(
+  dayList: WorkingDayDraft[],
+  specialList: SpecialDayDraft[],
+  booking: string,
+) {
+  return JSON.stringify({
+    booking,
+    days: dayList.map((day) => ({
+      key: day.key,
+      isOpen: day.isOpen,
+      shifts: day.shifts.map((shift) => ({ start: shift.start, end: shift.end })),
+      tentative: (day.tentative ?? []).map((range) => ({
+        start: range.start,
+        end: range.end,
+        min_insists: range.min_insists,
+      })),
+    })),
+    special: specialList.map((day) => ({
+      date: day.date,
+      endDate: day.endDate || day.date,
+      is_closed: day.is_closed,
+      shifts: day.shifts.map((shift) => ({ start: shift.start, end: shift.end })),
+      note: day.note?.trim() ?? '',
+      tentative: (day.tentative ?? []).map((range) => ({
+        start: range.start,
+        end: range.end,
+        min_insists: range.min_insists,
+      })),
+    })),
+  });
+}
+
 export default function OperatingHoursForm({
   business,
   readOnly = false,
   onSaved,
 }: OperatingHoursFormProps) {
-  const [days, setDays] = useState<WorkingDayDraft[]>(() =>
-    toWorkingDayDrafts(business.working_hours).map((day) => ({
-      ...day,
-      tentative: [],
-    })),
+  const savedDays = useMemo(
+    () => toWorkingDayDrafts(business.working_hours),
+    [business.working_hours],
   );
-  const [specialDays, setSpecialDays] = useState<SpecialDayDraft[]>(() =>
-    toSpecialDayDrafts(parseWorkingHourExceptions(business.working_hours)),
+  const savedSpecialDays = useMemo(
+    () => toSpecialDayDrafts(parseWorkingHourExceptions(business.working_hours)),
+    [business.working_hours],
   );
+  const [days, setDays] = useState(savedDays);
+  const [specialDays, setSpecialDays] = useState(savedSpecialDays);
   const [bookingDays, setBookingDays] = useState<string>(
     business.max_adv_booking_days == null
       ? ''
@@ -95,6 +131,14 @@ export default function OperatingHoursForm({
     text: string;
     type: 'success' | 'error';
   } | null>(null);
+
+  const savedBookingDays =
+    business.max_adv_booking_days == null
+      ? ''
+      : String(business.max_adv_booking_days);
+  const hasChanges =
+    hoursFingerprint(days, specialDays, bookingDays) !==
+    hoursFingerprint(savedDays, savedSpecialDays, savedBookingDays);
 
   const businessNow = nowInTimeZone(business.timezone);
   const todayKey = toDateKey(businessNow);
@@ -155,6 +199,7 @@ export default function OperatingHoursForm({
   };
 
   const handleSave = async () => {
+    if (!hasChanges || isSaving) return;
     setMessage(null);
 
     const hoursError = validateWorkingDayDrafts(days);
@@ -253,7 +298,11 @@ export default function OperatingHoursForm({
       ) : (
         <div className={styles.stickyBar}>
           {status}
-          <SaveHoursButton isSaving={isSaving} onClick={save} />
+          <SaveHoursButton
+            isSaving={isSaving}
+            disabled={isSaving || !hasChanges}
+            onClick={save}
+          />
         </div>
       )}
       <fieldset className={styles.lockedFields} disabled={readOnly}>

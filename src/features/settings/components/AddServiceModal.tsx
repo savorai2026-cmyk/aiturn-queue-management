@@ -127,6 +127,8 @@ export default function AddServiceModal({
   const [formData, setFormData] = useState<ServiceFormValues>(() =>
     toFormValues(service),
   );
+  const savedForm = useRef(formData);
+  const hasChanges = JSON.stringify(formData) !== JSON.stringify(savedForm.current);
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -305,7 +307,8 @@ export default function AddServiceModal({
             <button
               type="submit"
               className={styles.btnSave}
-              disabled={isSaving}
+              disabled={isSaving || !hasChanges}
+              title={hasChanges ? 'שמירה' : 'אין שינויים לשמירה'}
             >
               {isSaving ? 'שומר...' : isEdit ? (
                 <>
