@@ -273,6 +273,13 @@ export function formatBusinessField(
     return `${months} חודשים`;
   }
 
+  if (key === 'arrival_photo_paths') {
+    const count = Array.isArray(business.arrival_photo_paths)
+      ? business.arrival_photo_paths.length
+      : 0;
+    return count ? `${count} תמונות` : '';
+  }
+
   if (key === 'storage_quota_gb') {
     const gigabytes =
       normalizeStorageQuotaGb(business.storage_quota_gb) ?? INCLUDED_STORAGE_GB;

@@ -6,7 +6,7 @@
   padding: 6px;
   border: 1px solid var(--color-line);
   border-radius: 10px;
-  background: #ffffff;
+  background: var(--color-surface);
   box-shadow: var(--shadow-floating);
 }
 
@@ -18,7 +18,7 @@
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
@@ -27,7 +27,7 @@
 }
 
 .item:hover:not(:disabled) {
-  background: #f4f8f9;
+  background: var(--color-surface-muted);
   color: var(--color-teal-600);
 }
 

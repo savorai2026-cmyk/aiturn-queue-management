@@ -1,4 +1,4 @@
-export const SUPPORT_INBOX = 'office@savorai.biz';
+export const SUPPORT_INBOX = 'savorai2026@gmail.com';
 
 export interface SupportDraft {
   subject: string;

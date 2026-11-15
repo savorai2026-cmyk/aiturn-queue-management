@@ -39,7 +39,7 @@
 .field {
   display: grid;
   gap: 6px;
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
   font-size: 12px;
   font-weight: 700;
 }
@@ -80,56 +80,17 @@
   box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.28);
 }
 
-.searchButton,
-.clearSearch,
-.pageButton {
-  height: 36px;
-  padding: 0 16px;
-  border-radius: 7px;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
 .searchButton {
-  border: 1px solid var(--color-teal-600);
-  background: var(--color-teal-600);
-  color: #ffffff;
+  composes: btn btn-primary from global;
 }
 
-.searchButton:hover:not(:disabled) {
-  background: #0f766e;
-}
-
-.searchButton:disabled,
-.pageButton:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.clearSearch,
-.pageButton {
-  border: 1px solid #b7ddd8;
-  background: var(--color-surface);
-  color: #0f766e;
+.clearSearch {
+  composes: btn btn-secondary from global;
 }
 
 .pageButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 34px;
+  composes: btn btn-sm btn-pill btn-secondary from global;
   padding: 0 12px;
-  border-radius: 999px;
-}
-
-.clearSearch:hover,
-.pageButton:hover:not(:disabled) {
-  border-color: var(--color-teal-600);
-  background: rgba(15, 118, 110, 0.08);
-  color: #0b5f59;
-  box-shadow: none;
 }
 
 .note {
@@ -215,7 +176,7 @@
 }
 
 .periodButton {
-  color: #0f766e;
+  color: var(--color-teal-700);
 }
 
 .periodActive {
@@ -352,7 +313,7 @@ button.periodActive:not(:disabled):hover {
 }
 
 .recordingError {
-  color: #b91c1c;
+  color: var(--color-danger-ink);
   font-size: 12px;
   font-weight: 600;
 }
@@ -401,15 +362,3 @@ button.periodActive:not(:disabled):hover {
   color: #f4fffd;
 }
 
-:global(html[data-theme='dark']) .clearSearch,
-:global(html[data-theme='dark']) .pageButton {
-  border-color: var(--color-line);
-  color: var(--color-text);
-}
-
-:global(html[data-theme='dark']) .clearSearch:hover,
-:global(html[data-theme='dark']) .pageButton:hover:not(:disabled) {
-  border-color: #3d8f86;
-  background: rgba(45, 212, 191, 0.16);
-  color: #f4fffd;
-}

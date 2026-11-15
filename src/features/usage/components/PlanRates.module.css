@@ -44,9 +44,9 @@
 }
 
 .price {
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
 }
 
 .pending {
-  color: #9a3412;
+  color: var(--color-warning-ink);
 }

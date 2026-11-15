@@ -7,6 +7,7 @@ import LogsPage from './features/conversations/components/LogsPage';
 import Settings from './features/settings/components/Settings';
 import UsagePage from './features/usage/components/UsagePage';
 import AppointmentsPage from './features/appointments/AppointmentsPage';
+import { leaveCachedAccount } from './features/auth/auth.api';
 import { useAuth } from './features/auth/AuthContextState';
 import { AuthProvider } from './features/auth/AuthProvider';
 import Login from './features/auth/Login';
@@ -30,9 +31,10 @@ function LoadingScreen({ message }: { message: string }) {
 interface AuthenticatedAppProps {
   userEmail?: string;
   onLogout: () => void;
+  onSwitchUser: () => void;
 }
 
-function AuthenticatedApp({ userEmail, onLogout }: AuthenticatedAppProps) {
+function AuthenticatedApp({ userEmail, onLogout, onSwitchUser }: AuthenticatedAppProps) {
   const {
     activeBusiness,
     memberships,
@@ -66,13 +68,17 @@ function AuthenticatedApp({ userEmail, onLogout }: AuthenticatedAppProps) {
     return (
       <div className="centered-screen">
         <div className="load-error-card">
-        <div>{error}</div>
-        <button type="button" onClick={() => void refreshBusinesses()}>
-          נסה שוב
-        </button>
-        <button type="button" onClick={onLogout}>
-          יציאה והתחברות מחדש
-        </button>
+          <div>{error}</div>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => void refreshBusinesses()}
+          >
+            נסה שוב
+          </button>
+          <button type="button" className="btn btn-neutral" onClick={onSwitchUser}>
+            יציאה והתחברות מחדש
+          </button>
         </div>
       </div>
     );
@@ -198,6 +204,9 @@ function AppContent() {
           void signOut().catch((signOutError: unknown) => {
             console.error('שגיאה בהתנתקות:', signOutError);
           });
+        }}
+        onSwitchUser={() => {
+          void leaveCachedAccount();
         }}
       />
     </BusinessProvider>

@@ -53,18 +53,18 @@
 }
 
 .alert[data-level='high'] {
-  background: #fff7ed;
-  color: #9a3412;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-ink);
 }
 
 .alert[data-level='full'] {
-  background: #fef2f2;
+  background: var(--color-danger-bg);
   color: #991b1b;
 }
 
 .price {
   margin: 10px 0 0;
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
   font-size: 13.5px;
   font-weight: 700;
 }

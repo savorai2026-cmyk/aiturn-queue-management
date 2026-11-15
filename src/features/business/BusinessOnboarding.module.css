@@ -5,7 +5,7 @@
   padding: 24px;
   background:
     radial-gradient(circle at top right, rgba(20, 184, 166, 0.14), transparent 36%),
-    linear-gradient(145deg, #eaf5f7, #f7fbfc);
+    linear-gradient(145deg, color-mix(in srgb, var(--color-teal-100) 70%, var(--color-canvas)), var(--color-canvas));
   direction: rtl;
 }
 
@@ -42,10 +42,10 @@
 .error {
   margin-bottom: 18px;
   padding: 12px 14px;
-  border: 1px solid #fecaca;
+  border: 1px solid var(--color-danger-line);
   border-radius: 8px;
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-ink);
 }
 
 .form {
@@ -67,7 +67,7 @@
   padding: 12px 14px;
   border: 1px solid var(--color-line);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
   text-align: right;
@@ -83,24 +83,16 @@
 }
 
 .submit {
+  composes: btn btn-primary from global;
+  min-height: 46px;
   margin-top: 4px;
-  padding: 13px 18px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--color-teal-600);
-  color: #ffffff;
-  font: inherit;
-  font-weight: 750;
-  cursor: pointer;
+  font-weight: 700;
 }
 
-.submit:hover:not(:disabled) {
-  background: #0f766e;
-}
-
-.submit:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
+.switchUser {
+  composes: btn btn-neutral from global;
+  width: 100%;
+  min-height: 44px;
 }
 
 @media (max-width: 520px) {

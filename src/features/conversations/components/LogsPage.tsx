@@ -49,7 +49,7 @@ interface LogsPageProps {
 }
 
 /** Column filters and sort run in the browser, so they scan this many rows of the period. */
-const FILTER_SCAN_LIMIT = 500;
+const FILTER_SCAN_LIMIT = 100;
 
 const LOG_PERIODS: { id: LogPeriod; label: string }[] = [
   { id: 'week', label: 'שבוע' },

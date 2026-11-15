@@ -1,6 +1,6 @@
 .overlay {
   z-index: 9999;
-  background-color: rgba(7, 48, 75, 0.48);
+  background-color: var(--color-overlay);
   backdrop-filter: blur(2px);
 }
 
@@ -39,8 +39,8 @@
   margin: 0;
   padding: 12px 16px;
   border-bottom: 1px solid var(--color-line);
-  background: #ffffff;
-  color: var(--color-navy-900);
+  background: var(--color-surface);
+  color: var(--color-ink-900);
   font-size: 15px;
   font-weight: 600;
 }
@@ -66,9 +66,9 @@
   align-items: start;
   gap: 12px;
   padding: 9px 12px;
-  border: 1px solid rgba(7, 63, 103, 0.08);
+  border: 1px solid rgba(8, 60, 56, 0.08);
   border-radius: 7px;
-  background: #ffffff;
+  background: var(--color-surface);
 }
 
 .label {
@@ -79,7 +79,7 @@
 }
 
 .value {
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
   font-size: 14px;
   font-weight: 600;
   line-height: 1.4;
@@ -119,15 +119,8 @@
 }
 
 .close {
-  display: block;
+  composes: btn btn-neutral from global;
   flex: 0 0 auto;
   margin-inline-start: auto;
-  padding: 8px 16px;
-  border: 0;
-  border-radius: 7px;
-  background: var(--color-navy-800);
-  color: #ffffff;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
+  min-width: 96px;
 }

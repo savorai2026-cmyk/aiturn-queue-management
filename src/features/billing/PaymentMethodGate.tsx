@@ -20,7 +20,7 @@ export default function PaymentMethodGate({
   businessCode,
   role,
 }: PaymentMethodGateProps) {
-  const { paymentMethod, isLoading, refresh } = usePaymentMethod(businessCode);
+  const { paymentMethod, isLoading, error, refresh } = usePaymentMethod(businessCode);
   const [skipped, setSkipped] = useState(() =>
     readBillingPromptSkipped(businessCode),
   );
@@ -29,7 +29,7 @@ export default function PaymentMethodGate({
     setSkipped(readBillingPromptSkipped(businessCode));
   }, [businessCode]);
 
-  if (!canManagePaymentMethods(role) || isLoading) {
+  if (!canManagePaymentMethods(role) || isLoading || error) {
     return null;
   }
 

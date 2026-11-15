@@ -4,11 +4,16 @@ import HelpTip from '../../../shared/components/HelpTip';
 import modal from '../../../shared/components/modalShell.module.css';
 import styles from './RescheduleConfirmModal.module.css';
 
+export interface MoveMoment {
+  dateLabel: string;
+  timeLabel: string;
+}
+
 export interface ReschedulePreview {
   clientName: string;
   serviceTitle: string;
-  fromLabel: string;
-  toLabel: string;
+  from: MoveMoment;
+  to: MoveMoment;
   movesAllServices: boolean;
   isPastTarget: boolean;
 }
@@ -62,30 +67,27 @@ export default function RescheduleConfirmModal({
         </h2>
 
         <div className={modal.scroll}>
-        <p id="reschedule-question" className={styles.question}>
-          להעביר ללקוח <strong>{preview.clientName}</strong> את התור מ-
-          <strong>{preview.fromLabel}</strong> ל-
-          <strong>{preview.toLabel}</strong>?
+        <p id="reschedule-question" className={styles.lead}>
+          <span>{preview.clientName}</span>
+          {preview.serviceTitle ? (
+            <span className={styles.leadService}>{preview.serviceTitle}</span>
+          ) : null}
         </p>
 
         <dl className={styles.details}>
           <div>
-            <dt>לקוח</dt>
-            <dd>{preview.clientName}</dd>
-          </div>
-          {preview.serviceTitle ? (
-          <div>
-            <dt>שירות</dt>
-            <dd>{preview.serviceTitle}</dd>
-          </div>
-          ) : null}
-          <div>
             <dt>מ</dt>
-            <dd>{preview.fromLabel}</dd>
+            <dd>
+              <span>{preview.from.dateLabel}</span>
+              <span className={styles.clock} dir="ltr">{preview.from.timeLabel}</span>
+            </dd>
           </div>
           <div>
             <dt>ל</dt>
-            <dd>{preview.toLabel}</dd>
+            <dd>
+              <span>{preview.to.dateLabel}</span>
+              <span className={styles.clock} dir="ltr">{preview.to.timeLabel}</span>
+            </dd>
           </div>
         </dl>
 

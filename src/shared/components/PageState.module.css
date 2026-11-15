@@ -14,16 +14,17 @@
   margin: 0;
 }
 
-.state button {
-  padding: 8px 14px;
-  border: 0;
-  border-radius: 7px;
-  background: var(--color-navy-800);
-  color: #ffffff;
-  font: inherit;
-  cursor: pointer;
+.loading {
+  min-height: 280px;
+  color: var(--color-ink-900);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.retry {
+  composes: btn btn-primary from global;
 }
 
 .error {
-  color: #b91c1c;
+  color: var(--color-danger-ink);
 }

@@ -26,7 +26,7 @@
 }
 
 [data-icon="plus"] [data-part="inner"] {
-  stroke: color-mix(in srgb, currentColor 36%, #5eead4);
+  stroke: color-mix(in srgb, currentColor 36%, #d7f3ee);
   stroke-width: 2;
 }
 

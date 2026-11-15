@@ -1,3 +1,28 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--color-overlay);
+  backdrop-filter: blur(2px);
+}
+
+.dialog {
+  display: flex;
+  width: min(440px, 100%);
+  max-height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.dialog .container {
+  width: 100%;
+  max-height: min(760px, calc(100dvh - 32px));
+}
+
 .container {
   border: 1px solid var(--color-line);
   background-color: var(--color-surface);
@@ -61,6 +86,7 @@
   background: var(--solid-btn-bg);
   color: #ffffff;
   cursor: pointer;
+  box-shadow: var(--solid-btn-shadow);
 }
 
 .iconButton :global([data-icon='save']) {
@@ -74,15 +100,15 @@
   border-color: var(--solid-btn-border-hover);
   background: var(--solid-btn-bg-hover);
   color: #ffffff;
-  box-shadow: none;
+  box-shadow: var(--solid-btn-shadow-hover);
   transform: none;
 }
 
 .iconButton:disabled,
 :global(button).iconButton:disabled {
-  background: #7f9e98;
-  border-color: #6f8f89;
-  color: #ffffff;
+  background: var(--solid-btn-bg-disabled);
+  border-color: var(--solid-btn-border-disabled);
+  color: var(--solid-btn-ink-disabled);
   opacity: 1;
   cursor: not-allowed;
   transform: none;
@@ -91,9 +117,9 @@
 
 .iconButton:disabled:hover,
 :global(button).iconButton:disabled:hover {
-  background: #7f9e98;
-  border-color: #6f8f89;
-  color: #ffffff;
+  background: var(--solid-btn-bg-disabled);
+  border-color: var(--solid-btn-border-disabled);
+  color: var(--solid-btn-ink-disabled);
   box-shadow: none;
 }
 
@@ -160,7 +186,7 @@
   border-radius: 7px;
   font: inherit;
   color: var(--color-field);
-  background: #ffffff;
+  background: var(--color-surface);
 }
 
 .textarea {
@@ -234,21 +260,9 @@
   margin: 8px 0 12px;
   padding: 8px 10px;
   border-radius: 7px;
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-ink);
   font-size: 13px;
-}
-
-.blockingOverlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
-  color: var(--color-text);
-  font-weight: 700;
 }
 
 @media (max-width: 1100px) {

@@ -23,30 +23,51 @@
 
 .notice[data-level='d15'],
 .notice[data-level='d5'] {
-  background: #fff7ed;
-  color: #9a3412;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-ink);
 }
 
 .notice[data-level='expired'],
 .notice[data-level='agents'] {
-  background: #fef2f2;
+  background: var(--color-danger-bg);
   color: #991b1b;
 }
 
 .notice[data-level='inactive'] {
-  background: #f4f7f8;
-  color: var(--color-navy-900);
+  background: linear-gradient(180deg, #fff8ee 0%, #ffefd2 100%);
+  border: 1px solid #e2b15d;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 1px 2px rgba(120, 72, 16, 0.08);
+  color: #3d2c1c;
+  font-weight: 650;
+}
+
+:global(html[data-theme='dark']) .notice[data-level='d30'] {
+  background: #3a3018;
+  color: #f6e2b8;
+}
+
+:global(html[data-theme='dark']) .notice[data-level='d15'],
+:global(html[data-theme='dark']) .notice[data-level='d5'] {
+  background: #3d2616;
+  color: #f8d3b0;
+}
+
+:global(html[data-theme='dark']) .notice[data-level='expired'],
+:global(html[data-theme='dark']) .notice[data-level='agents'] {
+  background: #3d1c1c;
+  color: #fecaca;
+}
+
+:global(html[data-theme='dark']) .notice[data-level='inactive'] {
+  background: linear-gradient(180deg, #3d3120 0%, #2e2518 100%);
+  border-color: #b8883e;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: #f6ead8;
 }
 
 .action {
+  composes: btn btn-sm btn-primary from global;
   flex: 0 0 auto;
-  border: 0;
-  border-radius: 8px;
-  background: #111827;
-  color: #fff;
-  font-weight: 700;
-  padding: 8px 12px;
-  cursor: pointer;
 }
 
 .block {
@@ -63,7 +84,7 @@
 
 .block h1 {
   margin: 0;
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
   font-size: 22px;
 }
 

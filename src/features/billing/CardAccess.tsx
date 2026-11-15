@@ -23,7 +23,7 @@ export default function CardAccess({
   role,
   children,
 }: CardAccessProps) {
-  const { paymentMethod, isLoading, refresh } = usePaymentMethod(businessCode);
+  const { paymentMethod, isLoading, error, refresh } = usePaymentMethod(businessCode);
   const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [billingHold, setBillingHold] = useState(parseBillingHold(null));
   const [isActive, setIsActive] = useState(true);
@@ -81,8 +81,23 @@ export default function CardAccess({
   });
   const canUpdate = canManagePaymentMethods(role);
 
-  if (isLoading || !createdLoaded || !access) {
-    return children;
+  const updateModal = updating ? (
+    <SavePaymentMethodModal
+      businessCode={businessCode}
+      mode={isActivePaymentMethod(paymentMethod) ? 'update' : 'gate'}
+      paymentMethod={paymentMethod}
+      onSaved={refresh}
+      onClose={() => setUpdating(false)}
+    />
+  ) : null;
+
+  if (isLoading || error || !createdLoaded || !access) {
+    return (
+      <>
+        {children}
+        {updateModal}
+      </>
+    );
   }
 
   const updateButton = canUpdate ? (
@@ -116,18 +131,7 @@ export default function CardAccess({
           {children}
         </>
       )}
-      {updating && (
-        <SavePaymentMethodModal
-          businessCode={businessCode}
-          mode={isActivePaymentMethod(paymentMethod) ? 'update' : 'gate'}
-          paymentMethod={paymentMethod}
-          onSaved={async () => {
-            await refresh();
-            setUpdating(false);
-          }}
-          onClose={() => setUpdating(false)}
-        />
-      )}
+      {updateModal}
     </>
   );
 }

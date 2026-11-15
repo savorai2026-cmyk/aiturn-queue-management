@@ -5,7 +5,17 @@ import {
   cancellationPolicyDraft,
   cancellationPolicyPayload,
 } from '../cancellationPolicy';
-import { deleteService, rewriteAgentPrompt, updateBusinessSettings } from '../settings.api';
+import {
+  arrivalPhotoPaths,
+  arrivalPhotoUrls,
+  deleteService,
+  MAX_ARRIVAL_PHOTOS,
+  removeArrivalPhotos,
+  rewriteAgentPrompt,
+  updateBusinessSettings,
+  uploadArrivalPhoto,
+} from '../settings.api';
+import ArrivalAddressField from './ArrivalAddressField';
 import StorageUsageMeter from './StorageUsageMeter';
 import { getAgentPromptRewriteErrorMessage, getErrorMessage } from '../../../shared/errors';
 import {
@@ -371,6 +381,10 @@ function toEditableProfile(
     contact_phone: business.contact_phone,
     email: business.email,
     agent_phone_number: business.agent_phone_number,
+    arrival_address: business.arrival_address ?? null,
+    arrival_parking: business.arrival_parking ?? null,
+    arrival_waze_url: business.arrival_waze_url ?? null,
+    arrival_photo_paths: arrivalPhotoPaths(business.arrival_photo_paths),
   };
 }
 
@@ -439,8 +453,10 @@ function BusinessProfileForm({
   onSaved: () => Promise<void>;
 }) {
   const [formData, setFormData] = useState(() => toEditableProfile(business));
+  const [newPhotos, setNewPhotos] = useState<File[]>([]);
   const savedProfile = useMemo(() => toEditableProfile(business), [business]);
-  const hasChanges = JSON.stringify(formData) !== JSON.stringify(savedProfile);
+  const hasChanges =
+    JSON.stringify(formData) !== JSON.stringify(savedProfile) || newPhotos.length > 0;
   const [isSaving, setIsSaving] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [message, setMessage] = useState<{
@@ -461,15 +477,44 @@ function BusinessProfileForm({
     }));
   };
 
+  useEffect(() => {
+    setNewPhotos([]);
+  }, [business.business_code, business.arrival_photo_paths]);
+
   const handleSave = async () => {
     setIsSaving(true);
     setMessage(null);
 
     try {
+      const previousPaths = arrivalPhotoPaths(business.arrival_photo_paths);
+      const kept = arrivalPhotoPaths(formData.arrival_photo_paths);
+      const uploaded: string[] = [];
+      for (const file of newPhotos) {
+        uploaded.push(await uploadArrivalPhoto(business.business_code, file));
+      }
+      const photoPaths = [...kept, ...uploaded].slice(0, MAX_ARRIVAL_PHOTOS);
+      const removed = previousPaths.filter((path) => !kept.includes(path));
+      if (removed.length > 0) {
+        await removeArrivalPhotos(removed);
+      }
+      const arrivalAddress = formData.arrival_address?.trim() || null;
       await updateBusinessSettings(business.business_code, {
         ...formData,
         business_name: formData.business_name.trim(),
+        arrival_address: arrivalAddress,
+        arrival_parking: formData.arrival_parking?.trim() || null,
+        arrival_waze_url: arrivalAddress ? formData.arrival_waze_url?.trim() || null : null,
+        arrival_photo_paths: photoPaths,
       });
+      setFormData((previous) => ({
+        ...previous,
+        business_name: previous.business_name.trim(),
+        arrival_address: arrivalAddress,
+        arrival_parking: previous.arrival_parking?.trim() || null,
+        arrival_waze_url: arrivalAddress ? previous.arrival_waze_url?.trim() || null : null,
+        arrival_photo_paths: photoPaths,
+      }));
+      setNewPhotos([]);
       await onSaved();
       setMessage({
         text: 'הנתונים נשמרו בהצלחה.',
@@ -477,10 +522,10 @@ function BusinessProfileForm({
       });
     } catch (error) {
       console.error('שגיאה בשמירת פרטי עסק:', error);
-      setMessage({
-        text: 'לא ניתן לשמור את פרטי העסק.',
-        type: 'error',
-      });
+      const text = error instanceof Error && error.message
+        ? error.message
+        : 'לא ניתן לשמור את פרטי העסק.';
+      setMessage({ text, type: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -573,6 +618,78 @@ function BusinessProfileForm({
             />
           </div>
         )}
+      </div>
+      <div className={styles.arrivalBlock}>
+      <SettingsGroup
+        title="הגעה וחניה"
+        description="לקוח חדש מקבל את זה עם ההזמנה הראשונה: כתובת, איך חונים, קישור לניווט, ותמונות של הכניסה."
+      >
+        <SettingsRow label="כתובת" htmlFor="business-arrival-address" stacked>
+          <ArrivalAddressField
+            id="business-arrival-address"
+            address={formData.arrival_address || ''}
+            wazeUrl={formData.arrival_waze_url || ''}
+            inputClassName={styles.input}
+            onChange={({ address, wazeUrl }) =>
+              setFormData((previous) => ({
+                ...previous,
+                arrival_address: address,
+                arrival_waze_url: wazeUrl || null,
+              }))
+            }
+          />
+        </SettingsRow>
+        <SettingsRow
+          label="חניה"
+          htmlFor="business-arrival-parking"
+          help="איפה חונים, ואם צריך לשלם או להביא פתק."
+          stacked
+        >
+          <input
+            id="business-arrival-parking"
+            type="text"
+            className={styles.input}
+            value={formData.arrival_parking || ''}
+            onChange={(event) =>
+              setFormData((previous) => ({
+                ...previous,
+                arrival_parking: event.target.value,
+              }))
+            }
+          />
+        </SettingsRow>
+        <SettingsRow
+          label="תמונות הכניסה"
+          htmlFor="business-arrival-photos"
+          help="עד שלוש תמונות. הן נשלחות ללקוח חדש יחד עם הכתובת."
+          stacked
+        >
+          <ArrivalPhotos
+            paths={arrivalPhotoPaths(formData.arrival_photo_paths)}
+            files={newPhotos}
+            onRemovePath={(path) =>
+              setFormData((previous) => ({
+                ...previous,
+                arrival_photo_paths: arrivalPhotoPaths(previous.arrival_photo_paths).filter(
+                  (item) => item !== path,
+                ),
+              }))
+            }
+            onRemoveFile={(index) =>
+              setNewPhotos((previous) => previous.filter((_, item) => item !== index))
+            }
+            onAdd={(files) => {
+              const room = MAX_ARRIVAL_PHOTOS
+                - arrivalPhotoPaths(formData.arrival_photo_paths).length
+                - newPhotos.length;
+              const images = files.filter((file) => file.type.startsWith('image/')).slice(0, Math.max(room, 0));
+              if (images.length > 0) {
+                setNewPhotos((previous) => [...previous, ...images]);
+              }
+            }}
+          />
+        </SettingsRow>
+      </SettingsGroup>
       </div>
       </fieldset>
 
@@ -677,6 +794,91 @@ function SettingsRow({
   );
 }
 
+function ArrivalPhotos({
+  paths,
+  files,
+  onRemovePath,
+  onRemoveFile,
+  onAdd,
+}: {
+  paths: string[];
+  files: File[];
+  onRemovePath: (path: string) => void;
+  onRemoveFile: (index: number) => void;
+  onAdd: (files: File[]) => void;
+}) {
+  const [urls, setUrls] = useState<Record<string, string>>({});
+  const [fileUrls, setFileUrls] = useState<string[]>([]);
+  const room = MAX_ARRIVAL_PHOTOS - paths.length - files.length;
+  const pathKey = paths.join('|');
+
+  useEffect(() => {
+    let cancelled = false;
+    const current = pathKey ? pathKey.split('|') : [];
+    void arrivalPhotoUrls(current)
+      .then((signed) => {
+        if (!cancelled) setUrls(signed);
+      })
+      .catch(() => {
+        if (!cancelled) setUrls({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathKey]);
+
+  useEffect(() => {
+    const created = files.map((file) => URL.createObjectURL(file));
+    setFileUrls(created);
+    return () => {
+      created.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [files]);
+
+  const empty = paths.length === 0 && files.length === 0;
+
+  return (
+    <div className={`${styles.arrivalPhotos} ${empty ? styles.arrivalPhotosEmpty : ''}`}>
+      {paths.map((path) => (
+        <div key={path} className={styles.arrivalPhoto}>
+          {urls[path] ? <img src={urls[path]} alt="הכניסה לעסק" /> : <span className={styles.arrivalPending}>תמונה שמורה</span>}
+          <button type="button" className={styles.arrivalRemove} onClick={() => onRemovePath(path)}>
+            הסרה
+          </button>
+        </div>
+      ))}
+      {files.map((file, index) => (
+        <div key={`${file.name}-${index}`} className={styles.arrivalPhoto}>
+          {fileUrls[index] ? <img src={fileUrls[index]} alt={file.name} /> : null}
+          <button type="button" className={styles.arrivalRemove} onClick={() => onRemoveFile(index)}>
+            הסרה
+          </button>
+        </div>
+      ))}
+      {room > 0 || empty ? (
+        <div className={styles.fileRow}>
+          {room > 0 ? (
+            <label className={styles.filePick} htmlFor="business-arrival-photos">
+              בחירת תמונות
+              <input
+                id="business-arrival-photos"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                onChange={(event) => {
+                  onAdd(Array.from(event.target.files ?? []));
+                  event.target.value = '';
+                }}
+              />
+            </label>
+          ) : null}
+          {empty ? <span className={styles.fileHint}>לא נבחרו תמונות</span> : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function BusinessConfigForm({
   business,
   visibleFields,
@@ -697,8 +899,9 @@ function BusinessConfigForm({
     () => cancellationPolicyDraft(business.cancellation_policy),
     [business],
   );
+  const withoutPolicy = (config: typeof formData) => ({ ...config, cancellation_policy: null });
   const hasChanges =
-    JSON.stringify(formData) !== JSON.stringify(savedConfig) ||
+    JSON.stringify(withoutPolicy(formData)) !== JSON.stringify(withoutPolicy(savedConfig)) ||
     JSON.stringify(policyDraft) !== JSON.stringify(savedPolicy);
   const [isSaving, setIsSaving] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -847,8 +1050,11 @@ function BusinessConfigForm({
         });
         return;
       }
+      const text = error instanceof Error && error.message.startsWith('שאר ההגדרות')
+        ? error.message
+        : 'לא ניתן לשמור את ההגדרות.';
       setMessage({
-        text: 'לא ניתן לשמור את ההגדרות.',
+        text,
         type: 'error',
       });
     } finally {
@@ -1586,9 +1792,13 @@ function SubscriptionForm({
   } | null>(null);
 
   const savedPlan = parseSubscriptionPlan(business.subscription_plan);
+  const savedIncludedGb = tariffs.resolve(savedPlan).includedStorageGb;
   const savedQuota = displayStorageQuotaGb(
-    normalizeStorageQuotaGb(business.storage_quota_gb) ?? INCLUDED_STORAGE_GB,
-    includedStorageGb(savedPlan),
+    displayStorageQuotaGb(
+      normalizeStorageQuotaGb(business.storage_quota_gb) ?? INCLUDED_STORAGE_GB,
+      includedStorageGb(savedPlan),
+    ),
+    savedIncludedGb,
   );
   const terms = tariffs.resolve(plan);
   const regularTerms = tariffs.resolve('regular');
@@ -2158,7 +2368,7 @@ function StatusesTable({
                         <span
                           className={styles.colorBadge}
                           style={{
-                            backgroundColor: status.color || '#dce7eb',
+                            backgroundColor: status.color || 'var(--color-line)',
                           }}
                           aria-hidden="true"
                         />

@@ -358,6 +358,10 @@ export type Database = {
           agent_prompt: string | null
           agent_voice_id: string | null
           cancellation_policy: Json | null
+          arrival_address: string | null
+          arrival_parking: string | null
+          arrival_waze_url: string | null
+          arrival_photo_paths: Json
           save_recordings: boolean
           recordings_retention_days: number
           history_retention_months: number
@@ -395,6 +399,10 @@ export type Database = {
           agent_prompt?: string | null
           agent_voice_id?: string | null
           cancellation_policy?: Json | null
+          arrival_address?: string | null
+          arrival_parking?: string | null
+          arrival_waze_url?: string | null
+          arrival_photo_paths?: Json
           save_recordings?: boolean
           recordings_retention_days?: number
           history_retention_months?: number
@@ -432,6 +440,10 @@ export type Database = {
           agent_prompt?: string | null
           agent_voice_id?: string | null
           cancellation_policy?: Json | null
+          arrival_address?: string | null
+          arrival_parking?: string | null
+          arrival_waze_url?: string | null
+          arrival_photo_paths?: Json
           save_recordings?: boolean
           recordings_retention_days?: number
           history_retention_months?: number

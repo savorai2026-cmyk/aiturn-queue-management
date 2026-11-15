@@ -10,7 +10,7 @@
   overflow: auto;
   background:
     radial-gradient(circle at top right, rgba(20, 184, 166, 0.14), transparent 34%),
-    linear-gradient(145deg, #eaf5f7, #f7fbfc);
+    linear-gradient(145deg, color-mix(in srgb, var(--color-teal-100) 70%, var(--color-canvas)), var(--color-canvas));
   direction: rtl;
 }
 
@@ -26,7 +26,7 @@
 
 .card h1 {
   margin: 18px 0 24px;
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
   font-size: 24px;
   text-align: center;
 }
@@ -49,15 +49,15 @@
 }
 
 .error {
-  border: 1px solid #fecaca;
-  background: #fef2f2;
-  color: #b91c1c;
+  border: 1px solid var(--color-danger-line);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-ink);
 }
 
 .success {
   border: 1px solid #a7f3d0;
-  background: #ecfdf5;
-  color: #047857;
+  background: var(--color-success-bg);
+  color: var(--color-success-ink);
 }
 
 .form {
@@ -79,7 +79,8 @@
   padding: 11px 12px;
   border: 1px solid var(--color-line);
   border-radius: 7px;
-  color: var(--color-text);
+  background: var(--color-surface);
+  color: var(--color-field);
   font: inherit;
 }
 
@@ -107,7 +108,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--color-navy-800);
+  color: var(--color-ink-800);
   cursor: pointer;
   transform: translateY(-50%);
   box-shadow: none;
@@ -122,35 +123,20 @@
   transform: translateY(calc(-50% + 1px));
 }
 
-.primaryButton,
-.googleButton {
-  width: 100%;
-  padding: 12px 16px;
-  border-radius: 7px;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-
 .primaryButton {
-  border: 0;
-  background: var(--color-teal-600);
-  color: #ffffff;
-}
-
-.primaryButton:disabled {
-  cursor: not-allowed;
-  opacity: 0.65;
+  composes: btn btn-primary from global;
+  width: 100%;
+  min-height: 44px;
+  font-weight: 700;
 }
 
 .googleButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  composes: btn btn-neutral from global;
+  width: 100%;
+  min-height: 44px;
   gap: 8px;
-  border: 1px solid var(--color-line);
-  background: var(--color-surface);
   color: var(--color-text);
+  font-weight: 700;
 }
 
 .modeSwitch {
@@ -166,7 +152,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--color-navy-800);
+  color: var(--color-ink-800);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
@@ -196,13 +182,13 @@
   padding: 10px 12px;
   border: 1px solid var(--color-line);
   border-radius: 7px;
-  background: #f7fbfc;
+  background: var(--color-surface-muted);
 }
 
 .chosenEmailAddress {
   min-width: 0;
   overflow: hidden;
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
   font-size: 14px;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -215,7 +201,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--color-navy-800);
+  color: var(--color-ink-800);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
@@ -236,6 +222,12 @@
 .secondaryTextButton {
   width: 100%;
   text-align: center;
+}
+
+.switchAccount {
+  composes: btn btn-neutral from global;
+  width: 100%;
+  min-height: 44px;
 }
 
 .textButton:hover:not(:disabled),

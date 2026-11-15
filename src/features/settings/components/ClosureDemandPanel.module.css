@@ -23,7 +23,7 @@
 }
 
 .error {
-  color: #b91c1c;
+  color: var(--color-danger-ink);
 }
 
 .list {
@@ -43,7 +43,7 @@
 }
 
 .list strong {
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
 }
 
 .list span {

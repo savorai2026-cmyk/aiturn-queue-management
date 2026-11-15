@@ -37,7 +37,7 @@ function schedulerSecret() {
   return Deno.env.get('VAPI_SECRET') || Deno.env.get('SCHEDULER_API_SECRET') || '';
 }
 
-function upstreamHeaders(method: string) {
+function upstreamHeaders(method: string, ownerApprovedMove = false) {
   const headers: Record<string, string> = {};
   if (method !== 'GET') {
     headers['Content-Type'] = 'application/json';
@@ -47,8 +47,16 @@ function upstreamHeaders(method: string) {
   if (secret) {
     headers['x-vapi-secret'] = secret;
   }
+  if (ownerApprovedMove) {
+    headers['X-Owner-Approved-Move'] = '1';
+  }
 
   return headers;
+}
+
+function ownerApprovedMoveRequested(payload: Record<string, unknown>) {
+  const value = payload.owner_approved_move;
+  return value === true || value === 'true' || value === 1 || value === '1';
 }
 
 function buildUpstream(
@@ -246,7 +254,10 @@ Deno.serve(async (request) => {
   try {
     const upstreamResponse = await fetch(upstream.url, {
       method: upstream.method,
-      headers: upstreamHeaders(upstream.method),
+      headers: upstreamHeaders(
+        upstream.method,
+        action === 'reschedule' && ownerApprovedMoveRequested(payload),
+      ),
       body: 'body' in upstream ? upstream.body : undefined,
     });
 

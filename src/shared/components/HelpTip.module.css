@@ -6,65 +6,54 @@
 }
 
 .trigger {
-  width: 22px;
-  height: 22px;
-  display: grid;
+  display: inline-grid;
   place-items: center;
+  width: auto;
+  height: auto;
   padding: 0;
-  overflow: hidden;
-  border: 1px solid var(--color-line);
-  border-radius: 999px;
-  background: var(--color-surface);
-  color: var(--color-navy-800);
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text-soft);
   cursor: help;
   transform: none;
   box-shadow: none;
 }
 
-.trigger:hover,
-.trigger:active,
-.trigger:focus,
-.trigger:focus-visible,
-.trigger[aria-expanded='true'] {
+button.trigger:hover,
+button.trigger:active,
+button.trigger:focus,
+button.trigger:focus-visible,
+button.trigger[aria-expanded='true'] {
+  border: 0;
+  background: transparent;
+  color: var(--color-teal-700);
   transform: none;
   box-shadow: none;
 }
 
-.trigger:hover,
-.trigger:focus-visible,
-.trigger[aria-expanded='true'] {
-  border-color: var(--color-teal-600);
-  color: var(--color-teal-600);
-}
-
-.onDark {
-  border-color: rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
-}
-
-.onDark:hover,
-.onDark:focus-visible,
-.onDark[aria-expanded='true'] {
-  border-color: #ffffff;
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.solid {
-  border-color: var(--solid-btn-border);
-  background: var(--solid-btn-bg);
-  color: #ffffff;
-}
-
-:global(button).solid:hover,
-:global(button).solid:focus-visible,
-:global(button).solid[aria-expanded='true'] {
-  border-color: var(--solid-btn-border-hover);
-  background: var(--solid-btn-bg-hover);
-  color: #ffffff;
+.onDark,
+.solid,
+button.onDark,
+button.solid,
+button.onDark:hover,
+button.solid:hover,
+button.onDark:focus-visible,
+button.solid:focus-visible,
+button.onDark[aria-expanded='true'],
+button.solid[aria-expanded='true'] {
+  border: 0;
+  background: transparent;
   box-shadow: none;
   transform: none;
+}
+
+.onDark,
+button.onDark:hover,
+button.onDark:focus-visible,
+button.onDark[aria-expanded='true'] {
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .tooltip {
@@ -76,12 +65,12 @@
   padding: 8px 10px;
   border: 1px solid var(--color-line);
   border-radius: 8px;
-  background: #073f67;
-  color: #ffffff;
+  background: #1c3330;
+  color: #f4f7f6;
   font-size: 12px;
   font-weight: 500;
   line-height: 1.45;
-  box-shadow: var(--shadow-floating, 0 8px 24px rgba(7, 48, 75, 0.18));
+  box-shadow: var(--shadow-floating, 0 8px 24px rgba(6, 46, 43, 0.18));
   pointer-events: none;
   visibility: hidden;
 }

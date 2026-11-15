@@ -1,16 +1,17 @@
 export const BRAND_STATUS_COLORS = [
-  { hex: '#073f67', label: 'כחול כהה' },
-  { hex: '#0a527f', label: 'כחול' },
-  { hex: '#12648f', label: 'כחול בהיר' },
+  { hex: '#115e59', label: 'ירוק כהה' },
   { hex: '#0d9488', label: 'טורקיז' },
   { hex: '#14b8a6', label: 'טורקיז בהיר' },
-  { hex: '#607482', label: 'אפור' },
-  { hex: '#b45309', label: 'כתום חמרה' },
+  { hex: '#0e7490', label: 'כחול-ירקרק' },
+  { hex: '#65a30d', label: 'ירוק עלה' },
+  { hex: '#7c8b84', label: 'אפור מרווה' },
+  { hex: '#ca8a04', label: 'זהב' },
+  { hex: '#c2410c', label: 'כתום' },
   { hex: '#b91c1c', label: 'אדום' },
 ] as const;
 
 export const DEFAULT_STATUS_COLOR = '#0d9488';
-export const FALLBACK_STATUS_COLOR = '#12648f';
+export const FALLBACK_STATUS_COLOR = '#7c8b84';
 
 export interface StatusCatalogItem {
   status_code: string;
@@ -19,12 +20,12 @@ export interface StatusCatalogItem {
 }
 
 export const FALLBACK_STATUS_CATALOG: StatusCatalogItem[] = [
-  { status_code: '01', status_text: 'ממתין', color: '#607482' },
-  { status_code: '04', status_text: 'ממתין לאישור', color: '#0a527f' },
-  { status_code: '05', status_text: 'ממתין לתשלום', color: '#14b8a6' },
+  { status_code: '01', status_text: 'ממתין לאישור העסק', color: '#7c8b84' },
+  { status_code: '04', status_text: 'ממתין לאישור הלקוח', color: '#0e7490' },
+  { status_code: '05', status_text: 'ממתין לתשלום', color: '#ca8a04' },
   { status_code: '02', status_text: 'מתוזמן', color: '#0d9488' },
-  { status_code: '03', status_text: 'הושלם', color: '#073f67' },
-  { status_code: '09', status_text: 'לא הגיע', color: '#b45309' },
+  { status_code: '03', status_text: 'הושלם', color: '#115e59' },
+  { status_code: '09', status_text: 'לא הגיע', color: '#c2410c' },
   { status_code: '10', status_text: 'מבוטל', color: '#b91c1c' },
 ];
 
@@ -49,6 +50,13 @@ function normalizeHex(color: string | null | undefined): string | null {
 function canonicalStatusCode(status: string) {
   const code = status.trim();
   return LEGACY_STATUS_CODES[code] ?? LEGACY_STATUS_CODES[code.toLowerCase()] ?? code;
+}
+
+/** An owner move in the calendar waits for the customer, unless payment is still due. */
+export function statusAfterBusinessMove(currentStatus: string) {
+  const code = canonicalStatusCode(currentStatus);
+  if (code === '05') return '05';
+  return '04';
 }
 
 export function isCanceledStatus(status: string) {
@@ -104,6 +112,43 @@ export function getStatusColor(
     (item) => item.status_code === code || item.status_code === status,
   );
   return normalizeHex(fallback?.color) ?? FALLBACK_STATUS_COLOR;
+}
+
+function relativeLuminance([r, g, b]: number[]) {
+  const [lr, lg, lb] = [r, g, b].map((channel) => {
+    const value = channel / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
+}
+
+function contrastRatio(left: number[], right: number[]) {
+  const a = relativeLuminance(left);
+  const b = relativeLuminance(right);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+function toHex(rgb: number[]) {
+  return `#${rgb.map((channel) => Math.round(channel).toString(16).padStart(2, '0')).join('')}`;
+}
+
+/**
+ * Text color for content painted on a status color: white when it reads well,
+ * otherwise a deep shade of the same hue so the label stays in the status family.
+ */
+export function readableTextColor(background: string | null | undefined) {
+  const hex = normalizeHex(background);
+  if (!hex) return '#ffffff';
+
+  const rgb = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16));
+  const white = [255, 255, 255];
+  if (contrastRatio(rgb, white) >= 3) return '#ffffff';
+
+  for (const keep of [0.35, 0.28, 0.2, 0.12]) {
+    const shade = rgb.map((channel) => channel * keep);
+    if (contrastRatio(rgb, shade) >= 4.5) return toHex(shade);
+  }
+  return toHex(rgb.map((channel) => channel * 0.12));
 }
 
 export function getStatusLabel(

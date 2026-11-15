@@ -36,6 +36,10 @@ export type BusinessSettings = Pick<
   | 'agent_prompt'
   | 'agent_voice_id'
   | 'cancellation_policy'
+  | 'arrival_address'
+  | 'arrival_parking'
+  | 'arrival_waze_url'
+  | 'arrival_photo_paths'
   | 'save_recordings'
   | 'recordings_retention_days'
   | 'history_retention_months'
@@ -53,7 +57,14 @@ export type BusinessSettings = Pick<
 
 export type EditableBusinessProfile = Pick<
   BusinessSettings,
-  'business_name' | 'contact_phone' | 'email' | 'agent_phone_number'
+  | 'business_name'
+  | 'contact_phone'
+  | 'email'
+  | 'agent_phone_number'
+  | 'arrival_address'
+  | 'arrival_parking'
+  | 'arrival_waze_url'
+  | 'arrival_photo_paths'
 >;
 
 export type EditableBusinessConfig = Pick<

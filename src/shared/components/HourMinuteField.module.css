@@ -107,7 +107,7 @@
   border: 1px solid var(--color-line);
   border-radius: 12px;
   background: var(--color-surface);
-  color: var(--color-ink);
+  color: var(--color-text);
   box-shadow: 0 12px 32px rgba(15, 90, 86, 0.16);
   scrollbar-gutter: stable;
 }
@@ -134,13 +134,13 @@
 }
 
 .optionSelected {
-  background: #ecfdf8;
-  color: var(--color-teal-700, #0f766e);
+  background: #eef3f7;
+  color: var(--color-text);
   font-weight: 700;
 }
 
 :global(html[data-theme='dark']) .trigger:hover:not(:disabled) {
-  color: #5eead4;
+  color: var(--color-ink-800);
 }
 
 :global(html[data-theme='dark']) .option:hover,
@@ -148,7 +148,15 @@
   background: #1c383e;
 }
 
+:global(html[data-theme='dark']) .menu {
+  color: var(--color-text);
+}
+
+:global(html[data-theme='dark']) .option {
+  color: var(--color-text);
+}
+
 :global(html[data-theme='dark']) .optionSelected {
-  background: #14383e;
-  color: #5eead4;
+  background: #1d4a4a;
+  color: var(--color-text);
 }

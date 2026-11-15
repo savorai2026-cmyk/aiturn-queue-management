@@ -29,6 +29,7 @@ export interface BusinessContextValue {
   isLoading: boolean;
   isCreating: boolean;
   error: string | null;
+  createError: string | null;
   createBusiness: (input: CreateBusinessInput) => Promise<void>;
   setActiveBusiness: (businessCode: string) => void;
   refreshBusinesses: () => Promise<void>;

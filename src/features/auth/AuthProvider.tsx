@@ -113,9 +113,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signOut = useCallback(async () => {
     const { error: signOutError } = await supabase.auth.signOut();
+    if (!signOutError) return;
 
-    if (signOutError) {
-      throw new Error(signOutError.message);
+    console.warn('Global sign-out failed, signing out locally:', signOutError.message);
+    const { error: localError } = await supabase.auth.signOut({ scope: 'local' });
+    if (localError) {
+      throw new Error(localError.message);
     }
   }, []);
 

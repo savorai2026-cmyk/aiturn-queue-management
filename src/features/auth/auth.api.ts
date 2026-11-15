@@ -1,10 +1,41 @@
 import { supabase } from '../../supabaseClient';
+import { clearCachedIdentity } from './cachedAccount';
 import { getAuthEmailRedirectTo } from './authRedirect';
 import { termsAcceptanceMetadata } from './termsOfUse';
 
 interface Credentials {
   email: string;
   password: string;
+}
+
+function removeCachedIdentity() {
+  try {
+    clearCachedIdentity(localStorage);
+  } catch {
+    // Private browsing can block storage.
+  }
+
+  try {
+    sessionStorage.clear();
+  } catch {
+    // Private browsing can block storage.
+  }
+}
+
+export async function leaveCachedAccount() {
+  try {
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch {
+    // The stored session is removed below even when the client call fails.
+  }
+
+  removeCachedIdentity();
+
+  const next = new URL(window.location.href);
+  next.hash = '';
+  next.search = '';
+  next.pathname = '/';
+  window.location.replace(next.toString());
 }
 
 export async function signInWithEmail(credentials: Credentials) {

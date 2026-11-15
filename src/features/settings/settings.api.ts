@@ -37,6 +37,43 @@ const businessColumns = `
   payment_hold_hours,
   agent_prompt,
   cancellation_policy,
+  arrival_address,
+  arrival_parking,
+  arrival_waze_url,
+  arrival_photo_paths,
+  save_recordings,
+  recordings_retention_days,
+  history_retention_months,
+  voice_log_retention_months,
+  whatsapp_retention_months,
+  subscription_plan,
+  storage_quota_gb,
+  is_active,
+  closed_at,
+  max_adv_booking_days,
+  working_hours,
+  vapi_assistant_id,
+  wa_instance_id
+`;
+
+const businessColumnsWithoutArrival = `
+  business_code,
+  business_name,
+  contact_phone,
+  email,
+  agent_phone_number,
+  owner_alert_channel,
+  owner_alert_phone,
+  owner_alert_lead_hours,
+  timezone,
+  slot_duration_minutes,
+  deposit_percent,
+  default_payment_requirement,
+  payment_payee_name,
+  payment_instructions,
+  payment_hold_hours,
+  agent_prompt,
+  cancellation_policy,
   save_recordings,
   recordings_retention_days,
   history_retention_months,
@@ -65,8 +102,75 @@ function toBusinessSettings(
     ...data,
     agent_voice_id: data.agent_voice_id ?? null,
     cancellation_policy: data.cancellation_policy ?? null,
+    arrival_address: data.arrival_address ?? null,
+    arrival_parking: data.arrival_parking ?? null,
+    arrival_waze_url: data.arrival_waze_url ?? null,
+    arrival_photo_paths: data.arrival_photo_paths ?? [],
     deposit_percent: parseDepositPercent(data.deposit_percent),
   };
+}
+
+export const ARRIVAL_BUCKET = 'business-arrival';
+export const MAX_ARRIVAL_PHOTOS = 3;
+
+export function arrivalPhotoPaths(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === 'string' && item.trim() !== '')
+    .slice(0, MAX_ARRIVAL_PHOTOS);
+}
+
+export async function uploadArrivalPhoto(businessCode: string, file: File): Promise<string> {
+  const ext = file.type === 'image/png' ? '.png' : file.type === 'image/webp' ? '.webp' : '.jpg';
+  const path = `${businessCode}/${crypto.randomUUID()}${ext}`;
+  const { error } = await supabase.storage.from(ARRIVAL_BUCKET).upload(path, file, {
+    contentType: file.type || 'image/jpeg',
+    upsert: false,
+  });
+  if (error) {
+    throw new Error(error.message);
+  }
+  return path;
+}
+
+export async function removeArrivalPhotos(paths: string[]): Promise<void> {
+  const targets = paths.filter(Boolean);
+  if (targets.length === 0) return;
+  const { error } = await supabase.storage.from(ARRIVAL_BUCKET).remove(targets);
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function arrivalPhotoUrls(paths: string[]): Promise<Record<string, string>> {
+  if (paths.length === 0) return {};
+  const { data, error } = await supabase.storage.from(ARRIVAL_BUCKET).createSignedUrls(paths, 3600);
+  if (error) {
+    throw new Error(error.message);
+  }
+  const signed: Record<string, string> = {};
+  for (const item of data ?? []) {
+    if (item.path && item.signedUrl && !item.error) {
+      signed[item.path] = item.signedUrl;
+    }
+  }
+  return signed;
+}
+
+function isMissingArrivalColumn(error: { message?: string } | null) {
+  const message = (error?.message || '').toLowerCase();
+  if (message.includes('permission denied') || message.includes('42501')) return false;
+  const namesArrivalColumn = [
+    'arrival_address',
+    'arrival_parking',
+    'arrival_waze_url',
+    'arrival_photo_paths',
+  ].some((column) => message.includes(column));
+  return namesArrivalColumn && (
+    message.includes('does not exist')
+    || message.includes('schema cache')
+    || message.includes('could not find')
+  );
 }
 
 export async function getBusinessSettings(
@@ -83,6 +187,24 @@ export async function getBusinessSettings(
       return toBusinessSettings(data);
     }
 
+    if (isMissingArrivalColumn(error)) {
+      const fallback = await supabase
+        .from('businesses')
+        .select(`${businessColumnsWithoutArrival}, agent_voice_id`)
+        .eq('business_code', businessCode)
+        .single();
+      if (fallback.error) {
+        throw new Error(fallback.error.message);
+      }
+      return toBusinessSettings({
+        ...fallback.data,
+        arrival_address: null,
+        arrival_parking: null,
+        arrival_waze_url: null,
+        arrival_photo_paths: [],
+      });
+    }
+
     if (!isMissingAgentVoiceColumn(error)) {
       throw new Error(error.message);
     }
@@ -95,6 +217,24 @@ export async function getBusinessSettings(
     .select(businessColumns)
     .eq('business_code', businessCode)
     .single();
+
+  if (error && isMissingArrivalColumn(error)) {
+    const fallback = await supabase
+      .from('businesses')
+      .select(businessColumnsWithoutArrival)
+      .eq('business_code', businessCode)
+      .single();
+    if (fallback.error) {
+      throw new Error(fallback.error.message);
+    }
+    return toBusinessSettings({
+      ...fallback.data,
+      arrival_address: null,
+      arrival_parking: null,
+      arrival_waze_url: null,
+      arrival_photo_paths: [],
+    });
+  }
 
   if (error) {
     throw new Error(error.message);
@@ -349,6 +489,17 @@ function withoutAgentVoice(
   return rest;
 }
 
+function withoutArrival(
+  settings: Partial<EditableBusinessSettings>,
+): Partial<EditableBusinessSettings> {
+  const rest = { ...settings };
+  delete rest.arrival_address;
+  delete rest.arrival_parking;
+  delete rest.arrival_waze_url;
+  delete rest.arrival_photo_paths;
+  return rest;
+}
+
 export async function updateBusinessSettings(
   businessCode: string,
   settings: Partial<EditableBusinessSettings>,
@@ -379,8 +530,26 @@ export async function updateBusinessSettings(
       }
       assertBusinessUpdated(retry.data);
     }
+  } else if (error && isMissingArrivalColumn(error)) {
+    const rest = withoutArrival(settings);
+    if (Object.keys(rest).length > 0) {
+      const retry = await supabase
+        .from('businesses')
+        .update(rest)
+        .eq('business_code', businessCode)
+        .select('business_code');
+      if (retry.error) {
+        throw new Error(retry.error.message);
+      }
+      assertBusinessUpdated(retry.data);
+    }
+    throw new Error('שאר ההגדרות נשמרו. פרטי ההגעה לא נשמרו כי העמודות עדיין לא קיימות במסד.');
   } else if (error) {
-    throw new Error(error.message);
+    const message = error.message || '';
+    if (/permission denied/i.test(message) && /arrival_/i.test(message)) {
+      throw new Error('אין הרשאה לשמור את פרטי ההגעה.');
+    }
+    throw new Error(message);
   } else {
     assertBusinessUpdated(data);
   }

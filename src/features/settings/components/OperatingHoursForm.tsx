@@ -74,6 +74,7 @@ function formatHebrewDate(dateKey: string) {
   }).format(new Date(year, month - 1, day));
 }
 
+/** Compares what would be saved, so reload normalization does not look like an edit. */
 function hoursFingerprint(
   dayList: WorkingDayDraft[],
   specialList: SpecialDayDraft[],
@@ -81,28 +82,7 @@ function hoursFingerprint(
 ) {
   return JSON.stringify({
     booking,
-    days: dayList.map((day) => ({
-      key: day.key,
-      isOpen: day.isOpen,
-      shifts: day.shifts.map((shift) => ({ start: shift.start, end: shift.end })),
-      tentative: (day.tentative ?? []).map((range) => ({
-        start: range.start,
-        end: range.end,
-        min_insists: range.min_insists,
-      })),
-    })),
-    special: specialList.map((day) => ({
-      date: day.date,
-      endDate: day.endDate || day.date,
-      is_closed: day.is_closed,
-      shifts: day.shifts.map((shift) => ({ start: shift.start, end: shift.end })),
-      note: day.note?.trim() ?? '',
-      tentative: (day.tentative ?? []).map((range) => ({
-        start: range.start,
-        end: range.end,
-        min_insists: range.min_insists,
-      })),
-    })),
+    hours: toWorkingHoursPayload(dayList, expandSpecialDayDrafts(specialList)),
   });
 }
 
@@ -112,7 +92,11 @@ export default function OperatingHoursForm({
   onSaved,
 }: OperatingHoursFormProps) {
   const savedDays = useMemo(
-    () => toWorkingDayDrafts(business.working_hours),
+    (): WorkingDayDraft[] =>
+      toWorkingDayDrafts(business.working_hours).map((day) => ({
+        ...day,
+        tentative: [],
+      })),
     [business.working_hours],
   );
   const savedSpecialDays = useMemo(
@@ -137,8 +121,9 @@ export default function OperatingHoursForm({
       ? ''
       : String(business.max_adv_booking_days);
   const hasChanges =
+    !business.working_hours ||
     hoursFingerprint(days, specialDays, bookingDays) !==
-    hoursFingerprint(savedDays, savedSpecialDays, savedBookingDays);
+      hoursFingerprint(savedDays, savedSpecialDays, savedBookingDays);
 
   const businessNow = nowInTimeZone(business.timezone);
   const todayKey = toDateKey(businessNow);
@@ -332,7 +317,7 @@ export default function OperatingHoursForm({
           </label>
           <button
             type="button"
-            className={`${styles.unlimitedBtn} ${bookingDays === '' ? styles.unlimitedBtnActive : ''}`}
+            className={bookingDays === '' ? styles.unlimitedBtnActive : styles.unlimitedBtn}
             aria-pressed={bookingDays === ''}
             onClick={() => setBookingDays('')}
           >

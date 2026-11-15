@@ -9,7 +9,10 @@ import type {
 } from '../appointments.types';
 import { formatTimeHm } from '../time';
 import { getAppointmentSaveErrorMessage } from '../../../shared/errors';
-import { areAppointmentEditsEqual } from '../appointments.mappers';
+import {
+  areAppointmentEditsEqual,
+  toAppointmentEditValues,
+} from '../appointments.mappers';
 import { DateField } from '../../../shared/components/DateField';
 import { HourMinuteField } from '../../../shared/components/HourMinuteField';
 import { SaveIcon } from '../../../shared/components/icons';
@@ -65,7 +68,8 @@ export default function EditAppointmentModal({
     );
   }, [formData]);
 
-  const hasChanges = !areAppointmentEditsEqual(initialValues, formData);
+  const savedValues = useMemo(() => toAppointmentEditValues(appointment), [appointment]);
+  const hasChanges = !areAppointmentEditsEqual(savedValues, formData);
   const statusOptions = withCurrentStatus(statuses, formData.status);
   const displayedError = localError || errorMessage;
 

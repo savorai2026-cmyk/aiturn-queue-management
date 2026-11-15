@@ -10,13 +10,13 @@
 }
 
 .awaiting {
-  background: #fff7ed;
-  color: #9a3412;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-ink);
 }
 
 .received {
-  background: #ecfdf5;
-  color: #047857;
+  background: var(--color-success-bg);
+  color: var(--color-success-ink);
 }
 
 .awaiting strong,
@@ -38,15 +38,23 @@
 .awaiting button,
 .received button {
   justify-self: start;
-  padding: 6px 12px;
-  border: 0;
-  border-radius: 7px;
-  background: var(--color-navy-900);
+  min-height: var(--btn-height-sm);
+  padding: 0 12px;
+  border: 1px solid var(--solid-btn-border);
+  border-radius: var(--radius-control);
+  background: var(--solid-btn-bg);
   color: #ffffff;
   font: inherit;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.awaiting button:not(:disabled):hover,
+.received button:not(:disabled):hover {
+  border-color: var(--solid-btn-border-hover);
+  background: var(--solid-btn-bg-hover);
+  color: #ffffff;
 }
 
 .awaiting button:disabled,
@@ -56,5 +64,5 @@
 }
 
 .error {
-  color: #b91c1c;
+  color: var(--color-danger-ink);
 }

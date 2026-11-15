@@ -67,6 +67,7 @@ export function BusinessProvider({ userId, children }: BusinessProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const applyMemberships = useCallback(
     (nextMemberships: BusinessMembership[]) => {
@@ -135,14 +136,19 @@ export function BusinessProvider({ userId, children }: BusinessProviderProps) {
   const createBusiness = useCallback(
     async ({ businessName, contactPhone }: CreateBusinessInput) => {
       setIsCreating(true);
-      setError(null);
+      setCreateError(null);
 
       try {
         await createBusinessRequest({ businessName, contactPhone });
-        await refreshBusinesses();
       } catch (requestError) {
         console.error('שגיאה ביצירת העסק:', requestError);
-        setError('לא ניתן ליצור את העסק. בדוק את הפרטים ונסה שוב.');
+        setCreateError('לא ניתן ליצור את העסק. בדוק את הפרטים ונסה שוב.');
+        setIsCreating(false);
+        return;
+      }
+
+      try {
+        await refreshBusinesses();
       } finally {
         setIsCreating(false);
       }
@@ -165,6 +171,7 @@ export function BusinessProvider({ userId, children }: BusinessProviderProps) {
       isLoading,
       isCreating,
       error,
+      createError,
       createBusiness,
       setActiveBusiness,
       refreshBusinesses,
@@ -175,6 +182,7 @@ export function BusinessProvider({ userId, children }: BusinessProviderProps) {
       isLoading,
       isCreating,
       error,
+      createError,
       createBusiness,
       setActiveBusiness,
       refreshBusinesses,

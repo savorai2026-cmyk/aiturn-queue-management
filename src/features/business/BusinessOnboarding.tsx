@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import logo from '../../assets/logo.png';
+import { leaveCachedAccount } from '../auth/auth.api';
 import { useBusiness } from './BusinessContextState';
 import styles from './BusinessOnboarding.module.css';
 
 export default function BusinessOnboarding() {
-  const { createBusiness, isCreating, error } = useBusiness();
+  const { createBusiness, isCreating, createError: error } = useBusiness();
   const [businessName, setBusinessName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
 
@@ -60,6 +61,13 @@ export default function BusinessOnboarding() {
             disabled={isCreating || !businessName.trim()}
           >
             {isCreating ? 'מקים את העסק...' : 'המשך למערכת'}
+          </button>
+          <button
+            type="button"
+            className={styles.switchUser}
+            onClick={() => void leaveCachedAccount()}
+          >
+            משתמש אחר
           </button>
         </form>
       </section>

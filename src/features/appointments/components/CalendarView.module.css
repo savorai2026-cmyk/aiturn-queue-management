@@ -18,8 +18,8 @@
   margin-bottom: 10px;
   padding: 8px 12px;
   border-radius: 7px;
-  background: #ecfdf8;
-  color: var(--color-navy-900);
+  background: var(--color-info-bg);
+  color: var(--color-ink-900);
   font-size: 13px;
   font-weight: 600;
 }
@@ -30,7 +30,7 @@
   display: none;
   padding: 4px 8px;
   border-radius: 6px;
-  background: var(--color-navy-900);
+  background: var(--color-ink-900);
   color: #ffffff;
   font-size: 12px;
   font-weight: 700;
@@ -45,7 +45,7 @@
   max-width: 220px;
   padding: 6px 8px;
   border-radius: 6px;
-  background: var(--color-navy-800);
+  background: var(--color-ink-800);
   color: #ffffff;
   font-size: 12px;
   font-weight: 700;
@@ -54,17 +54,19 @@
   box-shadow: var(--shadow-floating);
 }
 
+/* Gutters keep their width while idle: FullCalendar measures columns on pointer-down,
+   so resizing at drag start would shift every drop target. */
 .dragEdge {
-  flex: 0 0 0;
-  width: 0;
+  flex: 0 0 34px;
+  width: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0;
-  overflow: hidden;
+  margin: 3.35em 0 0;
+  overflow: visible;
   border-radius: 10px;
   background: transparent;
-  color: #9bb0bd;
+  color: var(--color-text-soft);
   opacity: 0;
   pointer-events: none;
   transition:
@@ -75,13 +77,9 @@
 
 .isDragging .dragEdge,
 :global(body.featurn-is-event-dragging) .dragEdge {
-  flex-basis: 34px;
-  width: 34px;
-  margin-top: 3.35em;
-  overflow: visible;
   opacity: 1;
   pointer-events: auto;
-  background: rgba(155, 176, 189, 0.18);
+  background: rgba(13, 148, 136, 0.1);
 }
 
 .isDragging .dragEdgeDisabled,
@@ -103,21 +101,8 @@
 }
 
 .dragNavHot {
-  background: rgba(155, 176, 189, 0.4) !important;
-  color: #607482;
-}
-
-.blockingOverlay {
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  background: rgba(237, 246, 248, 0.72);
-  color: var(--color-navy-900);
-  font-weight: 700;
+  background: rgba(13, 148, 136, 0.22) !important;
+  color: var(--color-text-muted);
 }
 
 :global(.fc) {
@@ -145,9 +130,9 @@
 }
 
 :global(.fc-theme-standard .fc-scrollgrid) {
-  border: 1px solid #e3eeef;
+  border: 1px solid var(--color-line);
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--color-surface);
   box-shadow: 0 8px 24px rgba(15, 118, 110, 0.06);
   overflow: visible;
 }
@@ -201,39 +186,44 @@
 :global(.fc .fc-col-header-cell.fc-day-today) {
   background-color: var(--color-header-bg);
   background-image: var(--header-fill);
-  color: #0f766e;
-  box-shadow: inset 0 -2px 0 #0d9488;
+  color: var(--color-teal-700);
+  box-shadow: inset 0 -2px 0 var(--color-teal-600);
 }
 
 :global(.fc .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion) {
-  color: #0f766e;
+  color: var(--color-teal-700);
   font-weight: 700;
 }
 
 :global(.fc .fc-col-header-cell.is-selected-day) {
-  background: #e7f6f4;
-  color: #0f766e;
+  background: var(--color-teal-100);
+  color: var(--color-teal-700);
 }
 
 :global(.fc .fc-col-header-cell.is-selected-day .fc-col-header-cell-cushion) {
-  color: #0f766e;
+  color: var(--color-teal-700);
   font-weight: 700;
 }
 
 :global(.fc .fc-col-header-cell.fc-day-today.is-selected-day) {
-  background: #e7f6f4;
-  color: #0f766e;
-  box-shadow: inset 0 -2px 0 #0d9488;
+  background: var(--color-teal-100);
+  color: var(--color-teal-700);
+  box-shadow: inset 0 -2px 0 var(--color-teal-600);
 }
 
 :global(.fc .fc-col-header-cell.fc-day-today.is-selected-day .fc-col-header-cell-cushion) {
-  color: #0f766e;
+  color: var(--color-teal-700);
 }
 
 :global(.fc-timegrid-col.is-selected-day),
 :global(.fc-daygrid-day.is-selected-day) {
   background-color: transparent !important;
   box-shadow: none;
+}
+
+:global(.fc.fc-direction-rtl .fc-timegrid-col-events),
+:global(.fc.fc-direction-ltr .fc-timegrid-col-events) {
+  margin-inline: 0;
 }
 
 :global(.fc-timegrid-event),
@@ -244,7 +234,9 @@
 :global(.fc-timegrid-event:hover:not(.event-selected):not(.event-focused)),
 :global(.fc-daygrid-event:hover:not(.event-selected):not(.event-focused)) {
   filter: brightness(1.06);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.8),
+    0 1px 3px rgba(8, 60, 56, 0.16);
 }
 
 :global(.fc-event-dragging),
@@ -256,9 +248,32 @@
 :global(.fc-event.event-focused) {
   filter: none;
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.92),
-    0 0 0 1px rgba(8, 60, 56, 0.55) !important;
+    inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+    0 0 0 2px var(--color-surface),
+    0 0 0 3px rgba(8, 60, 56, 0.5) !important;
   z-index: 5;
+}
+
+:global(.fc-event.event-focused) {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+    0 0 0 2px var(--color-surface),
+    0 0 0 4px var(--color-teal-500) !important;
+  z-index: 6;
+}
+
+:global(.fc-event.event-payment-hold:hover:not(.event-selected):not(.event-focused)) {
+  box-shadow:
+    inset -4px 0 0 #f59e0b,
+    inset 0 0 0 1px rgba(255, 255, 255, 0.8),
+    0 1px 3px rgba(8, 60, 56, 0.16);
+}
+
+:global(.fc-event.event-payment-proof:hover:not(.event-selected):not(.event-focused)) {
+  box-shadow:
+    inset -4px 0 0 #34d399,
+    inset 0 0 0 1px rgba(255, 255, 255, 0.8),
+    0 1px 3px rgba(8, 60, 56, 0.16);
 }
 
 .eventInner {
@@ -330,7 +345,7 @@
 :global(.fc-toolbar-title) {
   margin: 0;
   padding: 0 8px;
-  color: #115e59;
+  color: var(--color-ink-900);
   font-size: 14px !important;
   font-weight: 600;
   line-height: 34px;
@@ -362,7 +377,7 @@
   height: 34px;
   padding: 0 4px;
   border-radius: 999px;
-  background: #e3f3f1;
+  background: var(--color-teal-100);
 }
 
 :global(.fc .fc-toolbar-chunk:has(.fc-toolbar-title) > div) {
@@ -381,7 +396,7 @@
   background-color: transparent;
   box-shadow: none;
   outline: none !important;
-  color: #0f766e;
+  color: var(--color-teal-700);
   font-size: 14px;
   font-weight: 600;
   line-height: 32px;
@@ -416,23 +431,23 @@
 
 :global(.fc .fc-button-primary:disabled) {
   background-color: transparent;
-  color: #94a3aa;
+  color: var(--color-text-soft);
   transform: none;
   box-shadow: none;
   opacity: 1;
 }
 
 :global(.fc .fc-goTodayBtn-button:disabled) {
-  border-color: #e3eeef !important;
-  background-color: #f7fafb !important;
-  color: #94a3aa !important;
+  border-color: var(--color-line) !important;
+  background-color: var(--color-surface-muted) !important;
+  color: var(--color-text-soft) !important;
 }
 
 :global(.fc .fc-button-primary:not(:disabled).fc-button-active),
 :global(.fc .fc-button-primary:not(:disabled).fc-button-active:hover),
 :global(.fc .fc-button-primary:not(:disabled).fc-button-active:focus),
 :global(.fc .fc-button-primary:not(:disabled).fc-button-active:hover:focus) {
-  background-color: #0d9488;
+  background-color: var(--color-teal-600);
   color: #ffffff;
   transform: none;
   box-shadow: none !important;
@@ -445,9 +460,9 @@
   gap: 2px;
   height: 34px;
   padding: 3px;
-  border: 1px solid #cfe6e3;
+  border: 1px solid var(--color-line-strong);
   border-radius: 999px;
-  background: #ffffff;
+  background: var(--color-surface);
 }
 
 :global(.fc .fc-button-group > .fc-button) {
@@ -502,7 +517,7 @@
   position: relative;
   z-index: 5;
   background: transparent !important;
-  color: #0f766e !important;
+  color: var(--color-teal-700) !important;
   transition: background-color 160ms ease, color 160ms ease;
 }
 
@@ -510,7 +525,7 @@
 :global(.fc .fc-button-primary:not(:disabled).fc-timeGridWeek-button:not(.fc-button-active):hover),
 :global(.fc .fc-button-primary:not(:disabled).fc-timeGridDay-button:not(.fc-button-active):hover) {
   background: rgba(15, 118, 110, 0.1) !important;
-  color: #0b5f59 !important;
+  color: var(--color-teal-800) !important;
 }
 
 :global(.fc .fc-button-primary:not(:disabled).fc-dayGridMonth-button.fc-button-active),
@@ -539,7 +554,7 @@
   border: 0 !important;
   border-radius: 999px !important;
   background: transparent !important;
-  color: #0f766e !important;
+  color: var(--color-teal-700) !important;
   line-height: 28px;
   box-shadow: none !important;
 }
@@ -547,35 +562,36 @@
 :global(.fc .fc-prev-button:not(:disabled):hover),
 :global(.fc .fc-next-button:not(:disabled):hover) {
   background: rgba(13, 148, 136, 0.16) !important;
-  color: #0f766e !important;
+  color: var(--color-teal-700) !important;
 }
 
 :global(.fc .fc-prev-button:disabled),
 :global(.fc .fc-next-button:disabled) {
-  color: #94a3aa !important;
+  color: var(--color-text-soft) !important;
 }
 
 :global(.fc .fc-goTodayBtn-button),
 :global(.fc .fc-goTodayBtn-button:not(:disabled):hover),
 :global(.fc .fc-goTodayBtn-button:not(:disabled):focus) {
-  border: 1px solid #b7ddd8 !important;
-  background: #ffffff !important;
-  color: #0f766e !important;
+  border: 1px solid var(--color-line-strong) !important;
+  background: var(--color-surface) !important;
+  color: var(--color-teal-700) !important;
   box-shadow: none !important;
 }
 
 :global(.fc-newAppointmentBtn-button) {
   display: inline-flex !important;
   align-items: center;
-  border-color: #0d9488 !important;
-  background-color: #0d9488 !important;
+  border: 1px solid var(--solid-btn-border) !important;
+  background: var(--solid-btn-bg) !important;
   color: #ffffff !important;
   font-weight: 700 !important;
+  box-shadow: none !important;
 }
 
 :global(.fc-newAppointmentBtn-button:not(:disabled):hover) {
-  border-color: #0f766e !important;
-  background-color: #0f766e !important;
+  border-color: var(--solid-btn-border-hover) !important;
+  background: var(--solid-btn-bg-hover) !important;
   color: #ffffff !important;
 }
 
@@ -727,8 +743,8 @@
 }
 
 .viewGlide {
-  background: #0d9488;
-  box-shadow: 0 0 8px rgba(153, 246, 228, 0.7);
+  background: var(--color-teal-600);
+  box-shadow: 0 1px 4px rgba(8, 60, 56, 0.18);
 }
 
 .dayGlideReady {
@@ -827,8 +843,8 @@
   margin-top: 4px;
   padding: 2px 5px;
   border-radius: 4px;
-  background: #ecfdf8;
-  color: var(--color-teal-700, #0f766e);
+  background: var(--color-info-bg);
+  color: var(--color-teal-700);
   white-space: normal;
 }
 
@@ -901,18 +917,9 @@
   }
 
   .dragEdge {
-    flex-basis: 0;
-    width: 0;
-    margin: 0;
-    overflow: hidden;
-  }
-
-  .isDragging .dragEdge,
-  :global(body.featurn-is-event-dragging) .dragEdge {
     flex-basis: 28px;
     width: 28px;
     margin-top: 7.4em;
-    overflow: visible;
   }
 
   :global(.fc .fc-toolbar) {
@@ -945,12 +952,14 @@
   --fc-today-bg-color: var(--color-today-wash);
 }
 
-:global(html[data-theme='dark'] .fc-theme-standard .fc-scrollgrid),
+:global(html[data-theme='dark'] .fc-theme-standard .fc-scrollgrid) {
+  background: var(--color-surface);
+}
+
 :global(html[data-theme='dark'] .fc .fc-daygrid-day-frame),
 :global(html[data-theme='dark'] .fc .fc-timegrid-slot),
 :global(html[data-theme='dark'] .fc .fc-timegrid-axis),
 :global(html[data-theme='dark'] .fc .fc-timegrid-col) {
-  background: var(--color-surface);
   border-color: var(--color-line);
 }
 
@@ -961,7 +970,7 @@
 
 :global(html[data-theme='dark'] .fc .fc-col-header-cell.fc-day-today),
 :global(html[data-theme='dark'] .fc .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion) {
-  color: #5eead4;
+  color: var(--color-ink-800);
 }
 
 :global(html[data-theme='dark'] .fc .fc-col-header-cell.is-selected-day),
@@ -1011,19 +1020,28 @@
   color: #d8f4ef !important;
 }
 
+:global(html[data-theme='dark'] .fc .fc-goTodayBtn-button:disabled),
+:global(html[data-theme='dark'] .fc .fc-prev-button:disabled),
+:global(html[data-theme='dark'] .fc .fc-next-button:disabled) {
+  color: var(--color-text-soft) !important;
+  opacity: 0.55;
+}
+
 :global(html[data-theme='dark'] .fc-newAppointmentBtn-button) {
   border-color: var(--solid-btn-border) !important;
   background: var(--solid-btn-bg) !important;
+  color: #ffffff !important;
 }
 
 :global(html[data-theme='dark'] .fc-newAppointmentBtn-button:not(:disabled):hover) {
   border-color: var(--solid-btn-border-hover) !important;
   background: var(--solid-btn-bg-hover) !important;
+  color: #ffffff !important;
 }
 
 :global(html[data-theme='dark']) .monthNote {
   background: #14383e;
-  color: #99f6e4;
+  color: var(--color-ink-800);
 }
 
 :global(html[data-theme='dark']) .holidayNote {
@@ -1039,16 +1057,12 @@
   background: #0f1e24;
 }
 
-:global(html[data-theme='dark'] .fc-event) {
-  color: #ffffff;
-}
-
 :global(html[data-theme='dark']) .moveBanner {
   background: #14383e;
   color: var(--color-text);
 }
 
 :global(html[data-theme='dark']) .dragTooltip {
-  background: #0f766e;
+  background: var(--color-teal-700);
   color: #ffffff;
 }

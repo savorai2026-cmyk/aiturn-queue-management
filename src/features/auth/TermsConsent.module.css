@@ -35,7 +35,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--color-navy-800);
+  color: var(--color-ink-800);
   font: inherit;
   font-size: 14px;
   font-weight: 700;
@@ -65,5 +65,5 @@
 }
 
 .invalid .copy label {
-  color: #b91c1c;
+  color: var(--color-danger-ink);
 }

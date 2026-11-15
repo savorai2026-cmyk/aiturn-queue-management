@@ -281,13 +281,13 @@ describe('formatCalendarEventCopy', () => {
 
 describe('getAppointmentColor', () => {
   it('maps catalog statuses and falls back to brand colors', () => {
-    expect(getAppointmentColor('01')).toBe('#607482');
-    expect(getAppointmentColor('waiting')).toBe('#607482');
+    expect(getAppointmentColor('01')).toBe('#7c8b84');
+    expect(getAppointmentColor('waiting')).toBe('#7c8b84');
     expect(getAppointmentColor('02')).toBe('#0d9488');
     expect(getAppointmentColor('10')).toBe('#b91c1c');
-    expect(getAppointmentColor('03')).toBe('#073f67');
-    expect(getAppointmentColor('09')).toBe('#b45309');
-    expect(getAppointmentColor('unexpected')).toBe('#12648f');
+    expect(getAppointmentColor('03')).toBe('#115e59');
+    expect(getAppointmentColor('09')).toBe('#c2410c');
+    expect(getAppointmentColor('unexpected')).toBe('#7c8b84');
   });
 });
 

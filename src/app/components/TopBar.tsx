@@ -110,8 +110,8 @@ export default function TopBar({
 
       <div className={styles.leftSection}>
         {businesses.length > 1 ? (
-          <label className={styles.greeting}>
-            שלום,{' '}
+          <>
+            <span className={styles.greeting}>שלום,</span>
             <select
               className={styles.businessSelect}
               value={activeBusinessCode}
@@ -124,7 +124,7 @@ export default function TopBar({
                 </option>
               ))}
             </select>
-          </label>
+          </>
         ) : (
           <span className={styles.greeting}>
             שלום, {businessName || userEmail?.split('@')[0] || 'משתמש'}

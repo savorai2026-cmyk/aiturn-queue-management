@@ -1,6 +1,6 @@
 .overlay {
   z-index: 9999;
-  background-color: rgba(7, 48, 75, 0.48);
+  background-color: var(--color-overlay);
   backdrop-filter: blur(2px);
 }
 
@@ -55,7 +55,7 @@
   z-index: 1;
   height: 2px;
   border-radius: 999px;
-  background: #0d9488;
+  background: var(--color-teal-600);
   pointer-events: none;
 }
 
@@ -69,7 +69,7 @@
   width: 1px;
   height: 18px;
   flex: 0 0 1px;
-  background: #c5d4d9;
+  background: var(--color-line-strong);
 }
 
 .tabBtn {
@@ -103,11 +103,11 @@ button.tabBtn[aria-current='page']:not(:disabled):active:focus {
 }
 
 .tabBtn:hover {
-  color: var(--color-navy-800);
+  color: var(--color-ink-800);
 }
 
 .activeTab {
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
 }
 
 .policySection {
@@ -126,7 +126,7 @@ button.tabBtn[aria-current='page']:not(:disabled):active:focus {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
 }
 
 .labelWithTip {
@@ -151,8 +151,8 @@ button.tabBtn[aria-current='page']:not(:disabled):active:focus {
   margin-bottom: 14px;
   padding: 9px 11px;
   border-radius: 7px;
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-ink);
 }
 
 .formGroup label {
@@ -181,10 +181,10 @@ button.tabBtn[aria-current='page']:not(:disabled):active:focus {
   border: 1px solid var(--color-line);
   border-radius: 7px;
   font-size: 14px;
-  color: var(--color-text);
+  color: var(--color-field);
   outline: none;
   transition: border-color 0.2s ease;
-  background-color: #ffffff;
+  background-color: var(--color-surface);
 }
 
 .textarea {
@@ -234,39 +234,13 @@ button.tabBtn[aria-current='page']:not(:disabled):active:focus {
 }
 
 .btnCancel {
-  background-color: var(--color-surface);
-  color: var(--color-text-muted);
-  padding: 8px 20px;
-  border: 1px solid var(--color-line);
-  border-radius: 7px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.btnCancel:hover {
-  background-color: #f8fafc;
+  composes: btn btn-neutral from global;
+  min-width: 96px;
 }
 
 .btnSave {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background-color: var(--color-teal-600);
-  color: #ffffff;
-  padding: 8px 20px;
-  border: none;
-  border-radius: 7px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.btnSave:hover {
-  background-color: #0f766e;
-}
-
-.btnSave:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
+  composes: btn btn-primary from global;
+  min-width: 96px;
 }
 
 @media (max-width: 600px) {

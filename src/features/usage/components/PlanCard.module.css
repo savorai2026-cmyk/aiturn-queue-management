@@ -7,7 +7,7 @@
   padding: 14px;
   border: 1px solid var(--color-line);
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--color-surface);
   color: inherit;
   font: inherit;
   text-align: right;
@@ -35,7 +35,7 @@ button.planOption:hover {
 }
 
 .planName {
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
   font-size: 16px;
   font-weight: 700;
 }
@@ -47,7 +47,7 @@ button.planOption:hover {
 }
 
 .planPrice {
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
   font-size: 20px;
   font-weight: 700;
   line-height: 1.2;

@@ -41,7 +41,7 @@
   z-index: 2;
   height: 2px;
   border-radius: 2px 2px 0 0;
-  background: #0d9488;
+  background: var(--color-teal-600);
   pointer-events: none;
 }
 
@@ -94,7 +94,7 @@ button.navBtn:not(:disabled):active:focus {
   box-shadow: none;
   transform: none;
   transition: transform 140ms ease, color 160ms ease;
-  color: #1c6f69;
+  color: var(--topbar-ink);
   cursor: pointer;
   font-weight: 600;
   font-size: 14px;
@@ -107,7 +107,7 @@ button.navBtn:not(:disabled):active:focus {
 button.navBtn:not(:disabled):hover,
 button.navBtn:not(:disabled):focus,
 button.navBtn:not(:disabled):hover:focus {
-  color: #0b6e66;
+  color: var(--color-ink-900);
   box-shadow: none;
 }
 
@@ -119,7 +119,7 @@ button.navBtn.activeNavBtn[aria-current='page']:hover:focus,
 button.navBtn.activeNavBtn[aria-current='page']:active:focus {
   border-radius: 0;
   background: transparent;
-  color: #0b6e66;
+  color: var(--color-ink-900);
   font-weight: 700;
   box-shadow: none;
   transform: none;
@@ -150,7 +150,7 @@ button.navBtn.activeNavBtn[aria-current='page']:not(:disabled):active {
   gap: 6px;
   min-width: 0;
   overflow: hidden;
-  color: #1c6f69;
+  color: var(--topbar-ink);
   font-size: 14px;
   font-weight: 600;
   text-overflow: ellipsis;
@@ -161,21 +161,26 @@ button.navBtn.activeNavBtn[aria-current='page']:not(:disabled):active {
   height: 34px;
   max-width: 180px;
   padding: 0 12px;
-  border: 1px solid #d5ebe8;
+  border: 1px solid var(--topbar-chip-line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
-  color: #1c6f69;
+  background: var(--topbar-chip);
+  color: var(--color-ink-900);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
 }
 
-.themeBtn {
+:global(html[data-theme='dark']) .businessSelect {
+  color: var(--color-text);
+}
+
+.themeBtn,
+.mailBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   border: 1px solid var(--solid-btn-border);
   border-radius: 10px;
@@ -184,40 +189,19 @@ button.navBtn.activeNavBtn[aria-current='page']:not(:disabled):active {
   cursor: pointer;
   font-size: 16px;
   line-height: 1;
+  box-shadow: var(--solid-btn-shadow);
 }
 
 button.themeBtn:not(:disabled):hover,
 button.themeBtn:not(:disabled):focus,
-button.themeBtn:not(:disabled):hover:focus {
-  border-color: var(--solid-btn-border-hover);
-  background: var(--solid-btn-bg-hover);
-  color: #ffffff;
-  box-shadow: none;
-  transform: none;
-}
-
-.mailBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid var(--solid-btn-border);
-  border-radius: 10px;
-  background: var(--solid-btn-bg);
-  color: #ffffff;
-  cursor: pointer;
-  line-height: 0;
-}
-
+button.themeBtn:not(:disabled):hover:focus,
 button.mailBtn:not(:disabled):hover,
 button.mailBtn:not(:disabled):focus,
 button.mailBtn:not(:disabled):hover:focus {
   border-color: var(--solid-btn-border-hover);
   background: var(--solid-btn-bg-hover);
   color: #ffffff;
-  box-shadow: none;
+  box-shadow: var(--solid-btn-shadow-hover);
   transform: none;
 }
 
@@ -240,7 +224,7 @@ button.mailBtn:not(:disabled):hover:focus {
 button.logoutBtn:not(:disabled):hover,
 button.logoutBtn:not(:disabled):focus,
 button.logoutBtn:not(:disabled):hover:focus {
-  border-color: #b7ddd8;
+  border-color: var(--color-line-strong);
   background: var(--color-surface);
   color: var(--topbar-ink);
   box-shadow: none;
@@ -294,7 +278,7 @@ button.logoutBtn:not(:disabled):hover:focus {
   button.navBtn.activeNavBtn[aria-current='page']:active,
   button.navBtn.activeNavBtn[aria-current='page']:hover:focus,
   button.navBtn.activeNavBtn[aria-current='page']:active:focus {
-    box-shadow: inset 0 -2px 0 #0d9488;
+    box-shadow: inset 0 -2px 0 var(--color-teal-600);
   }
 
   button.navBtn:not(:disabled),

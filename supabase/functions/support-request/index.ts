@@ -6,7 +6,8 @@ const corsHeaders = {
     'authorization, x-client-info, apikey, content-type',
 };
 
-const SUPPORT_INBOX = 'office@savorai.biz';
+const SUPPORT_INBOX = 'savorai2026@gmail.com';
+const SUPPORT_FROM = 'QGent <office@savorai.biz>';
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT = 5;
 
@@ -119,7 +120,7 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: 'אין הרשאה לשלוח פנייה עבור העסק הזה.' }, 403);
   }
 
-  const from = Deno.env.get('SUPPORT_FROM_EMAIL')?.trim() || `QGent <${SUPPORT_INBOX}>`;
+  const from = Deno.env.get('SUPPORT_FROM_EMAIL')?.trim() || SUPPORT_FROM;
   const to = Deno.env.get('SUPPORT_TO_EMAIL')?.trim() || SUPPORT_INBOX;
   const text = [
     `שם: ${name}`,

@@ -104,7 +104,7 @@ export default function HelpTip({
   return (
     <span
       ref={rootRef}
-      className={styles.root}
+      className={`${styles.root} help-tip`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >

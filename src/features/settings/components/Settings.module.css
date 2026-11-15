@@ -21,7 +21,7 @@
   z-index: 1;
   height: 2px;
   border-radius: 999px;
-  background: #0d9488;
+  background: var(--color-teal-600);
   pointer-events: none;
 }
 
@@ -35,7 +35,7 @@
   width: 1px;
   height: 18px;
   flex: 0 0 1px;
-  background: #c5d4d9;
+  background: var(--color-line-strong);
 }
 
 .tabBtn {
@@ -68,7 +68,7 @@ button.tabBtn[aria-current='page']:not(:disabled):active:focus {
 }
 
 .tabBtn:hover {
-  color: var(--color-navy-800);
+  color: var(--color-ink-800);
 }
 
 .activeTab {
@@ -209,7 +209,7 @@ button.tabBtn[aria-current='page']:not(:disabled):active:focus {
   margin: 0;
   padding: 14px 16px 12px;
   border: 0;
-  background: #ffffff;
+  background: var(--color-surface);
   color: inherit;
   font: inherit;
   text-align: start;
@@ -232,7 +232,7 @@ button.headerHit:not(:disabled):active:focus {
 button.headerHit:hover,
 button.headerHit:not(:disabled):hover,
 button.headerHit:not(:disabled):hover:focus {
-  background: #f2f7f8;
+  background: var(--color-surface-muted);
 }
 
 .groupToggle {
@@ -262,7 +262,7 @@ button.headerHit:not(:disabled):hover:focus {
   width: 0;
   height: 0;
   flex: 0 0 auto;
-  color: var(--color-navy-900);
+  color: var(--color-section-title);
   border-style: solid;
   border-width: 6px 5px 0;
   border-color: currentColor transparent transparent;
@@ -289,11 +289,11 @@ button.headerHit:not(:disabled):hover:focus {
   position: relative;
   padding: 0;
   border-bottom: 1px solid var(--color-line);
-  background: #ffffff;
+  background: var(--color-surface);
 }
 
 .settingsGroupHeader:hover {
-  background: #ffffff;
+  background: var(--color-surface);
 }
 
 .settingsGroupHeading {
@@ -306,7 +306,7 @@ button.headerHit:not(:disabled):hover:focus {
 
 .settingsGroupHeader h3 {
   margin: 0;
-  color: var(--color-text);
+  color: var(--color-section-title);
   font-size: 15px;
   font-weight: 650;
 }
@@ -328,7 +328,7 @@ button.headerHit:not(:disabled):hover:focus {
   gap: 12px 24px;
   align-items: center;
   padding: 14px 16px;
-  border-top: 1px solid rgba(7, 63, 103, 0.08);
+  border-top: 1px solid rgba(8, 60, 56, 0.08);
 }
 
 .settingsRow:first-child {
@@ -464,8 +464,8 @@ button.headerHit:not(:disabled):hover:focus {
 }
 
 .success {
-  background: #ecfdf5;
-  color: #047857;
+  background: var(--color-success-bg);
+  color: var(--color-success-ink);
 }
 
 .readOnlyNote {
@@ -482,79 +482,29 @@ button.headerHit:not(:disabled):hover:focus {
 }
 
 .error {
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-ink);
 }
 
 .btnPrimary {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background-color: var(--color-teal-600);
-  color: #ffffff;
-  border: none;
-  padding: 10px 24px;
-  border-radius: 7px;
-  cursor: pointer;
-  font-weight: 500;
-  font-size: 14px;
+  composes: btn btn-primary from global;
   margin-top: 20px;
 }
 
-.btnPrimary:hover {
-  background-color: #0f766e;
-}
-
-.btnPrimary:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
 .btnPrimary.toolbarSave {
-  height: 36px;
   margin-top: 0;
-  padding: 0 14px;
   flex: 0 0 auto;
-  box-sizing: border-box;
 }
 
 .aiButton {
+  composes: btn btn-sm btn-secondary from global;
   flex: 0 0 auto;
-  padding: 7px 12px;
-  border: 1px solid var(--color-line);
-  border-radius: 7px;
-  background: #ffffff;
-  color: var(--color-navy-800);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.aiButton:hover:not(:disabled) {
-  background: #f4f8f9;
-}
-
-.aiButton:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 
 .addServiceButton {
-  height: 32px;
+  composes: btn-sm from global;
   margin-top: 0;
   margin-bottom: 0;
-  padding: 0 14px;
-  border: 1px solid var(--solid-btn-border);
-  background: var(--solid-btn-bg);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.addServiceButton:hover {
-  border-color: var(--solid-btn-border-hover);
-  background: var(--solid-btn-bg-hover);
 }
 
 .toolbarActions {
@@ -609,12 +559,12 @@ button.headerHit:not(:disabled):hover:focus {
 }
 
 .statusActive {
-  background: #ecfdf8;
+  background: var(--color-info-bg);
   color: #0f766e;
 }
 
 .statusInactive {
-  background: #fff7ed;
+  background: var(--color-warning-bg);
   color: #c2410c;
 }
 
@@ -651,7 +601,7 @@ button.headerHit:not(:disabled):hover:focus {
 
 :global(html[data-theme='dark']) .statusActive {
   background: #14383e;
-  color: #5eead4;
+  color: var(--color-ink-800);
 }
 
 :global(html[data-theme='dark']) .statusInactive {
@@ -681,7 +631,7 @@ button.headerHit:not(:disabled):hover:focus {
   width: 16px;
   height: 16px;
   flex: 0 0 16px;
-  border: 1px solid rgba(7, 63, 103, 0.12);
+  border: 1px solid rgba(8, 60, 56, 0.12);
   border-radius: 50%;
 }
 
@@ -731,6 +681,146 @@ button.headerHit:not(:disabled):hover:focus {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
+}
+
+.arrivalBlock {
+  margin-top: 22px;
+}
+
+.arrivalPhotos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.arrivalPhoto {
+  position: relative;
+  width: 104px;
+  height: 78px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--color-surface-muted);
+}
+
+.arrivalPhoto img,
+.arrivalPending {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.arrivalPending {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.arrivalRemove {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 22px;
+  border: 0;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-danger);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+button.arrivalRemove,
+button.arrivalRemove:hover,
+button.arrivalRemove:focus,
+button.arrivalRemove:active {
+  transform: none;
+  box-shadow: none;
+}
+
+.fileRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.filePick {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 104px;
+  height: 78px;
+  padding: 8px;
+  border: 1px dashed var(--color-line-strong);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+  cursor: pointer;
+}
+
+.arrivalPhotosEmpty .filePick {
+  width: auto;
+  height: 36px;
+  padding: 0 14px;
+  border-style: solid;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.filePick input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  border: 0;
+  opacity: 0;
+  white-space: nowrap;
+}
+
+.filePick:hover {
+  border-color: var(--color-teal-600);
+  background: var(--btn-secondary-hover-bg);
+}
+
+.fileHint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+:global(html[data-theme='dark']) .filePick {
+  background: var(--color-surface-muted);
+  border-color: var(--color-line-strong);
+  color: var(--color-text);
+}
+
+:global(html[data-theme='dark']) .arrivalRemove {
+  background: rgba(12, 18, 17, 0.88);
+  color: var(--color-danger-ink);
 }
 
 @media (max-width: 700px) {

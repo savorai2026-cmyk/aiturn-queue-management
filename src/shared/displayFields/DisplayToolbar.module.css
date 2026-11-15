@@ -28,7 +28,7 @@
   color: #ffffff;
   cursor: pointer;
   transform: none;
-  box-shadow: none;
+  box-shadow: var(--solid-btn-shadow);
 }
 
 :global(button).iconButton:hover:not(:disabled),
@@ -41,13 +41,13 @@
   background: var(--solid-btn-bg-hover);
   color: #ffffff;
   transform: none;
-  box-shadow: none;
+  box-shadow: var(--solid-btn-shadow-hover);
 }
 
 .iconButton:disabled {
-  border-color: #9bb8b4;
+  border-color: var(--solid-btn-border-disabled);
   background: var(--solid-btn-bg-disabled);
-  color: #ffffff;
+  color: var(--solid-btn-ink-disabled);
   cursor: not-allowed;
   opacity: 1;
 }
@@ -59,6 +59,7 @@
   border-radius: 7px;
   background: var(--solid-btn-bg);
   color: #ffffff;
+  box-shadow: var(--solid-btn-shadow);
 }
 
 .compact > :global(span) > :global(button) {
@@ -72,16 +73,48 @@
   border-color: var(--solid-btn-border-hover);
   background: var(--solid-btn-bg-hover);
   color: #ffffff;
+  box-shadow: var(--solid-btn-shadow-hover);
+}
+
+.group > :global(.help-tip) > :global(button),
+.compact > :global(.help-tip) > :global(button),
+.group > :global(.help-tip) > :global(button):hover,
+.group > :global(.help-tip) > :global(button):focus,
+.group > :global(.help-tip) > :global(button):focus-visible,
+.group > :global(.help-tip) > :global(button):active,
+.group > :global(.help-tip) > :global(button)[aria-expanded='true'] {
+  width: auto;
+  height: auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text-soft);
   box-shadow: none;
+  transform: none;
+}
+
+.group > :global(.help-tip) > :global(button):hover,
+.group > :global(.help-tip) > :global(button):focus-visible,
+.group > :global(.help-tip) > :global(button)[aria-expanded='true'] {
+  color: var(--color-teal-700);
 }
 
 .filterOn,
-:global(button).filterOn:hover:not(:disabled),
-:global(button).filterOn:focus-visible:not(:disabled) {
+:global(button).iconButton.filterOn,
+:global(button).iconButton.filterOn:hover:not(:disabled),
+:global(button).iconButton.filterOn:active:not(:disabled),
+:global(button).iconButton.filterOn:focus,
+:global(button).iconButton.filterOn:focus-visible,
+:global(button).iconButton.filterOn[aria-pressed='true']:not(:disabled),
+:global(button).iconButton.filterOn[aria-expanded='true']:not(:disabled) {
   border-color: #ffffff;
   background: var(--solid-btn-bg);
   color: #ffffff;
-  box-shadow: inset 0 0 0 1px #ffffff;
+  box-shadow:
+    inset 0 0 0 1px #ffffff,
+    0 0 0 2px var(--color-teal-500);
 }
 
 .onDark {
@@ -94,21 +127,23 @@
   background: rgba(255, 255, 255, 0.16);
 }
 
-.onDark.filterOn {
+.onDark.filterOn,
+:global(button).iconButton.onDark.filterOn,
+:global(button).iconButton.onDark.filterOn:hover:not(:disabled),
+:global(button).iconButton.onDark.filterOn:focus,
+:global(button).iconButton.onDark.filterOn:focus-visible,
+:global(button).iconButton.onDark.filterOn[aria-pressed='true']:not(:disabled) {
   border-color: rgba(45, 212, 191, 0.85);
   background: rgba(20, 184, 166, 0.22);
   color: #ffffff;
-}
-
-.onDark.filterOn:hover:not(:disabled),
-.onDark.filterOn:focus-visible:not(:disabled) {
-  background: rgba(20, 184, 166, 0.22);
+  box-shadow: none;
 }
 
 .solid {
   border-color: var(--solid-btn-border);
   background: var(--solid-btn-bg);
   color: #ffffff;
+  box-shadow: var(--solid-btn-shadow);
 }
 
 :global(button).solid:hover:not(:disabled),
@@ -117,13 +152,13 @@
   border-color: var(--solid-btn-border-hover);
   background: var(--solid-btn-bg-hover);
   color: #ffffff;
-  box-shadow: none;
+  box-shadow: var(--solid-btn-shadow-hover);
   transform: none;
 }
 
 .solid:disabled {
-  border-color: #9bb8b4;
+  border-color: var(--solid-btn-border-disabled);
   background: var(--solid-btn-bg-disabled);
-  color: #ffffff;
+  color: var(--solid-btn-ink-disabled);
   opacity: 1;
 }

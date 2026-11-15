@@ -47,13 +47,15 @@ function termsText() {
 }
 
 describe('terms of use', () => {
-  it('limits liability to the product surface we control, without naming suppliers', () => {
+  it('describes the service and keeps supplier outages outside our liability, without naming suppliers', () => {
     const text = termsText();
 
+    expect(text).toContain('היומן');
+    expect(text).toContain('התורים');
     expect(text).toContain('ממשק הניהול');
     expect(text).toContain('הלוגיקה העסקית');
-    expect(text).toContain('שכבת הקישור');
-    expect(text).toContain('אינו באחריותנו');
+    expect(text).toContain('אינם באחריותנו');
+    expect(text).not.toMatch(/בשליטתנו רק|אינם בשליטתנו/);
     expect(text).not.toMatch(/\b(vapi|telnyx|supabase|openai|meta|z-credit|green api)\b/i);
   });
 

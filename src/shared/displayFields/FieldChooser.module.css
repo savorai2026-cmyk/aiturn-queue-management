@@ -63,8 +63,8 @@
   padding: 0;
   border: 1px solid var(--color-line);
   border-radius: 5px;
-  background: #ffffff;
-  color: var(--color-navy-900);
+  background: var(--color-surface);
+  color: var(--color-ink-900);
   font: inherit;
   line-height: 1;
   cursor: pointer;

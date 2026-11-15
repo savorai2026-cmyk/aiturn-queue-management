@@ -100,6 +100,7 @@ export async function rescheduleAppointment(payload: {
   serviceId: number;
   currentAppointmentTime: string;
   newAppointmentTime: string;
+  ownerApprovedMove?: boolean;
 }) {
   return invokeScheduler('reschedule', {
     business_code: payload.businessCode,
@@ -108,5 +109,6 @@ export async function rescheduleAppointment(payload: {
     current_appointment_time: payload.currentAppointmentTime,
     new_appointment_time: payload.newAppointmentTime,
     force_booking: true,
+    ...(payload.ownerApprovedMove ? { owner_approved_move: true } : {}),
   });
 }

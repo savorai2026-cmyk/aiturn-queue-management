@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import logo from '../../assets/logo.png';
 import { useAuth } from './AuthContextState';
+import { leaveCachedAccount } from './auth.api';
 import { listTotpFactors, verifyTotp } from './mfa.api';
 import styles from './Login.module.css';
 
@@ -79,6 +80,13 @@ export default function MfaChallenge() {
             onClick={() => void signOut()}
           >
             יציאה
+          </button>
+          <button
+            type="button"
+            className={styles.switchAccount}
+            onClick={() => void leaveCachedAccount()}
+          >
+            משתמש אחר
           </button>
         </form>
       </section>

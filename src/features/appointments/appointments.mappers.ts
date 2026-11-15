@@ -23,6 +23,7 @@ import {
   getStatusColor,
   getStatusLabel,
   isCanceledStatus,
+  readableTextColor,
   type StatusCatalogItem,
 } from './appointmentStatuses';
 import { APPOINTMENT_FIELDS } from '../../shared/displayFields/catalogs';
@@ -338,6 +339,7 @@ export function toCalendarEvents(
       end: `${date}T${formatTimeHm(last.endTime)}`,
       backgroundColor: first.color,
       borderColor: first.color,
+      textColor: readableTextColor(first.color),
       classNames: [
         combined ? 'event-combined' : 'event-group-single',
         ...(hold?.awaiting ? ['event-payment-hold'] : []),

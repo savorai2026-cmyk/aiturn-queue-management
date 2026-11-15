@@ -1,6 +1,6 @@
 .overlay {
   z-index: 9999;
-  background-color: rgba(7, 48, 75, 0.48);
+  background-color: var(--color-overlay);
   backdrop-filter: blur(2px);
 }
 
@@ -47,7 +47,7 @@
   gap: 6px;
   margin-bottom: 12px;
   min-width: 0;
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
   font-size: 13px;
   font-weight: 700;
 }
@@ -58,8 +58,8 @@
   padding: 9px 12px;
   border: 1px solid var(--color-line);
   border-radius: 7px;
-  background: #ffffff;
-  color: var(--color-text);
+  background: var(--color-surface);
+  color: var(--color-field);
   font: inherit;
   font-size: 14px;
   font-weight: 500;
@@ -94,13 +94,13 @@
 }
 
 .error {
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-ink);
 }
 
 .sent {
-  background: #f3fbfa;
-  color: var(--color-navy-900);
+  background: var(--color-success-bg);
+  color: var(--color-success-ink);
 }
 
 .actions {
@@ -112,31 +112,14 @@
   border-top: 1px solid var(--color-line);
 }
 
-.btnCancel,
-.btnSend {
-  min-width: 96px;
-  padding: 10px 22px;
-  border-radius: 7px;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
 .btnCancel {
-  border: 1px solid var(--color-line);
-  background: var(--color-surface);
-  color: var(--color-text-muted);
+  composes: btn btn-neutral from global;
+  min-width: 96px;
 }
 
 .btnSend {
-  border: 0;
-  background: var(--color-teal-600);
-  color: #ffffff;
-}
-
-.btnSend:disabled {
-  cursor: default;
-  opacity: 0.6;
+  composes: btn btn-primary from global;
+  min-width: 96px;
 }
 
 @media (max-width: 560px) {

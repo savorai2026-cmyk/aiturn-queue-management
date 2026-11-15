@@ -89,6 +89,17 @@ export function LogoutIcon() {
   );
 }
 
+export function SwitchUserIcon() {
+  return (
+    <Svg icon="switch-user">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="3" />
+      <path d="M22 11h-6" />
+      <path d="m19 8 3 3-3 3" />
+    </Svg>
+  );
+}
+
 export function CalendarIcon() {
   return (
     <Svg icon="calendar">
@@ -233,7 +244,7 @@ export function GlassesIcon() {
 
 export function HelpIcon() {
   return (
-    <Svg icon="help" width={14} height={14} strokeWidth={2.2}>
+    <Svg icon="help" width={16} height={16} strokeWidth={1.8}>
       <circle cx="12" cy="12" r="9" />
       <path d="M9.6 9.4a2.4 2.4 0 1 1 3.5 2.1c-.8.4-1.3 1-1.3 1.8V14" />
       <path d="M12 17h.01" />

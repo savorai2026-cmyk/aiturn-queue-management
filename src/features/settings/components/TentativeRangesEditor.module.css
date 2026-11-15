@@ -25,7 +25,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
   font-size: 12px;
   font-weight: 700;
 }
@@ -35,7 +35,7 @@
   border: 1px solid var(--color-line);
   border-radius: 7px;
   background: var(--color-surface);
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
   font: inherit;
   font-size: 12px;
   font-weight: 700;

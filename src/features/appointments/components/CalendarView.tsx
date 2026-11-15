@@ -144,6 +144,7 @@ interface CalendarViewProps {
   onRetry: () => void;
   onAddAppointment: () => void;
   onEventClick: (appointment: AppointmentDetails, serviceId: number) => void;
+  onEventDoubleClick?: (appointment: AppointmentDetails, serviceId: number) => void;
   onEventContextMenu?: (
     appointmentId: number,
     serviceId: number,
@@ -312,6 +313,7 @@ export default function CalendarView({
   onRetry,
   onAddAppointment,
   onEventClick,
+  onEventDoubleClick,
   onEventContextMenu,
   onBackgroundClick,
   onSelectedSlotContextMenu,
@@ -883,6 +885,8 @@ export default function CalendarView({
   const onDropRequestRef = useRef(onDropRequest);
   const hasPendingMoveRef = useRef(hasPendingMove);
   const onEventContextMenuRef = useRef(onEventContextMenu);
+  const onEventDoubleClickRef = useRef(onEventDoubleClick);
+  const appointmentsRef = useRef(appointments);
   const onBackgroundClickRef = useRef(onBackgroundClick);
   const onSelectedSlotContextMenuRef = useRef(onSelectedSlotContextMenu);
 
@@ -890,6 +894,8 @@ export default function CalendarView({
     onDropRequestRef.current = onDropRequest;
     hasPendingMoveRef.current = hasPendingMove;
     onEventContextMenuRef.current = onEventContextMenu;
+    onEventDoubleClickRef.current = onEventDoubleClick;
+    appointmentsRef.current = appointments;
     onBackgroundClickRef.current = onBackgroundClick;
     onSelectedSlotContextMenuRef.current = onSelectedSlotContextMenu;
   }, [
@@ -897,6 +903,8 @@ export default function CalendarView({
     onBackgroundClick,
     onDropRequest,
     onEventContextMenu,
+    appointments,
+    onEventDoubleClick,
     onSelectedSlotContextMenu,
   ]);
 
@@ -1515,15 +1523,35 @@ export default function CalendarView({
               mouse.clientY,
             );
           };
+          const onDoubleClick = (event: Event) => {
+            const mouse = event as MouseEvent;
+            const target = appointmentAtPointer(props, info.el, mouse.clientY);
+            const appointment = appointmentsRef.current.find(
+              (candidate) => candidate.id === target.appointmentId,
+            );
+            if (appointment) {
+              onEventDoubleClickRef.current?.(appointment, target.serviceId);
+            }
+          };
           info.el.addEventListener('contextmenu', onMenu);
-          (info.el as HTMLElement & { __appointmentMenu?: (event: Event) => void }).__appointmentMenu = onMenu;
+          info.el.addEventListener('dblclick', onDoubleClick);
+          const marked = info.el as HTMLElement & {
+            __appointmentMenu?: (event: Event) => void;
+            __appointmentDoubleClick?: (event: Event) => void;
+          };
+          marked.__appointmentMenu = onMenu;
+          marked.__appointmentDoubleClick = onDoubleClick;
         }}
         eventWillUnmount={(info) => {
           const el = info.el as HTMLElement & {
             __appointmentMenu?: (event: Event) => void;
+            __appointmentDoubleClick?: (event: Event) => void;
           };
           if (el.__appointmentMenu) {
             info.el.removeEventListener('contextmenu', el.__appointmentMenu);
+          }
+          if (el.__appointmentDoubleClick) {
+            info.el.removeEventListener('dblclick', el.__appointmentDoubleClick);
           }
         }}
         eventContent={(arg: EventContentArg) => {

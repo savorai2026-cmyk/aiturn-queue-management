@@ -23,7 +23,6 @@ import HelpTip from '../../../shared/components/HelpTip';
 import { DateField } from '../../../shared/components/DateField';
 import { HourMinuteField } from '../../../shared/components/HourMinuteField';
 import { PencilIcon, SaveIcon } from '../../../shared/components/icons';
-import { WaitingOverlay } from '../../../shared/components/QLoader';
 import PaymentHoldNotice from './PaymentHoldNotice';
 import styles from './SidePanel.module.css';
 
@@ -41,7 +40,7 @@ interface SidePanelProps {
   onToggleField: (key: string) => void;
   onSave: (values: AppointmentEditValues) => Promise<void>;
   onClose: () => void;
-  editToken?: number;
+  startInEdit?: boolean;
   groupAppointments?: AppointmentDetails[];
 }
 
@@ -54,15 +53,23 @@ export const SidePanel = ({
   onToggleField,
   onSave,
   onClose,
-  editToken = 0,
+  startInEdit = false,
   groupAppointments,
 }: SidePanelProps) => {
-  const [isEditing, setIsEditing] = useState(editToken > 0);
+  const [isEditing, setIsEditing] = useState(startInEdit);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const requestClose = () => {
+    if (!isBusy) onClose();
+  };
 
   useEffect(() => {
-    if (editToken > 0) setIsEditing(true);
-  }, [editToken]);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || isBusy || isDetailsOpen) return;
+      onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isBusy, isDetailsOpen, onClose]);
   const [formData, setFormData] = useState<AppointmentEditValues | null>(
     () => (appointment ? toAppointmentEditValues(appointment) : null),
   );
@@ -157,6 +164,19 @@ export const SidePanel = ({
   const statusOptions = withCurrentStatus(statuses, formData.status);
 
   return (
+    <div
+      className={styles.backdrop}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) requestClose();
+      }}
+    >
+    <div
+      className={styles.dialog}
+      role="dialog"
+      aria-modal="true"
+      aria-label="פרטי תור"
+      onMouseDown={(event) => event.stopPropagation()}
+    >
     <div className={`${styles.container} ${styles.selected}`}>
       <div className={styles.header}>
         <span>פרטי תור</span>
@@ -198,7 +218,7 @@ export const SidePanel = ({
           <button
             type="button"
             className={styles.iconButton}
-            onClick={onClose}
+            onClick={requestClose}
             aria-label="סגירת פרטי התור"
             title="סגירה"
           >
@@ -430,8 +450,6 @@ export const SidePanel = ({
         )}
       </div>
 
-      {isBusy && <WaitingOverlay message="שומר..." />}
-
       {isDetailsOpen && (
         <RecordDetailsModal
           title={`פרטי תור · ${appointment.patientName}`}
@@ -439,6 +457,8 @@ export const SidePanel = ({
           onClose={() => setIsDetailsOpen(false)}
         />
       )}
+    </div>
+    </div>
     </div>
   );
 };

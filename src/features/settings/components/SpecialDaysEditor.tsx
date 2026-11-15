@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import IconButton, {
   TrashIcon,
 } from '../../../shared/components/IconButton';
@@ -119,6 +120,91 @@ const SHIFT_PRESETS: Array<{
     ],
   },
 ];
+
+function ShiftPresetToggle({
+  day,
+  onSelect,
+}: {
+  day: SpecialDayDraft;
+  onSelect: (preset: (typeof SHIFT_PRESETS)[number]) => void;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const glideRef = useRef<HTMLSpanElement>(null);
+  const buttonsRef = useRef<Array<HTMLButtonElement | null>>([]);
+  const activeIndex = SHIFT_PRESETS.findIndex((preset) =>
+    preset.isClosed
+      ? day.is_closed
+      : !day.is_closed && sameShifts(day.shifts, preset.shifts),
+  );
+
+  useLayoutEffect(() => {
+    const track = trackRef.current;
+    const glide = glideRef.current;
+    if (!track || !glide) return;
+
+    const place = () => {
+      const button =
+        activeIndex >= 0 ? buttonsRef.current[activeIndex] : null;
+      if (!button) {
+        glide.style.opacity = '0';
+        glide.classList.remove(styles.presetGlideReady);
+        return;
+      }
+      const hostStyle = window.getComputedStyle(track);
+      const borderLeft = Number.parseFloat(hostStyle.borderLeftWidth) || 0;
+      const borderTop = Number.parseFloat(hostStyle.borderTopWidth) || 0;
+      const hostBox = track.getBoundingClientRect();
+      const box = button.getBoundingClientRect();
+      const canSlide =
+        glide.classList.contains(styles.presetGlideReady) &&
+        glide.style.opacity !== '0';
+      if (!canSlide) glide.classList.remove(styles.presetGlideReady);
+      glide.style.width = `${box.width}px`;
+      glide.style.height = `${box.height}px`;
+      glide.style.transform = `translate(${box.left - hostBox.left - borderLeft}px, ${box.top - hostBox.top - borderTop}px)`;
+      glide.style.opacity = '1';
+      if (!canSlide) {
+        window.requestAnimationFrame(() => {
+          if (glide.isConnected) glide.classList.add(styles.presetGlideReady);
+        });
+      }
+    };
+
+    place();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => place());
+    observer.observe(track);
+    return () => observer.disconnect();
+  }, [activeIndex]);
+
+  return (
+    <div
+      ref={trackRef}
+      className={styles.presetTrack}
+      role="group"
+      aria-label="שעות היום המיוחד"
+    >
+      <span ref={glideRef} className={styles.presetGlide} aria-hidden="true" />
+      {SHIFT_PRESETS.map((preset, index) => {
+        const active = index === activeIndex;
+        return (
+          <button
+            key={preset.label}
+            ref={(node) => {
+              buttonsRef.current[index] = node;
+            }}
+            type="button"
+            aria-pressed={active}
+            className={active ? `${styles.preset} ${styles.presetActive}` : styles.preset}
+            onClick={() => onSelect(preset)}
+          >
+            {preset.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function SpecialDaysEditor({
   weeklyDays,
@@ -275,27 +361,15 @@ export default function SpecialDaysEditor({
               ) : null}
 
               <div className={styles.presets}>
-                {SHIFT_PRESETS.map((preset) => {
-                  const active = preset.isClosed
-                    ? day.is_closed
-                    : !day.is_closed && sameShifts(day.shifts, preset.shifts);
-                  return (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      aria-pressed={active}
-                      className={active ? `${styles.preset} ${styles.presetActive}` : styles.preset}
-                      onClick={() =>
-                        updateDay(day.id, {
-                          is_closed: preset.isClosed,
-                          shifts: preset.shifts.map((shift) => ({ ...shift })),
-                        })
-                      }
-                    >
-                      {preset.label}
-                    </button>
-                  );
-                })}
+                <ShiftPresetToggle
+                  day={day}
+                  onSelect={(preset) =>
+                    updateDay(day.id, {
+                      is_closed: preset.isClosed,
+                      shifts: preset.shifts.map((shift) => ({ ...shift })),
+                    })
+                  }
+                />
                 {day.is_closed ? (
                   <label className={styles.tentativeMark}>
                     <input

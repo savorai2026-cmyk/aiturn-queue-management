@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import logo from '../../assets/logo.png';
 import { useAuth } from './AuthContextState';
-import { recordTermsAcceptance } from './auth.api';
+import { leaveCachedAccount, recordTermsAcceptance } from './auth.api';
 import TermsConsent from './TermsConsent';
 import {
   TERMS_ACCEPTANCE_REQUIRED_MESSAGE,
@@ -94,6 +94,13 @@ export default function TermsAcceptance() {
               onClick={() => void signOut()}
             >
               יציאה
+            </button>
+            <button
+              type="button"
+              className={styles.switchAccount}
+              onClick={() => void leaveCachedAccount()}
+            >
+              משתמש אחר
             </button>
           </form>
         )}

@@ -13,6 +13,7 @@ import {
   isActivePaymentMethod,
   isTerminalBillingSession,
 } from './billing.mappers';
+import { notifyBusinessAccessChanged } from './accessEvents';
 import type { PaymentMethodSummary } from './billing.types';
 import { getBusinessSubscriptionPlan, updateBusinessSettings } from '../settings/settings.api';
 import type { SubscriptionPlan } from '../usage/planPricing';
@@ -131,6 +132,7 @@ export default function SavePaymentMethodModal({
             }
           }
           setFlow('saved');
+          notifyBusinessAccessChanged(businessCode);
           await onSaved();
           return;
         }

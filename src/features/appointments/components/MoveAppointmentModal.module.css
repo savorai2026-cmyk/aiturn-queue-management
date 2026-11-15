@@ -1,6 +1,6 @@
 .overlay {
   z-index: 9999;
-  background-color: rgba(7, 48, 75, 0.48);
+  background-color: var(--color-overlay);
   backdrop-filter: blur(2px);
 }
 
@@ -30,7 +30,7 @@
 }
 
 .lead strong {
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
 }
 
 .details {
@@ -92,18 +92,18 @@
 }
 
 .note {
-  background: #ecfdf8;
-  color: var(--color-navy-900);
+  background: var(--color-info-bg);
+  color: var(--color-ink-900);
 }
 
 .warning {
-  background: #fff7ed;
-  color: #9a3412;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-ink);
 }
 
 .error {
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-ink);
 }
 
 .actions {
@@ -116,42 +116,12 @@
   border-top: 1px solid var(--color-line);
 }
 
-.btnCancel,
-.btnSave {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-width: 104px;
-  padding: 10px 22px;
-  border-radius: 7px;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
 .btnCancel {
-  border: 1px solid var(--color-line);
-  background: var(--color-surface);
-  color: var(--color-text-muted);
-}
-
-.btnCancel:hover:not(:disabled) {
-  background: #f4f8f9;
+  composes: btn btn-neutral from global;
+  min-width: 96px;
 }
 
 .btnSave {
-  border: 0;
-  background: var(--color-teal-600);
-  color: #ffffff;
-}
-
-.btnSave:hover:not(:disabled) {
-  background: #0f766e;
-}
-
-.btnSave:disabled,
-.btnCancel:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
+  composes: btn btn-primary from global;
+  min-width: 96px;
 }

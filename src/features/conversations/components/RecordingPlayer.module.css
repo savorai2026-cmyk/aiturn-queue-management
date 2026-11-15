@@ -28,7 +28,7 @@
   border: 1px solid var(--color-line);
   border-radius: 7px;
   background: var(--color-teal-100);
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
   font: inherit;
   font-size: 12px;
   font-weight: 700;
@@ -79,7 +79,7 @@
   border: 2px solid #ffffff;
   border-radius: 50%;
   background: #0f766e;
-  box-shadow: 0 0 0 1px #99f6e4;
+  box-shadow: 0 0 0 1px var(--color-ink-800);
 }
 
 .seek::-moz-range-track {
@@ -130,7 +130,7 @@
 .volume {
   display: grid;
   gap: 6px;
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
   font-size: 12px;
   font-weight: 700;
 }
@@ -145,7 +145,7 @@
   border: 1px solid var(--color-line);
   border-radius: 7px;
   background: var(--color-teal-100);
-  color: var(--color-navy-900);
+  color: var(--color-ink-900);
   font: inherit;
   font-size: 12px;
   font-weight: 700;
@@ -167,7 +167,7 @@
   position: absolute;
   top: calc(100% + 4px);
   left: 6px;
-  color: #b91c1c;
+  color: var(--color-danger-ink);
   font-size: 12px;
   font-weight: 600;
 }
