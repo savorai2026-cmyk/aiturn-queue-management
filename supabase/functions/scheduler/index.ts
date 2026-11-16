@@ -95,8 +95,33 @@ function buildUpstream(
   return {
     url: `${root}/${action}`,
     method: 'POST' as const,
-    body: JSON.stringify(payload),
+    body: JSON.stringify(dashboardPayload(payload, queryValue(payload, 'business_code'))),
   };
+}
+
+const DASHBOARD_FIELDS = [
+  'client_phone',
+  'client_name',
+  'service_id',
+  'appointment_time',
+  'current_appointment_time',
+  'new_appointment_time',
+  'duration',
+  'date',
+  'action',
+  'force_booking',
+  'owner_approved_move',
+] as const;
+
+function dashboardPayload(
+  payload: Record<string, unknown>,
+  businessCode: string,
+) {
+  const body: Record<string, unknown> = { business_code: businessCode };
+  for (const key of DASHBOARD_FIELDS) {
+    if (payload[key] !== undefined) body[key] = payload[key];
+  }
+  return body;
 }
 
 function vapiResultText(body: Record<string, unknown>) {

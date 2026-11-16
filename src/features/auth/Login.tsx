@@ -16,6 +16,7 @@ import {
 import { getPasswordResetErrorMessage } from '../../shared/errors';
 import { passwordRuleError } from '../settings/passwordRules';
 import TermsConsent from './TermsConsent';
+import { rememberMfaOffer } from './AccountFollowups';
 import {
   TERMS_ACCEPTANCE_REQUIRED_MESSAGE,
   forgetPendingTermsAcceptance,
@@ -36,6 +37,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [offerMfa, setOfferMfa] = useState(false);
   const [termsError, setTermsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -134,6 +136,7 @@ export default function Login() {
         return;
       }
 
+      if (offerMfa) rememberMfaOffer();
       const result = await signUpWithEmail({
         email: trimmedEmail,
         password,
@@ -330,6 +333,14 @@ export default function Login() {
                     setErrorMessage(TERMS_ACCEPTANCE_REQUIRED_MESSAGE);
                   }}
                 />
+                <label className={styles.hint}>
+                  <input
+                    type="checkbox"
+                    checked={offerMfa}
+                    onChange={(event) => setOfferMfa(event.target.checked)}
+                  />
+                  {' '}להציע לי להפעיל אימות דו-שלבי אחרי ההרשמה
+                </label>
               </>
             ) : null}
 

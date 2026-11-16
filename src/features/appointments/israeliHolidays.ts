@@ -91,6 +91,24 @@ function formatIsraeliHoliday(event: Event): string | null {
   return null;
 }
 
+const AGENT_CLOSED_LABELS = new Set([
+  'פסח · יום טוב',
+  'שבועות',
+  'שמיני עצרת',
+  'שמחת תורה',
+  'ראש השנה',
+  'יום כיפור',
+  'סוכות · יום טוב',
+  'יום הזיכרון',
+  'יום העצמאות',
+  'תשעה באב',
+]);
+
+export function isAgentClosedHoliday(dateKey: string): boolean {
+  const label = getIsraeliHolidayLabelForKey(dateKey);
+  return label !== null && AGENT_CLOSED_LABELS.has(label);
+}
+
 export function getIsraeliHolidayLabel(date: Date): string | null {
   return getIsraeliHolidayLabelForKey(toDateKey(date));
 }

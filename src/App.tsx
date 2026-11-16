@@ -11,6 +11,12 @@ import { leaveCachedAccount } from './features/auth/auth.api';
 import { useAuth } from './features/auth/AuthContextState';
 import { AuthProvider } from './features/auth/AuthProvider';
 import Login from './features/auth/Login';
+import {
+  MfaSignupOffer,
+  MustChangePassword,
+  mfaOfferPending,
+  mustChangePassword,
+} from './features/auth/AccountFollowups';
 import MfaChallenge from './features/auth/MfaChallenge';
 import TermsAcceptance from './features/auth/TermsAcceptance';
 import { needsTermsAcceptance } from './features/auth/termsOfUse';
@@ -194,6 +200,14 @@ function AppContent() {
 
   if (needsTermsAcceptance(session.user)) {
     return <TermsAcceptance />;
+  }
+
+  if (mustChangePassword(session.user)) {
+    return <MustChangePassword />;
+  }
+
+  if (mfaOfferPending()) {
+    return <MfaSignupOffer />;
   }
 
   return (

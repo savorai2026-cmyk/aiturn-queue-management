@@ -277,6 +277,36 @@ export function weekdayKeyFromDateKey(dateKey: string): WeekdayKey | null {
   return WEEKDAY_KEYS[date.getDay()] ?? null;
 }
 
+function clockMinutes(value: string | null | undefined) {
+  const [hours, minutes] = String(value || '').slice(0, 5).split(':').map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return hours * 60 + minutes;
+}
+
+export function appointmentFitsWorkingHours(
+  workingHours: unknown,
+  dateKey: string,
+  startTime: string,
+  endTime: string | null,
+) {
+  const day = resolveWorkingDay(
+    parseWorkingHours(workingHours),
+    parseWorkingHourExceptions(workingHours),
+    dateKey,
+  );
+  if (!day || day.is_closed || !day.shifts) return false;
+  const start = clockMinutes(startTime);
+  if (start === null) return true;
+  const end = clockMinutes(endTime);
+  return day.shifts.some((shift) => {
+    const shiftStart = clockMinutes(shift.start);
+    const shiftEnd = clockMinutes(shift.end);
+    if (shiftStart === null || shiftEnd === null) return false;
+    if (end !== null && end > start) return shiftStart <= start && end <= shiftEnd;
+    return shiftStart <= start && start < shiftEnd;
+  });
+}
+
 export function resolveWorkingDay(
   workingHours: WorkingHours | null,
   exceptions: WorkingHourException[],

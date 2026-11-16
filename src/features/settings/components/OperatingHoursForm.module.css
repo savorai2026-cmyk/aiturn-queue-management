@@ -1,3 +1,24 @@
+.closurePrompt {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-warning-ink, #92400e);
+  border-radius: var(--radius-control, 7px);
+  background: var(--color-warning-bg, #fff7ed);
+}
+
+.closurePrompt ul {
+  margin: 0;
+  padding-inline-start: 18px;
+}
+
+.closureActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .container {
   display: grid;
   gap: 28px;

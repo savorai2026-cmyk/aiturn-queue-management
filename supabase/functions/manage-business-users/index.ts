@@ -38,9 +38,14 @@ function allowedRedirect(value: string): string | null {
   try {
     const url = new URL(value);
     const local = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+    const configured = (Deno.env.get('APP_PUBLIC_ORIGINS') || '')
+      .split(',')
+      .map((item) => item.trim().replace(/\/$/, ''))
+      .filter(Boolean);
     const live =
       url.origin === 'https://featurn-web-43062247540.europe-west1.run.app' ||
-      url.origin === 'https://featurn-web-myjhxnlceq-ew.a.run.app';
+      url.origin === 'https://featurn-web-myjhxnlceq-ew.a.run.app' ||
+      configured.includes(url.origin);
     if (!local && !live) return null;
     return `${url.origin}/`;
   } catch {
@@ -188,6 +193,10 @@ Deno.serve(async (request) => {
     const userId = invited.user.id;
     const { error: passwordError } = await admin.auth.admin.updateUserById(userId, {
       password,
+      user_metadata: {
+        ...(invited.user.user_metadata ?? {}),
+        must_change_password: true,
+      },
     });
     if (passwordError) {
       await admin.auth.admin.deleteUser(userId);

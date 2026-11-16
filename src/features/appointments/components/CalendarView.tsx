@@ -50,6 +50,7 @@ import {
 import { allowCalendarEventOverlap } from '../calendarGrouping';
 import {
   getIsraeliHolidaysInRange,
+  isAgentClosedHoliday,
 } from '../israeliHolidays';
 import {
   ErrorState,
@@ -176,6 +177,7 @@ function isClosedCalendarDay(
 ) {
   const exception = exceptions.find((item) => item.date === dateKey);
   if (exception) return exception.is_closed;
+  if (isAgentClosedHoliday(dateKey)) return true;
   if (!workingHours) return false;
   const day = resolveWorkingDay(workingHours, exceptions, dateKey);
   return !day || day.is_closed === true;

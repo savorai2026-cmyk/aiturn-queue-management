@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { supabase } from '../../../supabaseClient';
 import { updateOperatingHours } from '../settings.api';
 import type { BusinessSettings } from '../settings.types';
 import {
@@ -7,6 +8,7 @@ import {
   suggestNextShift,
   toSpecialDayDrafts,
   toWorkingDayDrafts,
+  appointmentFitsWorkingHours,
   toWorkingHoursPayload,
   validateWorkingDayDrafts,
   expandSpecialDayDrafts,
@@ -33,6 +35,39 @@ interface OperatingHoursFormProps {
   business: BusinessSettings;
   readOnly?: boolean;
   onSaved: () => Promise<void>;
+}
+
+async function appointmentsClosedByHours(
+  businessCode: string,
+  timezone: string | null,
+  previousHours: unknown,
+  nextHours: unknown,
+) {
+  const today = toDateKey(nowInTimeZone(timezone));
+  const now = nowInTimeZone(timezone);
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('id, appointment_date, start_time, end_time, status')
+    .eq('business_code', businessCode)
+    .gte('appointment_date', today)
+    .in('status', ['01', '02', '04']);
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).flatMap((row) => {
+    const date = String(row.appointment_date);
+    const start = String(row.start_time).slice(0, 5);
+    const [hours, minutes] = start.split(':').map(Number);
+    const startsAt = new Date(now);
+    const [year, month, day] = date.split('-').map(Number);
+    startsAt.setFullYear(year, month - 1, day);
+    startsAt.setHours(hours || 0, minutes || 0, 0, 0);
+    if (startsAt <= now) return [];
+    const end = row.end_time ? String(row.end_time).slice(0, 5) : null;
+    const wasInside = appointmentFitsWorkingHours(previousHours, date, start, end);
+    const staysInside = appointmentFitsWorkingHours(nextHours, date, start, end);
+    if (!wasInside || staysInside) return [];
+    return [`${date.split('-').reverse().join('.')} ${start}`];
+  });
 }
 
 function SaveHoursButton({
@@ -111,6 +146,7 @@ export default function OperatingHoursForm({
       : String(business.max_adv_booking_days),
   );
   const [isSaving, setIsSaving] = useState(false);
+  const [pendingClosures, setPendingClosures] = useState<string[] | null>(null);
   const [message, setMessage] = useState<{
     text: string;
     type: 'success' | 'error';
@@ -183,7 +219,7 @@ export default function OperatingHoursForm({
     );
   };
 
-  const handleSave = async () => {
+  const handleSave = async (confirmed = false) => {
     if (!hasChanges || isSaving) return;
     setMessage(null);
 
@@ -213,14 +249,29 @@ export default function OperatingHoursForm({
       return;
     }
 
+    const nextHours = toWorkingHoursPayload(
+      days,
+      expandSpecialDayDrafts(specialDays),
+    ) as BusinessSettings['working_hours'];
+
     setIsSaving(true);
 
     try {
+      if (!confirmed) {
+        const closures = await appointmentsClosedByHours(
+          business.business_code,
+          business.timezone,
+          business.working_hours,
+          nextHours,
+        );
+        if (closures.length > 0) {
+          setPendingClosures(closures);
+          return;
+        }
+      }
+      setPendingClosures(null);
       await updateOperatingHours(business.business_code, {
-        working_hours: toWorkingHoursPayload(
-          days,
-          expandSpecialDayDrafts(specialDays),
-        ) as BusinessSettings['working_hours'],
+        working_hours: nextHours,
         max_adv_booking_days: parsedBookingDays,
       });
       await onSaved();
@@ -238,7 +289,26 @@ export default function OperatingHoursForm({
     }
   };
 
-  const save = () => void handleSave();
+  const save = () => void handleSave(false);
+
+  const closurePrompt = pendingClosures ? (
+    <div className={styles.closurePrompt} role="alert">
+      <strong>השמירה תבטל {pendingClosures.length} תורים שלא נכנסים לשעות החדשות:</strong>
+      <ul>
+        {pendingClosures.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+      <div className={styles.closureActions}>
+        <button type="button" onClick={() => setPendingClosures(null)} disabled={isSaving}>
+          חזרה בלי שמירה
+        </button>
+        <button type="button" onClick={() => void handleSave(true)} disabled={isSaving}>
+          לאשר ולבטל את התורים
+        </button>
+      </div>
+    </div>
+  ) : null;
 
   const status = message ? (
     <p className={styles[message.type]} role="status">
@@ -282,6 +352,7 @@ export default function OperatingHoursForm({
         <p className={styles.hint}>צפייה בלבד. רק בעלים או מנהל יכולים לשנות כאן.</p>
       ) : (
         <div className={styles.stickyBar}>
+          {closurePrompt}
           {status}
           <SaveHoursButton
             isSaving={isSaving}
