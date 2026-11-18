@@ -2,6 +2,21 @@ export function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+export const BUSINESS_PHONE_TAKEN_MESSAGE =
+  'מספר הטלפון כבר רשום לעסק אחר. השתמשו במספר אחר.';
+
+export function isBusinessPhoneTakenError(error: unknown): boolean {
+  return (
+    errorIncludes(error, 'מספר הטלפון כבר משויך') ||
+    errorIncludes(error, 'מספר הטלפון כבר רשום')
+  );
+}
+
+export function getBusinessSaveErrorMessage(error: unknown, fallback: string): string {
+  if (isBusinessPhoneTakenError(error)) return BUSINESS_PHONE_TAKEN_MESSAGE;
+  return fallback;
+}
+
 export function errorIncludes(error: unknown, fragment: string): boolean {
   return getErrorMessage(error).toLowerCase().includes(fragment.toLowerCase());
 }

@@ -5,6 +5,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { getBusinessSaveErrorMessage } from '../../shared/errors';
 import {
   createBusiness as createBusinessRequest,
   getBusinessMemberships,
@@ -142,7 +143,12 @@ export function BusinessProvider({ userId, children }: BusinessProviderProps) {
         await createBusinessRequest({ businessName, contactPhone });
       } catch (requestError) {
         console.error('שגיאה ביצירת העסק:', requestError);
-        setCreateError('לא ניתן ליצור את העסק. בדוק את הפרטים ונסה שוב.');
+        setCreateError(
+          getBusinessSaveErrorMessage(
+            requestError,
+            'לא ניתן ליצור את העסק. בדוק את הפרטים ונסה שוב.',
+          ),
+        );
         setIsCreating(false);
         return;
       }

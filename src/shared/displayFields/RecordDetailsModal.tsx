@@ -73,9 +73,11 @@ export default function RecordDetailsModal({
         aria-modal="true"
         aria-labelledby="record-details-title"
       >
-        <h2 id="record-details-title" className={styles.title}>
-          {title}
-        </h2>
+        <header className={styles.header}>
+          <h2 id="record-details-title" className={styles.title}>
+            {title}
+          </h2>
+        </header>
         <div className={modal.scroll}>
           {sections ? (
             <div className={styles.groups}>
@@ -90,9 +92,11 @@ export default function RecordDetailsModal({
             <DetailRows rows={rows} />
           )}
         </div>
-        <button type="button" className={styles.close} onClick={onClose}>
-          סגור
-        </button>
+        <footer className={styles.footer}>
+          <button type="button" className={styles.close} onClick={onClose}>
+            סגור
+          </button>
+        </footer>
       </section>
     </div>
   );

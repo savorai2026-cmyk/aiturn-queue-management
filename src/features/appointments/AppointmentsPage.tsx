@@ -37,6 +37,7 @@ import { cancelAppointment, rescheduleAppointment } from './scheduler.api';
 import { useAppointments, useCalendarSettings } from './useAppointments';
 import { canEditRecords, useBusiness } from '../business/BusinessContextState';
 import { getAppointmentSaveErrorMessage, getErrorMessage } from '../../shared/errors';
+import { useReportPageReady } from '../../shared/components/PageState';
 import {
   BanIcon,
   CalendarIcon,
@@ -52,6 +53,7 @@ import type {
 
 interface AppointmentsPageProps {
   businessCode: string;
+  onReady?: () => void;
 }
 
 function formatMoveMoment(start: Date, end: Date | null) {
@@ -124,9 +126,11 @@ function toMovedEditValues(
 
 export default function AppointmentsPage({
   businessCode,
+  onReady,
 }: AppointmentsPageProps) {
   const { appointments, statuses, events, error, isLoading, refresh } =
     useAppointments(businessCode);
+  useReportPageReady(!isLoading || Boolean(error), onReady);
   const calendarSettings = useCalendarSettings(businessCode);
   const timezone = calendarSettings.data.timezone;
   const { activeBusiness } = useBusiness();
@@ -514,6 +518,8 @@ export default function AppointmentsPage({
             maxAdvBookingDays={calendarSettings.data.maxAdvBookingDays}
             timezone={timezone}
             canEdit={canEdit}
+            statuses={statuses}
+            visibleFields={visibleFieldsFor('appointments')}
           />
         </div>
       </main>

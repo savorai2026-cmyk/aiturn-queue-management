@@ -10,8 +10,9 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import heLocale from '@fullcalendar/core/locales/he';
-import { isCanceledStatus } from '../appointmentStatuses';
+import { isCanceledStatus, type StatusCatalogItem } from '../appointmentStatuses';
 import type { AppointmentDetails, CalendarEventProps } from '../appointments.types';
+import AppointmentHoverCard, { type HoverAnchor } from './AppointmentHoverCard';
 import {
   getCalendarSlotRange,
   getBookingRangeEndExclusive,
@@ -168,6 +169,8 @@ interface CalendarViewProps {
   maxAdvBookingDays: number | null;
   timezone: string | null;
   canEdit: boolean;
+  statuses: StatusCatalogItem[];
+  visibleFields: string[];
 }
 
 function isClosedCalendarDay(
@@ -333,6 +336,8 @@ export default function CalendarView({
   maxAdvBookingDays,
   timezone,
   canEdit,
+  statuses,
+  visibleFields,
 }: CalendarViewProps) {
   const getNow = useCallback(() => nowInTimeZone(timezone), [timezone]);
   const calendarRef = useRef<FullCalendar | null>(null);
@@ -348,6 +353,17 @@ export default function CalendarView({
     const start = storedLocation?.date ?? toDateKey(getNow());
     return { start, end: start };
   });
+  const [appointmentTip, setAppointmentTip] = useState<{
+    appointmentId: number;
+    anchor: HoverAnchor;
+  } | null>(null);
+  const tipTimerRef = useRef<number | null>(null);
+  const tipShownIdRef = useRef<number | null>(null);
+  const tipPendingIdRef = useRef<number | null>(null);
+  const hideAppointmentTipRef = useRef<() => void>(() => {});
+  const moveAppointmentTipRef = useRef<
+    (props: CalendarEventProps, element: HTMLElement, clientY: number) => void
+  >(() => {});
   const dragTooltipRef = useRef<HTMLDivElement | null>(null);
   const dragGhostRef = useRef<HTMLDivElement | null>(null);
   const dragOriginRef = useRef<DragOrigin | null>(null);
@@ -910,6 +926,71 @@ export default function CalendarView({
     onSelectedSlotContextMenu,
   ]);
 
+  const hideAppointmentTip = useCallback(() => {
+    if (tipTimerRef.current != null) {
+      window.clearTimeout(tipTimerRef.current);
+      tipTimerRef.current = null;
+    }
+    tipPendingIdRef.current = null;
+    tipShownIdRef.current = null;
+    setAppointmentTip(null);
+  }, []);
+
+  const moveAppointmentTip = useCallback(
+    (props: CalendarEventProps, element: HTMLElement, clientY: number) => {
+      if (document.body.classList.contains('featurn-is-event-dragging')) {
+        hideAppointmentTip();
+        return;
+      }
+      const target = appointmentAtPointer(props, element, clientY);
+      if (tipShownIdRef.current === target.appointmentId) return;
+      if (tipPendingIdRef.current === target.appointmentId && tipTimerRef.current != null) {
+        return;
+      }
+      if (tipTimerRef.current != null) {
+        window.clearTimeout(tipTimerRef.current);
+      }
+      const rect = element.getBoundingClientRect();
+      const anchor = {
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        left: rect.left,
+      };
+      tipPendingIdRef.current = target.appointmentId;
+      tipTimerRef.current = window.setTimeout(() => {
+        tipTimerRef.current = null;
+        tipPendingIdRef.current = null;
+        tipShownIdRef.current = target.appointmentId;
+        setAppointmentTip({ appointmentId: target.appointmentId, anchor });
+      }, 420);
+    },
+    [hideAppointmentTip],
+  );
+
+  hideAppointmentTipRef.current = hideAppointmentTip;
+  moveAppointmentTipRef.current = moveAppointmentTip;
+
+  useEffect(() => {
+    const hide = () => hideAppointmentTip();
+    window.addEventListener('scroll', hide, true);
+    window.addEventListener('resize', hide);
+    return () => {
+      window.removeEventListener('scroll', hide, true);
+      window.removeEventListener('resize', hide);
+      hide();
+    };
+  }, [hideAppointmentTip]);
+
+  useEffect(() => {
+    if (isLoading || error) return;
+    const root = rootRef.current;
+    if (!root) return;
+    const hide = () => hideAppointmentTip();
+    root.addEventListener('scroll', hide, true);
+    return () => root.removeEventListener('scroll', hide, true);
+  }, [error, hideAppointmentTip, isLoading]);
+
   useEffect(() => {
     const root = rootRef.current;
     if (!root || !canEdit) return;
@@ -1216,6 +1297,7 @@ export default function CalendarView({
 
   const startDragTracking = useCallback(
     (info: { event: EventApi; jsEvent: MouseEvent }) => {
+      hideAppointmentTipRef.current();
       const start = info.event.start;
       const props = info.event.extendedProps as CalendarEventProps;
       dropHandledRef.current = false;
@@ -1328,6 +1410,10 @@ export default function CalendarView({
   if (error) {
     return <ErrorState message={error} onRetry={onRetry} />;
   }
+
+  const hoveredAppointment = appointmentTip
+    ? appointments.find((candidate) => candidate.id === appointmentTip.appointmentId) ?? null
+    : null;
 
   return (
     <div className={styles.calendarShell} ref={rootRef}>
@@ -1510,9 +1596,6 @@ export default function CalendarView({
           const props = info.event.extendedProps as CalendarEventProps & {
             specialDayLabel?: boolean;
           };
-          if (props?.tooltip) {
-            info.el.title = props.tooltip;
-          }
           if (props?.specialDayLabel || props?.appointmentId == null) return;
           const onMenu = (event: Event) => {
             event.preventDefault();
@@ -1535,25 +1618,48 @@ export default function CalendarView({
               onEventDoubleClickRef.current?.(appointment, target.serviceId);
             }
           };
+          const onHover = (event: Event) => {
+            const mouse = event as MouseEvent;
+            moveAppointmentTipRef.current(props, info.el, mouse.clientY);
+          };
+          const onHoverEnd = () => hideAppointmentTipRef.current();
+          info.el.addEventListener('mouseenter', onHover);
+          info.el.addEventListener('mousemove', onHover);
+          info.el.addEventListener('mouseleave', onHoverEnd);
+          info.el.addEventListener('pointerdown', onHoverEnd);
           info.el.addEventListener('contextmenu', onMenu);
           info.el.addEventListener('dblclick', onDoubleClick);
           const marked = info.el as HTMLElement & {
             __appointmentMenu?: (event: Event) => void;
             __appointmentDoubleClick?: (event: Event) => void;
+            __appointmentHover?: (event: Event) => void;
+            __appointmentHoverEnd?: () => void;
           };
           marked.__appointmentMenu = onMenu;
           marked.__appointmentDoubleClick = onDoubleClick;
+          marked.__appointmentHover = onHover;
+          marked.__appointmentHoverEnd = onHoverEnd;
         }}
         eventWillUnmount={(info) => {
           const el = info.el as HTMLElement & {
             __appointmentMenu?: (event: Event) => void;
             __appointmentDoubleClick?: (event: Event) => void;
+            __appointmentHover?: (event: Event) => void;
+            __appointmentHoverEnd?: () => void;
           };
           if (el.__appointmentMenu) {
             info.el.removeEventListener('contextmenu', el.__appointmentMenu);
           }
           if (el.__appointmentDoubleClick) {
             info.el.removeEventListener('dblclick', el.__appointmentDoubleClick);
+          }
+          if (el.__appointmentHover) {
+            info.el.removeEventListener('mouseenter', el.__appointmentHover);
+            info.el.removeEventListener('mousemove', el.__appointmentHover);
+          }
+          if (el.__appointmentHoverEnd) {
+            info.el.removeEventListener('mouseleave', el.__appointmentHoverEnd);
+            info.el.removeEventListener('pointerdown', el.__appointmentHoverEnd);
           }
         }}
         eventContent={(arg: EventContentArg) => {
@@ -1564,7 +1670,7 @@ export default function CalendarView({
           const props = arg.event.extendedProps as CalendarEventProps;
 
           return (
-            <div className={styles.eventInner} title={props.tooltip}>
+            <div className={styles.eventInner}>
               {props.timeLabel ? (
                 <span className={styles.eventTime}>{props.timeLabel}</span>
               ) : null}
@@ -1613,6 +1719,15 @@ export default function CalendarView({
       >
         <DragEdgeChevron direction="next" />
       </div>
+
+      {hoveredAppointment && appointmentTip ? (
+        <AppointmentHoverCard
+          appointment={hoveredAppointment}
+          statuses={statuses}
+          visibleFields={visibleFields}
+          anchor={appointmentTip.anchor}
+        />
+      ) : null}
 
       <div ref={dragTooltipRef} className={styles.dragTooltip} />
       <div ref={dragGhostRef} className={styles.dragGhost} />

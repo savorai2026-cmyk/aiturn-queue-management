@@ -17,7 +17,12 @@ import {
 } from '../settings.api';
 import ArrivalAddressField from './ArrivalAddressField';
 import StorageUsageMeter from './StorageUsageMeter';
-import { getAgentPromptRewriteErrorMessage, getErrorMessage } from '../../../shared/errors';
+import {
+  BUSINESS_PHONE_TAKEN_MESSAGE,
+  getAgentPromptRewriteErrorMessage,
+  getErrorMessage,
+  isBusinessPhoneTakenError,
+} from '../../../shared/errors';
 import {
   formatServiceCell,
   formatStatusCell,
@@ -64,6 +69,7 @@ import PaymentMethodSettings from '../../billing/PaymentMethodSettings';
 import {
   ErrorState,
   LoadingState,
+  useReportPageReady,
 } from '../../../shared/components/PageState';
 import DisplayToolbar from '../../../shared/displayFields/DisplayToolbar';
 import RecordDetailsModal from '../../../shared/displayFields/RecordDetailsModal';
@@ -145,6 +151,7 @@ function readStoredSettingsTab(businessCode: string): SettingsTab {
 interface SettingsProps {
   businessCode: string;
   onBusinessUpdated: () => Promise<void>;
+  onReady?: () => void;
 }
 
 function SettingsTabs({
@@ -212,12 +219,14 @@ function SettingsTabs({
 export default function Settings({
   businessCode,
   onBusinessUpdated,
+  onReady,
 }: SettingsProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>(() =>
     readStoredSettingsTab(businessCode),
   );
   const { business, services, statuses, error, isLoading, refresh } =
     useSettings(businessCode);
+  useReportPageReady(!(isLoading && !business) || Boolean(error), onReady);
   const { activeBusiness } = useBusiness();
   const isOwner = activeBusiness?.role === 'owner';
   const canManage = canManageBusiness(activeBusiness?.role);
@@ -522,9 +531,11 @@ function BusinessProfileForm({
       });
     } catch (error) {
       console.error('שגיאה בשמירת פרטי עסק:', error);
-      const text = error instanceof Error && error.message
-        ? error.message
-        : 'לא ניתן לשמור את פרטי העסק.';
+      const text = isBusinessPhoneTakenError(error)
+        ? BUSINESS_PHONE_TAKEN_MESSAGE
+        : error instanceof Error && error.message
+          ? error.message
+          : 'לא ניתן לשמור את פרטי העסק.';
       setMessage({ text, type: 'error' });
     } finally {
       setIsSaving(false);
@@ -1042,6 +1053,10 @@ function BusinessConfigForm({
       });
     } catch (error) {
       console.error('שגיאה בשמירת הגדרות עסק:', error);
+      if (isBusinessPhoneTakenError(error)) {
+        setMessage({ text: BUSINESS_PHONE_TAKEN_MESSAGE, type: 'error' });
+        return;
+      }
       if (error instanceof MissingAgentVoiceColumnError) {
         await onSaved();
         setMessage({

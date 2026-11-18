@@ -1,3 +1,4 @@
+import { useReportPageReady } from '../../../shared/components/PageState';
 import { usePlanMeters } from '../../settings/useBusinessStorage';
 import PriceList from './PriceList';
 import { tariffHasOverride, usePlanTariffs } from '../tariffs.api';
@@ -7,13 +8,16 @@ interface UsagePageProps {
   businessCode: string;
   onOpenStorageSettings?: () => void;
   onOpenPlanSettings?: () => void;
+  onReady?: () => void;
 }
 
 export default function UsagePage({
   businessCode,
   onOpenStorageSettings,
   onOpenPlanSettings,
+  onReady,
 }: UsagePageProps) {
+  useReportPageReady(true, onReady);
   const meters = usePlanMeters(businessCode);
   const tariffs = usePlanTariffs(businessCode);
 

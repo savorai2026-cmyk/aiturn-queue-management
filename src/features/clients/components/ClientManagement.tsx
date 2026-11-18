@@ -17,6 +17,7 @@ import { useClients } from '../useClients';
 import {
   ErrorState,
   LoadingState,
+  useReportPageReady,
 } from '../../../shared/components/PageState';
 import {
   ChevronLeftIcon,
@@ -48,6 +49,7 @@ import styles from './ClientManagement.module.css';
 
 interface ClientManagementProps {
   businessCode: string;
+  onReady?: () => void;
 }
 
 const CLIENT_PAGE_SIZE = 100;
@@ -123,8 +125,12 @@ const CLIENT_SELECT_OPTIONS = {
   ],
 };
 
-export default function ClientManagement({ businessCode }: ClientManagementProps) {
+export default function ClientManagement({
+  businessCode,
+  onReady,
+}: ClientManagementProps) {
   const { clients, error, isLoading, refresh } = useClients(businessCode);
+  useReportPageReady(!isLoading || Boolean(error), onReady);
   const { visibleFieldsFor, toggleField, reorderFields } = useUiPreferences(businessCode);
   const { activeBusiness } = useBusiness();
   const canEdit = canEditRecords(activeBusiness?.role);

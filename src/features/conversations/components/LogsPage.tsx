@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ErrorState,
   LoadingState,
+  useReportPageReady,
 } from '../../../shared/components/PageState';
 import { DateField } from '../../../shared/components/DateField';
 import DisplayToolbar from '../../../shared/displayFields/DisplayToolbar';
@@ -46,6 +47,7 @@ import styles from './LogsPage.module.css';
 
 interface LogsPageProps {
   businessCode: string;
+  onReady?: () => void;
 }
 
 /** Column filters and sort run in the browser, so they scan this many rows of the period. */
@@ -126,7 +128,7 @@ const LOG_SELECT_OPTIONS = {
   ],
 };
 
-export default function LogsPage({ businessCode }: LogsPageProps) {
+export default function LogsPage({ businessCode, onReady }: LogsPageProps) {
   const [draft, setDraft] = useState<LogLookup>(defaultLogLookup);
   const [lookup, setLookup] = useState<LogLookup>(defaultLogLookup);
   const [page, setPage] = useState(0);
@@ -149,6 +151,10 @@ export default function LogsPage({ businessCode }: LogsPageProps) {
     hasTableControls ? 0 : page,
     hasTableControls ? FILTER_SCAN_LIMIT : pageSize,
     lookup,
+  );
+  useReportPageReady(
+    Boolean(error) || !(isLoading && result.logs.length === 0),
+    onReady,
   );
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);

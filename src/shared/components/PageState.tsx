@@ -1,5 +1,16 @@
+import { useEffect, useRef } from 'react';
 import { QLoader } from './QLoader';
 import styles from './PageState.module.css';
+
+export function useReportPageReady(ready: boolean, onReady?: () => void) {
+  const reported = useRef(false);
+
+  useEffect(() => {
+    if (!ready || reported.current) return;
+    reported.current = true;
+    onReady?.();
+  }, [onReady, ready]);
+}
 
 export function LoadingState({ message }: { message: string }) {
   return (

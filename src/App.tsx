@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AppTab } from './app/navigation';
 import { readAppTab, writeAppTab } from './app/uiLocation';
 import TopBar from './app/components/TopBar';
@@ -34,6 +34,22 @@ function LoadingScreen({ message }: { message: string }) {
   return <WaitingOverlay message={message} />;
 }
 
+const PAGE_LOADING_MESSAGE: Record<AppTab, string> = {
+  calendar: 'טוען תורים...',
+  clients: 'טוען לקוחות...',
+  settings: 'טוען הגדרות...',
+  logs: 'טוען לוגים...',
+  usage: 'טוען...',
+};
+
+function splitPageKey(key: string) {
+  const index = key.indexOf(':');
+  return {
+    tab: key.slice(0, index) as AppTab,
+    code: key.slice(index + 1),
+  };
+}
+
 interface AuthenticatedAppProps {
   userEmail?: string;
   onLogout: () => void;
@@ -49,11 +65,40 @@ function AuthenticatedApp({ userEmail, onLogout, onSwitchUser }: AuthenticatedAp
     setActiveBusiness,
     refreshBusinesses,
   } = useBusiness();
-  const [activeTab, setActiveTab] = useState<AppTab>(readAppTab);
+  const [requestedTab, setRequestedTab] = useState<AppTab>(readAppTab);
+  const [visibleKey, setVisibleKey] = useState<string | null>(null);
+  const [showBubble, setShowBubble] = useState(false);
+  const businessCode = activeBusiness?.businessCode ?? '';
+  const requestedKey = businessCode ? `${requestedTab}:${businessCode}` : '';
+  const requestedKeyRef = useRef(requestedKey);
+  requestedKeyRef.current = requestedKey;
+  const switching = Boolean(requestedKey) && visibleKey !== requestedKey;
 
   useEffect(() => {
-    writeAppTab(activeTab);
-  }, [activeTab]);
+    writeAppTab(requestedTab);
+  }, [requestedTab]);
+
+  useEffect(() => {
+    if (!switching) {
+      setShowBubble(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setShowBubble(true), 150);
+    return () => window.clearTimeout(timer);
+  }, [requestedKey, switching]);
+
+  useEffect(() => {
+    if (!visibleKey) return;
+    const frame = window.requestAnimationFrame(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [visibleKey]);
+
+  const markReady = useCallback((key: string) => {
+    if (key !== requestedKeyRef.current) return;
+    setVisibleKey(key);
+  }, []);
 
   const openBusinessSettings = (target: 'cloud-storage' | 'subscription-plan') => {
     if (!activeBusiness) return;
@@ -63,7 +108,7 @@ function AuthenticatedApp({ userEmail, onLogout, onSwitchUser }: AuthenticatedAp
     } catch {
       /* ignore */
     }
-    setActiveTab('settings');
+    setRequestedTab('settings');
   };
 
   if (isLoading) {
@@ -94,11 +139,73 @@ function AuthenticatedApp({ userEmail, onLogout, onSwitchUser }: AuthenticatedAp
     return <BusinessOnboarding />;
   }
 
+  const visible = visibleKey ? splitPageKey(visibleKey) : null;
+  const shownTab = visible?.tab;
+  const code = activeBusiness.businessCode;
+
+  const renderPage = (tab: AppTab, pageCode: string, hidden: boolean) => (
+    <div
+      key={`${tab}:${pageCode}`}
+      className={hidden ? 'page-slot is-pending' : 'page-slot'}
+      aria-hidden={hidden || undefined}
+    >
+      {tab === 'calendar' ? (
+        <AppointmentsPage
+          businessCode={pageCode}
+          onReady={() => markReady(`${tab}:${pageCode}`)}
+        />
+      ) : null}
+      {tab === 'clients' ? (
+        <main className="feature-area">
+          <ClientManagement
+            businessCode={pageCode}
+            onReady={() => markReady(`${tab}:${pageCode}`)}
+          />
+        </main>
+      ) : null}
+      {tab === 'settings' ? (
+        <main className="feature-area">
+          <Settings
+            businessCode={pageCode}
+            onBusinessUpdated={refreshBusinesses}
+            onReady={() => markReady(`${tab}:${pageCode}`)}
+          />
+        </main>
+      ) : null}
+      {tab === 'logs' ? (
+        <main className="feature-area">
+          <LogsPage
+            businessCode={pageCode}
+            onReady={() => markReady(`${tab}:${pageCode}`)}
+          />
+        </main>
+      ) : null}
+      {tab === 'usage' ? (
+        <main className="feature-area">
+          <UsagePage
+            businessCode={pageCode}
+            onOpenStorageSettings={
+              activeBusiness.role === 'owner'
+                ? () => openBusinessSettings('cloud-storage')
+                : undefined
+            }
+            onOpenPlanSettings={
+              activeBusiness.role === 'owner'
+                ? () => openBusinessSettings('subscription-plan')
+                : undefined
+            }
+            onReady={() => markReady(`${tab}:${pageCode}`)}
+          />
+        </main>
+      ) : null}
+    </div>
+  );
+
   return (
-    <div className={`layout-container${activeTab === 'calendar' ? ' is-page-flow' : ''}`}>
-      <TopBar 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab}
+    <div className={`layout-container${shownTab === 'calendar' ? ' is-page-flow' : ''}`}>
+      <TopBar
+        activeTab={requestedTab}
+        onTabChange={setRequestedTab}
         onLogout={onLogout}
         businessName={activeBusiness.businessName}
         userEmail={userEmail}
@@ -108,67 +215,22 @@ function AuthenticatedApp({ userEmail, onLogout, onSwitchUser }: AuthenticatedAp
       />
 
       <PaymentMethodGate
-        businessCode={activeBusiness.businessCode}
+        businessCode={code}
         role={activeBusiness.role}
       />
 
       <CardAccess
-        businessCode={activeBusiness.businessCode}
+        businessCode={code}
         role={activeBusiness.role}
       >
       <div className="main-content">
-        {activeTab === 'calendar' && (
-          <AppointmentsPage
-            key={activeBusiness.businessCode}
-            businessCode={activeBusiness.businessCode}
-          />
-        )}
-
-        {activeTab === 'clients' && (
-          <main className="feature-area">
-            <ClientManagement
-              key={activeBusiness.businessCode}
-              businessCode={activeBusiness.businessCode}
-            />
-          </main>
-        )}
-
-        {activeTab === 'settings' && (
-          <main className="feature-area">
-            <Settings
-              businessCode={activeBusiness.businessCode}
-              onBusinessUpdated={refreshBusinesses}
-            />
-          </main>
-        )}
-
-        {activeTab === 'logs' && (
-          <main className="feature-area">
-            <LogsPage
-              key={activeBusiness.businessCode}
-              businessCode={activeBusiness.businessCode}
-            />
-          </main>
-        )}
-
-        {activeTab === 'usage' && (
-          <main className="feature-area">
-            <UsagePage
-              key={activeBusiness.businessCode}
-              businessCode={activeBusiness.businessCode}
-              onOpenStorageSettings={
-                activeBusiness.role === 'owner'
-                  ? () => openBusinessSettings('cloud-storage')
-                  : undefined
-              }
-              onOpenPlanSettings={
-                activeBusiness.role === 'owner'
-                  ? () => openBusinessSettings('subscription-plan')
-                  : undefined
-              }
-            />
-          </main>
-        )}
+        {visible && visibleKey !== requestedKey
+          ? renderPage(visible.tab, visible.code, false)
+          : null}
+        {renderPage(requestedTab, code, visibleKey !== requestedKey)}
+        {showBubble ? (
+          <WaitingOverlay message={PAGE_LOADING_MESSAGE[requestedTab]} />
+        ) : null}
       </div>
       </CardAccess>
     </div>
