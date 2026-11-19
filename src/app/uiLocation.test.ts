@@ -38,6 +38,8 @@ describe('uiLocation', () => {
     expect(readAppTab()).toBe('usage');
     writeAppTab('logs');
     expect(readAppTab()).toBe('logs');
+    writeAppTab('stats');
+    expect(readAppTab()).toBe('stats');
   });
 
   it('ignores an unknown app tab', () => {

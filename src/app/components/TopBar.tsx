@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import logo from '../../assets/logo.png';
+import BrandLogo from '../../shared/components/BrandLogo';
 import type { AppTab } from '../navigation';
 import type { BusinessMembership } from '../../features/business/BusinessContextState';
 import SupportRequestModal from '../../features/support/SupportRequestModal';
@@ -25,6 +25,7 @@ const NAV_ITEMS: Array<{
   { tab: 'settings', label: 'הגדרות' },
   { tab: 'calendar', label: 'יומן חי' },
   { tab: 'clients', label: 'ניהול לקוחות' },
+  { tab: 'stats', label: 'סטטיסטיקה' },
   { tab: 'logs', label: 'לוגים' },
   { tab: 'usage', label: 'עלות' },
 ];
@@ -82,7 +83,7 @@ export default function TopBar({
     <>
     <header className={styles.topBar}>
       <div className={styles.rightSection}>
-        <img src={logo} alt="QGent" className={styles.logo} />
+        <BrandLogo className={styles.logo} />
       </div>
 
       <nav ref={navRef} className={styles.navGroup} aria-label="תפריט ראשי">

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import logo from '../../assets/logo.png';
+import BrandLogo from '../../shared/components/BrandLogo';
 import { useAuth } from './AuthContextState';
 import { leaveCachedAccount, recordTermsAcceptance } from './auth.api';
 import TermsConsent from './TermsConsent';
@@ -59,7 +59,7 @@ export default function TermsAcceptance() {
   return (
     <main className={styles.page}>
       <section className={styles.card}>
-        <img src={logo} alt="QGent" className={styles.logo} />
+        <BrandLogo className={styles.logo} />
         <h1>אישור תנאי השימוש</h1>
 
         {errorMessage ? (

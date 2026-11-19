@@ -25,6 +25,10 @@ import {
 } from './appointments.mappers';
 import { isCanceledStatus, statusAfterBusinessMove } from './appointmentStatuses';
 import { combinedAppointmentChain } from './calendarGrouping';
+import { getClient } from '../clients/clients.api';
+import { toClientDetailSections } from '../clients/clients.mappers';
+import type { Client } from '../clients/clients.types';
+import RecordDetailsModal from '../../shared/displayFields/RecordDetailsModal';
 import { useUiPreferences } from '../../shared/displayFields/useUiPreferences';
 import {
   shiftedAppointmentTimes,
@@ -45,6 +49,7 @@ import {
   GlassesIcon,
   MoveIcon,
   PencilIcon,
+  UserIcon,
 } from '../../shared/components/icons';
 import type {
   AppointmentDetails,
@@ -158,8 +163,11 @@ export default function AppointmentsPage({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [statusError, setStatusError] = useState('');
+  const [clientError, setClientError] = useState('');
+  const [clientRecord, setClientRecord] = useState<Client | null>(null);
   const actionError =
     statusError ||
+    clientError ||
     (calendarSettings.error
       ? `${calendarSettings.error} היומן מוצג בלי שעות פעילות.`
       : '');
@@ -315,6 +323,22 @@ export default function AppointmentsPage({
       );
       refresh();
     });
+  };
+
+  const openClientDetails = (appointment: AppointmentDetails) => {
+    setClientError('');
+    void getClient(businessCode, appointment.client_id)
+      .then((client) => {
+        if (!client) {
+          setClientError('לא נמצאו פרטי הלקוח.');
+          return;
+        }
+        setClientRecord(client);
+      })
+      .catch((error) => {
+        console.error('שגיאה בטעינת פרטי לקוח:', getErrorMessage(error));
+        setClientError(getErrorMessage(error) || 'לא ניתן לטעון את פרטי הלקוח.');
+      });
   };
 
   const openDetails = (
@@ -615,6 +639,12 @@ export default function AppointmentsPage({
               icon: <GlassesIcon />,
               onSelect: () => openDetails(menuAppointment, menu.serviceId, false),
             },
+            {
+              id: 'client',
+              label: 'פרטי לקוח',
+              icon: <UserIcon />,
+              onSelect: () => openClientDetails(menuAppointment),
+            },
             ...(canEdit
               ? [
                   {
@@ -704,6 +734,14 @@ export default function AppointmentsPage({
               },
             );
           }}
+        />
+      ) : null}
+
+      {clientRecord ? (
+        <RecordDetailsModal
+          title={`פרטי לקוח · ${clientRecord.full_name || clientRecord.mobile_phone}`}
+          sections={toClientDetailSections(clientRecord)}
+          onClose={() => setClientRecord(null)}
         />
       ) : null}
     </>

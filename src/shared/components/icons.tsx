@@ -229,6 +229,15 @@ export function ClockIcon() {
   );
 }
 
+export function UserIcon() {
+  return (
+    <Svg icon="user">
+      <circle cx="12" cy="8" r="3.2" />
+      <path d="M5.5 19.2c.8-3 3.2-4.5 6.5-4.5s5.7 1.5 6.5 4.5" />
+    </Svg>
+  );
+}
+
 export function GlassesIcon() {
   return (
     <Svg icon="glasses">

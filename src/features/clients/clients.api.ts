@@ -22,6 +22,25 @@ export async function getClients(businessCode: string): Promise<Client[]> {
   return data;
 }
 
+export async function getClient(
+  businessCode: string,
+  clientId: number,
+): Promise<Client | null> {
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('business_code', businessCode)
+    .eq('id', clientId)
+    .is('deleted_at', null)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
 export async function createClient(
   businessCode: string,
   values: ClientFormValues,

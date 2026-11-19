@@ -1,11 +1,17 @@
+import { useId } from 'react';
 import { createPortal } from 'react-dom';
-import qLoader from '../../assets/q-loader.png';
+import qLoaderSource from '../../assets/qgent-loader.svg?raw';
 import styles from './QLoader.module.css';
 
 const MARK_WIDTH = 457;
 const MARK_HEIGHT = 469;
 
+function scopeLoader(source: string, scope: string) {
+  return source.replaceAll('qgl-v3-', `${scope}-`);
+}
+
 export function QLoader({ size = 36 }: { size?: number }) {
+  const scope = `qgl${useId().replaceAll(':', '')}`;
   const height = Math.round((size * MARK_HEIGHT) / MARK_WIDTH);
 
   return (
@@ -13,16 +19,8 @@ export function QLoader({ size = 36 }: { size?: number }) {
       className={styles.loader}
       style={{ width: size, height }}
       aria-hidden="true"
-    >
-      <img
-        className={styles.mark}
-        src={qLoader}
-        alt=""
-        width={MARK_WIDTH}
-        height={MARK_HEIGHT}
-        draggable={false}
-      />
-    </span>
+      dangerouslySetInnerHTML={{ __html: scopeLoader(qLoaderSource, scope) }}
+    />
   );
 }
 

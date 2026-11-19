@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import styles from './AppointmentContextMenu.module.css';
 
 export interface AppointmentMenuAction {
@@ -20,6 +20,21 @@ export default function AppointmentContextMenu({
   actions: AppointmentMenuAction[];
   onClose: () => void;
 }) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [point, setPoint] = useState(() => ({
+    left: Math.max(8, Math.min(x, window.innerWidth - 188)),
+    top: Math.max(8, Math.min(y, window.innerHeight - 248)),
+  }));
+
+  useLayoutEffect(() => {
+    const node = menuRef.current;
+    if (!node) return;
+    setPoint({
+      left: Math.max(8, Math.min(x, window.innerWidth - node.offsetWidth - 8)),
+      top: Math.max(8, Math.min(y, window.innerHeight - node.offsetHeight - 8)),
+    });
+  }, [actions.length, x, y]);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
@@ -41,14 +56,12 @@ export default function AppointmentContextMenu({
     };
   }, [onClose]);
 
-  const left = Math.max(8, Math.min(x, window.innerWidth - 188));
-  const top = Math.max(8, Math.min(y, window.innerHeight - 196));
-
   return (
     <div
+      ref={menuRef}
       data-appointment-menu
       className={styles.menu}
-      style={{ left, top }}
+      style={{ left: point.left, top: point.top }}
       role="menu"
     >
       {actions.map((action) => (

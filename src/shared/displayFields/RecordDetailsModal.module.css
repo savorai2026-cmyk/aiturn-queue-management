@@ -90,7 +90,7 @@
 .value {
   color: var(--color-text);
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 400;
   line-height: 1.5;
   text-align: start;
   white-space: pre-wrap;
@@ -102,6 +102,10 @@
   display: inline-block;
   direction: ltr;
   unicode-bidi: isolate;
+}
+
+.speaker {
+  font-weight: 700;
 }
 
 .footer {

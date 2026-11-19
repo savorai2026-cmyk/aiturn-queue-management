@@ -11,6 +11,31 @@ interface RecordDetailsModalProps {
   onClose: () => void;
 }
 
+const SPEAKER_PREFIX = /^(ה?לקוח|ה?נציג)(\s*:)/;
+
+function TranscriptText({ text }: { text: string }) {
+  const lines = text.split('\n');
+  return lines.map((line, index) => {
+    const match = line.match(SPEAKER_PREFIX);
+    return (
+      <span key={index}>
+        {index > 0 ? '\n' : null}
+        {match ? (
+          <>
+            <strong className={styles.speaker}>
+              {match[1]}
+              {match[2]}
+            </strong>
+            {line.slice(match[0].length)}
+          </>
+        ) : (
+          line
+        )}
+      </span>
+    );
+  });
+}
+
 function DetailRows({ rows }: { rows: DetailRow[] }) {
   return (
     <div className={styles.list}>
@@ -27,6 +52,8 @@ function DetailRows({ rows }: { rows: DetailRow[] }) {
               />
             ) : row.downloadPath ? (
               row.value || '—'
+            ) : row.key === 'transcript' && row.value ? (
+              <TranscriptText text={row.value} />
             ) : row.dir === 'ltr' ? (
               <span className={styles.ltrValue} dir="ltr">
                 {row.value || '—'}

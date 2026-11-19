@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import logo from '../../assets/logo.png';
+import BrandLogo from '../../shared/components/BrandLogo';
 import { useAuth } from './AuthContextState';
 import { leaveCachedAccount } from './auth.api';
 import { listTotpFactors, verifyTotp } from './mfa.api';
@@ -43,7 +43,7 @@ export default function MfaChallenge() {
   return (
     <main className={styles.page}>
       <section className={styles.card}>
-        <img src={logo} alt="QGent" className={styles.logo} />
+        <BrandLogo className={styles.logo} />
         <h1>אימות דו-שלבי</h1>
 
         {error && (

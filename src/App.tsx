@@ -4,6 +4,7 @@ import { readAppTab, writeAppTab } from './app/uiLocation';
 import TopBar from './app/components/TopBar';
 import ClientManagement from './features/clients/components/ClientManagement';
 import LogsPage from './features/conversations/components/LogsPage';
+import StatsPage from './features/stats/components/StatsPage';
 import Settings from './features/settings/components/Settings';
 import UsagePage from './features/usage/components/UsagePage';
 import AppointmentsPage from './features/appointments/AppointmentsPage';
@@ -38,6 +39,7 @@ const PAGE_LOADING_MESSAGE: Record<AppTab, string> = {
   calendar: 'טוען תורים...',
   clients: 'טוען לקוחות...',
   settings: 'טוען הגדרות...',
+  stats: 'טוען סטטיסטיקה...',
   logs: 'טוען לוגים...',
   usage: 'טוען...',
 };
@@ -168,6 +170,14 @@ function AuthenticatedApp({ userEmail, onLogout, onSwitchUser }: AuthenticatedAp
           <Settings
             businessCode={pageCode}
             onBusinessUpdated={refreshBusinesses}
+            onReady={() => markReady(`${tab}:${pageCode}`)}
+          />
+        </main>
+      ) : null}
+      {tab === 'stats' ? (
+        <main className="feature-area">
+          <StatsPage
+            businessCode={pageCode}
             onReady={() => markReady(`${tab}:${pageCode}`)}
           />
         </main>
