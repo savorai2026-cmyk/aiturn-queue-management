@@ -83,28 +83,21 @@
   color: var(--color-text-muted);
 }
 
-.error,
-.sent {
+.error {
+  flex-shrink: 0;
   margin: 0 0 12px;
   padding: 9px 12px;
   border-radius: 7px;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-ink);
   font-size: 14px;
   font-weight: 600;
   line-height: 1.45;
 }
 
-.error {
-  background: var(--color-danger-bg);
-  color: var(--color-danger-ink);
-}
-
-.sent {
-  background: var(--color-success-bg);
-  color: var(--color-success-ink);
-}
-
 .actions {
   display: flex;
+  flex-shrink: 0;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 4px;

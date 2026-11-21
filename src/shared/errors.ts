@@ -169,3 +169,23 @@ export function getAgentPromptRewriteErrorMessage(error: unknown): string {
 
   return 'לא ניתן לנסח את התיאור כרגע. נסו שוב בעוד רגע.';
 }
+
+export function getOwnerAssistantErrorMessage(error: unknown): string {
+  if (errorIncludes(error, 'not configured') || errorIncludes(error, 'openai is not configured')) {
+    return 'העוזר עדיין לא הוגדר בשרת.';
+  }
+
+  if (errorIncludes(error, 'too many') || errorIncludes(error, '429')) {
+    return 'נשלחו יותר מדי שאלות. נסו שוב בעוד כמה דקות.';
+  }
+
+  if (errorIncludes(error, 'not allowed') || errorIncludes(error, 'not authenticated')) {
+    return 'העוזר זמין לבעלים ולמנהלי העסק.';
+  }
+
+  if (errorIncludes(error, 'missing question')) {
+    return 'כתבו שאלה קצרה.';
+  }
+
+  return 'לא ניתן לענות כרגע. נסו שוב בעוד רגע.';
+}

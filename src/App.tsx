@@ -24,7 +24,7 @@ import { needsTermsAcceptance } from './features/auth/termsOfUse';
 import { isAuthCallbackPending } from './features/auth/authRedirect';
 import BusinessOnboarding from './features/business/BusinessOnboarding';
 import { BusinessProvider } from './features/business/BusinessContext';
-import { useBusiness } from './features/business/BusinessContextState';
+import { canManageBusiness, useBusiness } from './features/business/BusinessContextState';
 import PaymentMethodGate from './features/billing/PaymentMethodGate';
 import CardAccess from './features/billing/CardAccess';
 import { WaitingOverlay } from './shared/components/QLoader';
@@ -222,6 +222,7 @@ function AuthenticatedApp({ userEmail, onLogout, onSwitchUser }: AuthenticatedAp
         businesses={memberships}
         activeBusinessCode={activeBusiness.businessCode}
         onBusinessChange={setActiveBusiness}
+        showAssistant={canManageBusiness(activeBusiness.role)}
       />
 
       <PaymentMethodGate

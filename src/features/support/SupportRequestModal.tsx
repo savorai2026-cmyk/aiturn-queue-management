@@ -15,6 +15,7 @@ interface SupportRequestModalProps {
   businessCode: string;
   businessName: string;
   onClose: () => void;
+  onSent: () => void;
 }
 
 const EMPTY: SupportDraft = {
@@ -30,6 +31,7 @@ export default function SupportRequestModal({
   businessCode,
   businessName,
   onClose,
+  onSent,
 }: SupportRequestModalProps) {
   const { user } = useAuth();
   const userRef = useRef(user);
@@ -42,13 +44,12 @@ export default function SupportRequestModal({
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
-  const [sent, setSent] = useState(false);
+  const errorRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
     setError('');
-    setSent(false);
 
     const load = async () => {
       // Token refreshes replace the user object; only a different account refills the form.
@@ -87,46 +88,52 @@ export default function SupportRequestModal({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape' && !isSending) onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [isSending, onClose]);
+
+  useEffect(() => {
+    errorRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [error]);
 
   const update = (field: keyof SupportDraft, value: string) => {
-    setSent(false);
     setForm((previous) => ({ ...previous, [field]: value }));
   };
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
+    if (isSending) return;
     const problem = supportFieldError(form);
     if (problem) {
       setError(problem);
-      setSent(false);
       return;
     }
     setIsSending(true);
     setError('');
-    setSent(false);
-    void sendSupportRequest({ ...form, businessCode })
-      .then(() => {
-        setSent(true);
-        setForm((previous) => ({ ...previous, message: '' }));
-      })
-      .catch((sendError: unknown) => {
-        setError(sendError instanceof Error ? sendError.message : 'המייל לא נשלח.');
-      })
-      .finally(() => {
+    void (async () => {
+      try {
+        await sendSupportRequest({ ...form, businessCode });
+      } catch (sendError: unknown) {
+        setError(
+          sendError instanceof Error && sendError.message
+            ? sendError.message
+            : 'המייל לא נשלח.',
+        );
         setIsSending(false);
-      });
+        return;
+      }
+      onSent();
+      onClose();
+    })();
   };
 
   return (
     <div
       className={`${modal.overlay} ${styles.overlay}`}
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (!isSending && event.target === event.currentTarget) onClose();
       }}
     >
       <section
@@ -141,7 +148,8 @@ export default function SupportRequestModal({
         <p className={styles.lead}>
           תקלה או שאלה נשלחת מהמערכת אל {SUPPORT_INBOX}. הפרטים מולאו מהחשבון, ואפשר לעדכן אותם לפני השליחה.
         </p>
-        <form className={styles.form} onSubmit={handleSubmit}>
+        <form className={`${modal.form} ${styles.form}`} onSubmit={handleSubmit}>
+          <div className={modal.scroll}>
           <label className={styles.field}>
             <span>נושא</span>
             <input
@@ -201,18 +209,14 @@ export default function SupportRequestModal({
               required
             />
           </label>
+          </div>
           {error ? (
-            <p className={styles.error} role="alert">
+            <p ref={errorRef} className={styles.error} role="alert">
               {error}
             </p>
           ) : null}
-          {sent ? (
-            <p className={styles.sent} role="status">
-              הפנייה נשלחה אל {SUPPORT_INBOX}.
-            </p>
-          ) : null}
           <div className={styles.actions}>
-            <button type="button" className={styles.btnCancel} onClick={onClose}>
+            <button type="button" className={styles.btnCancel} onClick={onClose} disabled={isSending}>
               ביטול
             </button>
             <button type="submit" className={styles.btnSend} disabled={isLoading || isSending}>

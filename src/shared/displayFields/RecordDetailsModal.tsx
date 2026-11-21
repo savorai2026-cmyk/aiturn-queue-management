@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import RecordingPlayer from '../../features/conversations/components/RecordingPlayer';
+import { useSlidingIndicator } from '../useSlidingIndicator';
 import type { DetailRow, DetailSection } from './types';
 import modal from '../components/modalShell.module.css';
 import styles from './RecordDetailsModal.module.css';
@@ -34,6 +35,48 @@ function TranscriptText({ text }: { text: string }) {
       </span>
     );
   });
+}
+
+function SectionTabs({
+  sections,
+  active,
+  onChange,
+}: {
+  sections: DetailSection[];
+  active: string;
+  onChange: (title: string) => void;
+}) {
+  const { containerRef, box, ready } = useSlidingIndicator(active);
+
+  return (
+    <div className={styles.tabs} ref={containerRef} role="tablist">
+      {box ? (
+        <span
+          className={`${styles.tabIndicator} ${ready ? styles.tabIndicatorReady : ''}`}
+          style={{
+            width: box.width,
+            transform: `translate(${box.x}px, ${box.y}px)`,
+          }}
+          aria-hidden="true"
+        />
+      ) : null}
+      {sections.map((section, index) => (
+        <span key={section.title} className={styles.tabSlot}>
+          {index > 0 ? <span className={styles.tabDivider} aria-hidden="true" /> : null}
+          <button
+            type="button"
+            role="tab"
+            className={`${styles.tabBtn} ${active === section.title ? styles.activeTab : ''}`}
+            aria-selected={active === section.title}
+            aria-current={active === section.title ? 'page' : undefined}
+            onClick={() => onChange(section.title)}
+          >
+            {section.title}
+          </button>
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function DetailRows({ rows }: { rows: DetailRow[] }) {
@@ -74,6 +117,10 @@ export default function RecordDetailsModal({
   sections,
   onClose,
 }: RecordDetailsModalProps) {
+  const [activeTitle, setActiveTitle] = useState(sections?.[0]?.title ?? '');
+  const activeSection =
+    sections?.find((section) => section.title === activeTitle) ?? sections?.[0];
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -105,19 +152,15 @@ export default function RecordDetailsModal({
             {title}
           </h2>
         </header>
+        {sections && activeSection ? (
+          <SectionTabs
+            sections={sections}
+            active={activeSection.title}
+            onChange={setActiveTitle}
+          />
+        ) : null}
         <div className={modal.scroll}>
-          {sections ? (
-            <div className={styles.groups}>
-              {sections.map((section) => (
-                <section key={section.title} className={styles.group}>
-                  <h3 className={styles.groupTitle}>{section.title}</h3>
-                  <DetailRows rows={section.rows} />
-                </section>
-              ))}
-            </div>
-          ) : (
-            <DetailRows rows={rows} />
-          )}
+          <DetailRows rows={activeSection ? activeSection.rows : rows} />
         </div>
         <footer className={styles.footer}>
           <button type="button" className={styles.close} onClick={onClose}>

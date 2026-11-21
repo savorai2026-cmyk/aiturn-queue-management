@@ -395,3 +395,36 @@ button.logoutBtn:not(:disabled):hover:focus {
     font-size: 13px;
   }
 }
+
+.supportToast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 10050;
+  margin: 0;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 16px 22px;
+  border: 1px solid var(--color-success-ink);
+  border-radius: 12px;
+  background: var(--color-success-bg);
+  color: var(--color-success-ink);
+  box-shadow: var(--shadow-floating);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: center;
+  pointer-events: none;
+  opacity: 1;
+  transform: translate(-50%, -50%);
+  transition: opacity 500ms ease;
+}
+
+.supportToastLeaving {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .supportToast {
+    transition: none;
+  }
+}

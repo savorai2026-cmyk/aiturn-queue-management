@@ -1,7 +1,9 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import BrandLogo from '../../shared/components/BrandLogo';
 import type { AppTab } from '../navigation';
 import type { BusinessMembership } from '../../features/business/BusinessContextState';
+import OwnerAssistantPanel from '../../features/assistant/components/OwnerAssistantPanel';
 import SupportRequestModal from '../../features/support/SupportRequestModal';
 import { LogoutIcon, MailIcon } from '../../shared/components/icons';
 import { applyColorScheme, readColorScheme, type ColorScheme } from '../colorScheme';
@@ -16,6 +18,7 @@ interface TopBarProps {
   businesses: BusinessMembership[];
   activeBusinessCode: string;
   onBusinessChange: (businessCode: string) => void;
+  showAssistant?: boolean;
 }
 
 const NAV_ITEMS: Array<{
@@ -39,12 +42,26 @@ export default function TopBar({
   businesses,
   activeBusinessCode,
   onBusinessChange,
+  showAssistant = false,
 }: TopBarProps) {
   const [supportOpen, setSupportOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [supportNotice, setSupportNotice] = useState('');
+  const [supportNoticeVisible, setSupportNoticeVisible] = useState(false);
   const [colorScheme, setColorScheme] = useState<ColorScheme>(readColorScheme);
   const navRef = useRef<HTMLElement>(null);
   const [indicator, setIndicator] = useState<{ x: number; width: number } | null>(null);
   const [indicatorReady, setIndicatorReady] = useState(false);
+
+  useEffect(() => {
+    if (!supportNotice) return;
+    const fadeTimer = window.setTimeout(() => setSupportNoticeVisible(false), 3000);
+    const hideTimer = window.setTimeout(() => setSupportNotice(''), 3500);
+    return () => {
+      window.clearTimeout(fadeTimer);
+      window.clearTimeout(hideTimer);
+    };
+  }, [supportNotice]);
 
   useLayoutEffect(() => {
     const nav = navRef.current;
@@ -149,7 +166,11 @@ export default function TopBar({
           type="button"
           className={styles.mailBtn}
           aria-label="פנייה למערכת"
-          onClick={() => setSupportOpen(true)}
+          onClick={() => {
+            setSupportNotice('');
+            setSupportNoticeVisible(false);
+            setSupportOpen(true);
+          }}
         >
           <MailIcon />
         </button>
@@ -159,11 +180,37 @@ export default function TopBar({
         </button>
       </div>
     </header>
+    {supportNotice
+      ? createPortal(
+          <p
+            className={`${styles.supportToast} ${supportNoticeVisible ? '' : styles.supportToastLeaving}`}
+            role="status"
+          >
+            {supportNotice}
+          </p>,
+          document.body,
+        )
+      : null}
+    {showAssistant ? (
+      <OwnerAssistantPanel
+        key={activeBusinessCode}
+        businessCode={activeBusinessCode}
+        businessName={businessName}
+        activeTab={activeTab}
+        open={assistantOpen}
+        onToggle={() => setAssistantOpen((open) => !open)}
+        onClose={() => setAssistantOpen(false)}
+      />
+    ) : null}
     {supportOpen ? (
       <SupportRequestModal
         businessCode={activeBusinessCode}
         businessName={businessName}
         onClose={() => setSupportOpen(false)}
+        onSent={() => {
+          setSupportNoticeVisible(true);
+          setSupportNotice('הפנייה נשלחה בהצלחה.');
+        }}
       />
     ) : null}
     </>
