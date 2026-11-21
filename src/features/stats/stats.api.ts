@@ -34,6 +34,20 @@ function clientName(clients: StatsAppointmentRow['clients']) {
   return name || 'לקוח ללא שם';
 }
 
+export async function getBusinessTimeZone(businessCode: string) {
+  const { data, error } = await supabase
+    .from('businesses')
+    .select('timezone')
+    .eq('business_code', businessCode)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  const zone = data?.timezone?.trim();
+  return zone || 'Asia/Jerusalem';
+}
+
 export async function getStatsAppointments(
   businessCode: string,
   from: string,

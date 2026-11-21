@@ -81,6 +81,12 @@ function AuthenticatedApp({ userEmail, onLogout, onSwitchUser }: AuthenticatedAp
   }, [requestedTab]);
 
   useEffect(() => {
+    if (activeBusiness && activeBusiness.role !== 'owner' && requestedTab === 'stats') {
+      setRequestedTab('calendar');
+    }
+  }, [activeBusiness, requestedTab]);
+
+  useEffect(() => {
     if (!switching) {
       setShowBubble(false);
       return;
@@ -174,7 +180,7 @@ function AuthenticatedApp({ userEmail, onLogout, onSwitchUser }: AuthenticatedAp
           />
         </main>
       ) : null}
-      {tab === 'stats' ? (
+      {tab === 'stats' && activeBusiness.role === 'owner' ? (
         <main className="feature-area">
           <StatsPage
             businessCode={pageCode}
@@ -223,6 +229,7 @@ function AuthenticatedApp({ userEmail, onLogout, onSwitchUser }: AuthenticatedAp
         activeBusinessCode={activeBusiness.businessCode}
         onBusinessChange={setActiveBusiness}
         showAssistant={canManageBusiness(activeBusiness.role)}
+        role={activeBusiness.role}
       />
 
       <PaymentMethodGate

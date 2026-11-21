@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import BrandLogo from '../../shared/components/BrandLogo';
 import type { AppTab } from '../navigation';
-import type { BusinessMembership } from '../../features/business/BusinessContextState';
+import type { BusinessMembership, BusinessRole } from '../../features/business/BusinessContextState';
 import OwnerAssistantPanel from '../../features/assistant/components/OwnerAssistantPanel';
 import SupportRequestModal from '../../features/support/SupportRequestModal';
 import { LogoutIcon, MailIcon } from '../../shared/components/icons';
@@ -19,6 +19,7 @@ interface TopBarProps {
   activeBusinessCode: string;
   onBusinessChange: (businessCode: string) => void;
   showAssistant?: boolean;
+  role?: BusinessRole;
 }
 
 const NAV_ITEMS: Array<{
@@ -43,7 +44,9 @@ export default function TopBar({
   activeBusinessCode,
   onBusinessChange,
   showAssistant = false,
+  role,
 }: TopBarProps) {
+  const navItems = NAV_ITEMS.filter((item) => item.tab !== 'stats' || role === 'owner');
   const [supportOpen, setSupportOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [supportNotice, setSupportNotice] = useState('');
@@ -94,7 +97,7 @@ export default function TopBar({
       window.removeEventListener('resize', place);
       nav.removeEventListener('scroll', place);
     };
-  }, [activeTab]);
+  }, [activeTab, role]);
 
   return (
     <>
@@ -111,7 +114,7 @@ export default function TopBar({
             aria-hidden="true"
           />
         ) : null}
-        {NAV_ITEMS.map(({ tab, label }, index) => (
+        {navItems.map(({ tab, label }, index) => (
           <div key={tab} className={styles.navSlot}>
             {index > 0 ? <span className={styles.navDivider} aria-hidden="true" /> : null}
             <button
