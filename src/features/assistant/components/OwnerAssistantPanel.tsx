@@ -57,6 +57,30 @@ const SUGGESTIONS = [
   'כמה תורים בוטלו בחודש האחרון?',
 ];
 
+function characters(text: string) {
+  return Array.from(text);
+}
+
+function writingPace(length: number) {
+  const ticks = Math.min(Math.max(length, 1), 72);
+  return {
+    step: Math.max(1, Math.ceil(length / ticks)),
+    delay: length < 36 ? 34 : 18,
+  };
+}
+
+function TypingBubble() {
+  return (
+    <div className={`${styles.bubble} ${styles.assistant} ${styles.tail} ${styles.typing}`} aria-hidden="true">
+      <span className={styles.dots}>
+        <span />
+        <span />
+        <span />
+      </span>
+    </div>
+  );
+}
+
 export default function OwnerAssistantPanel({
   businessCode,
   businessName,
@@ -73,6 +97,12 @@ export default function OwnerAssistantPanel({
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const [writingIndex, setWritingIndex] = useState<number | null>(null);
+  const [written, setWritten] = useState(0);
+  const [announcement, setAnnouncement] = useState('');
+  const messagesRef = useRef<AssistantTurn[]>([]);
+  const writtenRef = useRef(0);
+  messagesRef.current = messages;
 
   useEffect(() => {
     activeRef.current = true;
@@ -99,15 +129,57 @@ export default function OwnerAssistantPanel({
     const thread = threadRef.current;
     if (!thread) return;
     thread.scrollTop = thread.scrollHeight;
-  }, [messages, pending]);
+  }, [messages, pending, written, open]);
+
+  useEffect(() => {
+    if (writingIndex == null) return;
+    const full = messagesRef.current[writingIndex]?.content ?? '';
+    const glyphs = characters(full);
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (media.matches || glyphs.length === 0) {
+      setWritten(glyphs.length);
+      setWritingIndex(null);
+      return;
+    }
+
+    const { step, delay } = writingPace(glyphs.length);
+    let count = writtenRef.current;
+    if (count >= glyphs.length) {
+      setWritingIndex(null);
+      return;
+    }
+    if (count === 0) {
+      count = Math.min(glyphs.length, step);
+      writtenRef.current = count;
+      setWritten(count);
+    }
+    if (count >= glyphs.length) {
+      setWritingIndex(null);
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      count = Math.min(glyphs.length, count + step);
+      writtenRef.current = count;
+      setWritten(count);
+      if (count >= glyphs.length) {
+        window.clearInterval(timer);
+        setWritingIndex(null);
+      }
+    }, delay);
+    return () => window.clearInterval(timer);
+  }, [writingIndex]);
 
   const send = async (text: string) => {
     const content = text.trim();
     if (!content || pending) return;
     const next: AssistantTurn[] = [...messages, { role: 'user', content }];
+    writtenRef.current = 0;
+    setWritingIndex(null);
     setMessages(next);
     setDraft('');
     setError('');
+    setAnnouncement('מכין תשובה');
     setPending(true);
     try {
       const answer = await askOwnerAssistant({
@@ -116,9 +188,15 @@ export default function OwnerAssistantPanel({
         messages: next,
       });
       if (!activeRef.current) return;
-      setMessages([...next, { role: 'assistant', content: answer }]);
+      const withAnswer: AssistantTurn[] = [...next, { role: 'assistant', content: answer }];
+      setMessages(withAnswer);
+      writtenRef.current = 0;
+      setWritten(0);
+      setWritingIndex(withAnswer.length - 1);
+      setAnnouncement(answer);
     } catch (sendError: unknown) {
       if (!activeRef.current) return;
+      setAnnouncement('');
       setError(getOwnerAssistantErrorMessage(sendError));
     } finally {
       if (activeRef.current) setPending(false);
@@ -151,7 +229,8 @@ export default function OwnerAssistantPanel({
         </button>
       </header>
 
-      <div ref={threadRef} className={styles.thread}>
+      <div ref={threadRef} className={styles.thread} aria-busy={pending}>
+        <p className={styles.live} role="status">{announcement}</p>
         {messages.length === 0 ? (
           <div className={styles.empty}>
             <p>אפשר לשאול על המסך הפתוח, או על התורים, הלקוחות וההגדרות של העסק.</p>
@@ -170,16 +249,29 @@ export default function OwnerAssistantPanel({
             </div>
           </div>
         ) : (
-          messages.map((message, index) => (
-            <p
-              key={`${message.role}-${index}`}
-              className={message.role === 'user' ? styles.user : styles.assistant}
-            >
-              {message.content}
-            </p>
-          ))
+          messages.map((message, index) => {
+            const grouped = messages[index - 1]?.role === message.role;
+            const followedByTyping = pending && index === messages.length - 1 && message.role === 'assistant';
+            const tail = messages[index + 1]?.role !== message.role && !followedByTyping;
+            const isWriting = writingIndex === index;
+            const text = isWriting ? characters(message.content).slice(0, written).join('') : message.content;
+            return (
+              <p
+                key={`${message.role}-${index}`}
+                className={[
+                  styles.bubble,
+                  message.role === 'user' ? styles.user : styles.assistant,
+                  grouped ? styles.grouped : '',
+                  tail ? styles.tail : '',
+                ].filter(Boolean).join(' ')}
+              >
+                {text}
+                {isWriting ? <span className={styles.caret} aria-hidden="true" /> : null}
+              </p>
+            );
+          })
         )}
-        {pending ? <p className={styles.pending}>בודק את הנתונים...</p> : null}
+        {pending ? <TypingBubble /> : null}
       </div>
 
       {error ? <p className={styles.error} role="alert">{error}</p> : null}

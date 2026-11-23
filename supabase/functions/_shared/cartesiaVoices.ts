@@ -122,7 +122,7 @@ export function toPublicVoice(voice: ListedVoice): PublicVoice | null {
   };
 }
 
-export const PREVIEW_TRANSCRIPT = 'שלום, זה הקול של הסוכן.';
+export const PREVIEW_TRANSCRIPT = 'כך יישמע קולו של הסוכן. האם זה מתאים?';
 export const PREVIEW_MODEL = 'sonic-3.6';
 
 export function previewSpeechRequest(voiceId: string) {

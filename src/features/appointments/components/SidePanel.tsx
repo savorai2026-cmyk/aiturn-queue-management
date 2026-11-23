@@ -41,7 +41,7 @@ interface SidePanelProps {
   onSave: (values: AppointmentEditValues) => Promise<void>;
   onClose: () => void;
   startInEdit?: boolean;
-  groupAppointments?: AppointmentDetails[];
+  visitCount?: number;
 }
 
 export const SidePanel = ({
@@ -54,7 +54,7 @@ export const SidePanel = ({
   onSave,
   onClose,
   startInEdit = false,
-  groupAppointments,
+  visitCount = 1,
 }: SidePanelProps) => {
   const [isEditing, setIsEditing] = useState(startInEdit);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -80,32 +80,11 @@ export const SidePanel = ({
     setFormData(appointment ? toAppointmentEditValues(appointment) : null);
   }, [appointment, isEditing]);
 
-  const panelMembers = useMemo(() => {
-    if (!appointment) return [];
-    const members =
-      groupAppointments && groupAppointments.length > 0
-        ? groupAppointments
-        : [appointment];
-    return members.some((member) => member.id === appointment.id)
-      ? members
-      : [appointment];
-  }, [appointment, groupAppointments]);
-
   const totalPrice = useMemo(() => {
-    if (!formData || !appointment) return 0;
-    const ownTotal =
-      formData.servicePrices.length === 0
-        ? formData.price
-        : formData.servicePrices.reduce((total, service) => total + service.price, 0);
-    const companionTotal = panelMembers
-      .filter((member) => member.id !== appointment.id)
-      .reduce(
-        (total, member) =>
-          total + member.services.reduce((sum, service) => sum + service.price, 0),
-        0,
-      );
-    return ownTotal + companionTotal;
-  }, [appointment, formData, panelMembers]);
+    if (!formData) return 0;
+    if (formData.servicePrices.length === 0) return formData.price;
+    return formData.servicePrices.reduce((total, service) => total + service.price, 0);
+  }, [formData]);
 
   const baseline = useMemo(
     () => (appointment ? toAppointmentEditValues(appointment) : null),
@@ -143,23 +122,7 @@ export const SidePanel = ({
     }
   };
 
-  const groupStart = panelMembers[0]?.start_time ?? formData.start_time;
-  const groupEnd = panelMembers[panelMembers.length - 1]?.end_time ?? formData.end_time;
-  const timeRange = `${formatTimeHm(
-    panelMembers.length > 1 && !isEditing ? groupStart : formData.start_time,
-  )} - ${formatTimeHm(
-    panelMembers.length > 1 && !isEditing ? groupEnd : formData.end_time,
-  )}`;
-  const detailAppointment =
-    panelMembers.length > 1
-      ? {
-          ...appointment,
-          start_time: groupStart,
-          end_time: groupEnd,
-          services: panelMembers.flatMap((member) => member.services),
-          price: totalPrice,
-        }
-      : appointment;
+  const timeRange = `${formatTimeHm(formData.start_time)} - ${formatTimeHm(formData.end_time)}`;
   const isVisible = (key: string) => visibleFields.includes(key);
   const statusOptions = withCurrentStatus(statuses, formData.status);
 
@@ -233,6 +196,11 @@ export const SidePanel = ({
         <div className={styles.field}>
           <span className={styles.fieldLabel}>שם מטופל</span>
           <span className={styles.fieldValue}>{appointment.patientName}</span>
+          {visitCount > 1 ? (
+            <span className={styles.visitNote}>
+              חלק מביקור עם עוד {visitCount - 1} {visitCount - 1 === 1 ? 'שירות' : 'שירותים'}.
+            </span>
+          ) : null}
         </div>
         )}
 
@@ -338,16 +306,12 @@ export const SidePanel = ({
         {isVisible('services') && (
         <div className={styles.services}>
           <span className={styles.fieldLabel}>שירותים ומחירים</span>
-          {panelMembers.flatMap((member) =>
-            member.services.map((service, index) => {
-              const ownsService = member.id === appointment.id;
-              const priceValue = ownsService
-                ? formData.servicePrices[index]?.price ?? service.price
-                : service.price;
+          {appointment.services.map((service, index) => {
+              const priceValue = formData.servicePrices[index]?.price ?? service.price;
 
               return (
                 <div
-                  key={`${member.id}-${service.serviceId}-${service.position}-${index}`}
+                  key={`${appointment.id}-${service.serviceId}-${service.position}-${index}`}
                   className={styles.serviceRow}
                 >
                   <div>
@@ -356,7 +320,7 @@ export const SidePanel = ({
                       {formatTimeHm(service.startTime)} - {formatTimeHm(service.endTime)}
                     </div>
                   </div>
-                  {isEditing && ownsService ? (
+                  {isEditing ? (
                     <input
                       type="number"
                       min="0"
@@ -383,8 +347,7 @@ export const SidePanel = ({
                   )}
                 </div>
               );
-            }),
-          )}
+          })}
           <div className={styles.totalRow}>
             <span>סה״כ</span>
             <strong>{ILS_FORMATTER.format(totalPrice)}</strong>
@@ -453,7 +416,7 @@ export const SidePanel = ({
       {isDetailsOpen && (
         <RecordDetailsModal
           title={`פרטי תור · ${appointment.patientName}`}
-          rows={toAppointmentDetailRows(detailAppointment, statuses)}
+          rows={toAppointmentDetailRows(appointment, statuses)}
           onClose={() => setIsDetailsOpen(false)}
         />
       )}

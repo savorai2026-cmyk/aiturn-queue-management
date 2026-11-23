@@ -15,6 +15,7 @@ export interface ReschedulePreview {
   from: MoveMoment;
   to: MoveMoment;
   movesAllServices: boolean;
+  movesVisit?: boolean;
   isPastTarget: boolean;
 }
 
@@ -97,9 +98,11 @@ export default function RescheduleConfirmModal({
           </p>
         )}
 
-        {preview.movesAllServices && (
+        {preview.movesVisit ? (
+          <p className={styles.note}>שאר השירותים בביקור יוזזו באותו הפרש.</p>
+        ) : preview.movesAllServices ? (
           <p className={styles.note}>כל השירותים בתור יועברו יחד למועד החדש.</p>
-        )}
+        ) : null}
 
         {errorMessage && (
           <p className={styles.error} role="alert">

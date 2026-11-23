@@ -25,4 +25,11 @@ describe('product guide', () => {
     expect(openScreenLine('settings')).toContain('הגדרות');
     expect(openScreenLine('calendar')).toContain('יומן חי');
   });
+
+  it('includes choices the owner can actually make', () => {
+    expect(SCREEN_GUIDES.settings.text).toContain('קול הסוכן');
+    expect(SCREEN_GUIDES.settings.text).toContain('דגימה');
+    expect(SCREEN_GUIDES.calendar.text).toContain('כל הביקור');
+    expect(productGuidePrompt()).toContain('מצב כהה');
+  });
 });

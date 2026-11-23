@@ -84,12 +84,17 @@ export interface CalendarEventProps {
   clientId: number;
   clientPhone: string | null;
   status: string;
-  groupRole: 'single' | 'combined';
+  groupRole: 'single' | 'start' | 'middle' | 'end' | 'combined';
   timeLabel: string;
   serviceTitle: string;
   clientName: string;
   tooltip: string;
   holdLabel?: string;
+  /** Calendar date and start, so a stretch can be told apart from a drag. */
+  date?: string;
+  startHm?: string;
+  /** Later appointments in the same back-to-back visit. */
+  continuationIds?: number[];
   segments?: CalendarEventSegment[];
 }
 

@@ -8,6 +8,7 @@ import {
   toAppointmentEditValues,
   areAppointmentEditsEqual,
   toAppointmentUpdate,
+  collapseVisitsForMonth,
   toCalendarEvents,
   withCatalogServiceTitles,
 } from './appointments.mappers';
@@ -169,22 +170,42 @@ describe('toCalendarEvents', () => {
     });
 
     const events = toCalendarEvents([first, second]);
-    expect(events).toHaveLength(1);
+    expect(events).toHaveLength(2);
     expect(events[0]).toMatchObject({
-      id: 'group-1-2',
-      title: "09:00 - 09:50 · עיצוב גבות, לק ג'ל · ישראל ישראלי",
+      id: '1',
       start: '2026-08-20T09:00',
+      end: '2026-08-20T09:25',
+    });
+    expect(events[1]).toMatchObject({
+      id: '2',
+      start: '2026-08-20T09:25',
       end: '2026-08-20T09:50',
     });
     expect(events[0].extendedProps).toMatchObject({
-      groupRole: 'combined',
+      groupRole: 'start',
       appointmentId: 1,
-      serviceTitle: "עיצוב גבות, לק ג'ל",
+      serviceTitle: 'עיצוב גבות',
+      continuationIds: [2],
+    });
+    expect(events[1].extendedProps).toMatchObject({
+      groupRole: 'end',
+      appointmentId: 2,
+      serviceTitle: "לק ג'ל",
+      continuationIds: [],
+    });
+
+    const month = collapseVisitsForMonth(events);
+    expect(month).toHaveLength(1);
+    expect(month[0]).toMatchObject({
+      id: 'group-1-2',
+      start: '2026-08-20T09:00',
+      end: '2026-08-20T09:50',
+    });
+    expect(month[0].extendedProps).toMatchObject({
+      groupRole: 'combined',
+      serviceTitle: '2 שירותים',
       timeLabel: '09:00 - 09:50',
-      segments: [
-        { appointmentId: 1, serviceId: 25, startMinutes: 9 * 60, endMinutes: 9 * 60 + 25 },
-        { appointmentId: 2, serviceId: 34, startMinutes: 9 * 60 + 25, endMinutes: 9 * 60 + 50 },
-      ],
+      continuationIds: [2],
     });
   });
 
@@ -422,6 +443,28 @@ describe('allowCalendarEventOverlap', () => {
       allowCalendarEventOverlap({
         stillAppointmentId: 7,
         movingAppointmentId: 42,
+      }),
+    ).toBe(false);
+  });
+
+  it('allows a stretch into the next appointment of the same visit', () => {
+    expect(
+      allowCalendarEventOverlap({
+        stillAppointmentId: 8,
+        movingAppointmentId: 7,
+        movingStartUnchanged: true,
+        continuationIds: [8, 9],
+      }),
+    ).toBe(true);
+  });
+
+  it('rejects dragging one appointment onto the next in the visit', () => {
+    expect(
+      allowCalendarEventOverlap({
+        stillAppointmentId: 8,
+        movingAppointmentId: 7,
+        movingStartUnchanged: false,
+        continuationIds: [8],
       }),
     ).toBe(false);
   });

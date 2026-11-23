@@ -287,66 +287,139 @@ export function toCalendarEvents(
     chunks.push(chunk);
   }
 
-  return chunks.map((chunk) => {
-    const first = chunk[0];
-    const last = chunk[chunk.length - 1];
-    const combined = chunk.length > 1;
-    const serviceTitle = chunk
-      .map((event) => event.serviceTitle.trim())
-      .filter(Boolean)
-      .join(', ');
-    const copy = formatCalendarEventCopy({
-      time: first.startTime,
-      endTime: last.endTime,
-      serviceTitle,
-      clientName: first.details.patientName,
-    });
-    const hold = chunk
-      .map((event) =>
-        readPaymentHold(event.appointment.status, event.appointment.metadata),
-      )
-      .find((item) => item != null);
-    const date = first.appointment.appointment_date;
-    const extendedProps: CalendarEventProps = {
-      appointmentId: first.appointment.id,
-      serviceId: first.serviceId,
-      clientId: first.appointment.client_id,
-      clientPhone: first.details.clientPhone,
-      status: first.appointment.status,
-      groupRole: combined ? 'combined' : 'single',
-      timeLabel: copy.timeLabel,
-      serviceTitle: copy.serviceTitle,
-      clientName: copy.clientName,
-      tooltip: hold ? `${copy.tooltip} · ${hold.label}` : copy.tooltip,
-      ...(hold ? { holdLabel: hold.label } : {}),
-      ...(combined
-        ? {
-            segments: chunk.map((event) => ({
-              appointmentId: event.appointment.id,
-              serviceId: event.serviceId,
-              status: event.appointment.status,
-              startMinutes: event.startMinutes,
-              endMinutes: event.endMinutes,
-            })),
-          }
-        : {}),
-    };
+  return chunks.flatMap((chunk) => {
+    const segments = chunk.map((event) => ({
+      appointmentId: event.appointment.id,
+      serviceId: event.serviceId,
+      status: event.appointment.status,
+      startMinutes: event.startMinutes,
+      endMinutes: event.endMinutes,
+    }));
 
-    return {
-      id: combined ? `group-${chunk.map((event) => event.eventId).join('-')}` : first.eventId,
-      title: copy.title,
-      start: `${date}T${formatTimeHm(first.startTime)}`,
-      end: `${date}T${formatTimeHm(last.endTime)}`,
-      backgroundColor: first.color,
-      borderColor: first.color,
-      textColor: readableTextColor(first.color),
-      classNames: [
-        combined ? 'event-combined' : 'event-group-single',
-        ...(hold?.awaiting ? ['event-payment-hold'] : []),
-        ...(hold?.proof && !hold.awaiting ? ['event-payment-proof'] : []),
-      ],
-      extendedProps,
-    };
+    return chunk.map((event, index) => {
+      const role =
+        chunk.length === 1
+          ? 'single'
+          : index === 0
+            ? 'start'
+            : index === chunk.length - 1
+              ? 'end'
+              : 'middle';
+      const copy = formatCalendarEventCopy({
+        time: event.startTime,
+        endTime: event.endTime,
+        serviceTitle: event.serviceTitle,
+        clientName: event.details.patientName,
+      });
+      const hold = readPaymentHold(
+        event.appointment.status,
+        event.appointment.metadata,
+      );
+      const date = event.appointment.appointment_date;
+      const extendedProps: CalendarEventProps = {
+        appointmentId: event.appointment.id,
+        serviceId: event.serviceId,
+        clientId: event.appointment.client_id,
+        clientPhone: event.details.clientPhone,
+        status: event.appointment.status,
+        groupRole: role,
+        timeLabel: copy.timeLabel,
+        serviceTitle: copy.serviceTitle,
+        clientName: copy.clientName,
+        tooltip: hold ? `${copy.tooltip} · ${hold.label}` : copy.tooltip,
+        date,
+        startHm: formatTimeHm(event.startTime),
+        continuationIds: chunk.slice(index + 1).map((item) => item.appointment.id),
+        ...(hold ? { holdLabel: hold.label } : {}),
+        ...(chunk.length > 1 ? { segments } : {}),
+      };
+
+      return {
+        id: event.eventId,
+        title: copy.title,
+        start: `${date}T${formatTimeHm(event.startTime)}`,
+        end: `${date}T${formatTimeHm(event.endTime)}`,
+        backgroundColor: event.color,
+        borderColor: event.color,
+        textColor: readableTextColor(event.color),
+        classNames: [
+          role === 'single' ? 'event-group-single' : `event-group-${role}`,
+          ...(hold?.awaiting ? ['event-payment-hold'] : []),
+          ...(hold?.proof && !hold.awaiting ? ['event-payment-proof'] : []),
+        ],
+        extendedProps,
+      };
+    });
+  });
+}
+
+/** Month cells have no room for a seam, so a visit becomes one chip. */
+export function collapseVisitsForMonth(events: EventInput[]): EventInput[] {
+  const grouped = new Map<string, EventInput[]>();
+  const order: string[] = [];
+
+  for (const event of events) {
+    const props = event.extendedProps as CalendarEventProps | undefined;
+    const key = props?.segments?.length
+      ? props.segments.map((segment) => segment.appointmentId).join('-')
+      : String(props?.appointmentId ?? event.id);
+    if (!grouped.has(key)) {
+      grouped.set(key, []);
+      order.push(key);
+    }
+    grouped.get(key)?.push(event);
+  }
+
+  return order.flatMap((key) => {
+    const members = grouped.get(key) ?? [];
+    if (members.length < 2) return members;
+
+    const sorted = [...members].sort((left, right) =>
+      String(left.start).localeCompare(String(right.start)),
+    );
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    const firstProps = first.extendedProps as CalendarEventProps;
+    const serviceTitle = `${sorted.length} שירותים`;
+    const copy = formatCalendarEventCopy({
+      time: String(first.start).slice(11, 16),
+      endTime: String(last.end).slice(11, 16),
+      serviceTitle,
+      clientName: firstProps.clientName,
+    });
+    const classNames = new Set<string>(['event-combined']);
+    for (const member of sorted) {
+      const names = Array.isArray(member.classNames)
+        ? member.classNames
+        : member.classNames
+          ? [member.classNames]
+          : [];
+      for (const name of names) {
+        if (name === 'event-payment-hold' || name === 'event-payment-proof') {
+          classNames.add(name);
+        }
+      }
+    }
+
+    return [
+      {
+        ...first,
+        id: `group-${key}`,
+        title: copy.title,
+        end: last.end,
+        classNames: [...classNames],
+        extendedProps: {
+          ...firstProps,
+          groupRole: 'combined',
+          timeLabel: copy.timeLabel,
+          serviceTitle: copy.serviceTitle,
+          tooltip: copy.title,
+          continuationIds: sorted
+            .slice(1)
+            .map((member) => (member.extendedProps as CalendarEventProps).appointmentId),
+        },
+      },
+    ];
   });
 }
 

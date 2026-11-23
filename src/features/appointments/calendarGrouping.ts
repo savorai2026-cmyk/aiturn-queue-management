@@ -120,8 +120,17 @@ export function allowCalendarEventOverlap(input: {
   stillDisplay?: string;
   stillAppointmentId?: number;
   movingAppointmentId?: number;
+  movingStartUnchanged?: boolean;
+  continuationIds?: number[];
 }) {
   if (input.stillDisplay === 'background') return true;
+  if (
+    input.movingStartUnchanged &&
+    input.stillAppointmentId != null &&
+    input.continuationIds?.includes(input.stillAppointmentId)
+  ) {
+    return true;
+  }
   return (
     input.stillAppointmentId != null &&
     input.stillAppointmentId === input.movingAppointmentId

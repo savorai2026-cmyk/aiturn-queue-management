@@ -88,7 +88,7 @@ describe('voice pages', () => {
   it('asks Cartesia for a short Hebrew sample in the selected voice', () => {
     expect(previewSpeechRequest(HEBREW.id)).toEqual({
       model_id: 'sonic-3.6',
-      transcript: 'שלום, זה הקול של הסוכן.',
+      transcript: 'כך יישמע קולו של הסוכן. האם זה מתאים?',
       voice: { id: HEBREW.id },
       language: 'he',
       output_format: {

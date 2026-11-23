@@ -8,11 +8,13 @@ import AddAppointmentModal from './components/AddAppointmentModal';
 import AppointmentContextMenu from './components/AppointmentContextMenu';
 import CalendarView, {
   type AppointmentDropRequest,
+  type AppointmentResizeRequest,
 } from './components/CalendarView';
 import EditAppointmentModal from './components/EditAppointmentModal';
 import MoveAppointmentModal from './components/MoveAppointmentModal';
 import RescheduleConfirmModal from './components/RescheduleConfirmModal';
 import { SidePanel } from './components/SidePanel';
+import StretchContinuationPrompt from './components/StretchContinuationPrompt';
 import {
   updateAppointment,
   updateAppointmentServicePrices,
@@ -36,6 +38,7 @@ import {
   nowInTimeZone,
   toDateKey,
   toSchedulerDateTime,
+  toTimeHm,
 } from './time';
 import { cancelAppointment, rescheduleAppointment } from './scheduler.api';
 import { useAppointments, useCalendarSettings } from './useAppointments';
@@ -175,12 +178,18 @@ export default function AppointmentsPage({
   const [moveRequest, setMoveRequest] = useState<{
     appointmentId: number;
     serviceId: number;
+    wholeVisit: boolean;
   } | null>(null);
+  const [pendingResize, setPendingResize] = useState<
+    (AppointmentResizeRequest & { overlapMinutes: number }) | null
+  >(null);
+  const [resizeError, setResizeError] = useState('');
   const [menu, setMenu] = useState<{
     appointmentId: number;
     serviceId: number;
     x: number;
     y: number;
+    scope?: 'appointment' | 'visit';
   } | null>(null);
   const [slotMenu, setSlotMenu] = useState<{ x: number; y: number } | null>(null);
 
@@ -362,21 +371,97 @@ export default function AppointmentsPage({
     setDetailsSession(null);
   };
 
-  const applyStatus = (appointment: AppointmentDetails, status: string) => {
-    const values = { ...toAppointmentEditValues(appointment), status };
+  const applyStatus = (
+    appointment: AppointmentDetails,
+    status: string,
+    wholeVisit = false,
+  ) => {
+    const targets = wholeVisit
+      ? combinedAppointmentChain(appointmentDetails, appointment.id)
+      : [appointment];
     setStatusError('');
     void runBusy(async () => {
       try {
-        await saveAppointmentEdits(
-          appointment,
-          values,
-          appointment.services[0]?.serviceId ?? 0,
-        );
+        for (const target of targets) {
+          if (isCanceledStatus(target.status)) continue;
+          if (status === '02' && isApprovedStatus(target.status)) continue;
+          await saveAppointmentEdits(
+            target,
+            { ...toAppointmentEditValues(target), status },
+            target.services[0]?.serviceId ?? 0,
+          );
+        }
         refresh();
       } catch (error) {
         setStatusError(getAppointmentSaveErrorMessage(error));
       }
     });
+  };
+
+  const persistResize = async (
+    request: AppointmentResizeRequest,
+    overlapMinutes: number,
+  ) => {
+    const appointment = appointmentDetails.find(
+      (item) => item.id === request.appointmentId,
+    );
+    if (!appointment) {
+      request.revert();
+      setPendingResize(null);
+      return;
+    }
+
+    setResizeError('');
+    setIsBusy(true);
+    try {
+      await saveAppointmentEdits(
+        appointment,
+        {
+          ...toAppointmentEditValues(appointment),
+          appointment_date: toDateKey(request.nextStart),
+          start_time: formatTimeHm(toTimeHm(request.nextStart)),
+          end_time: formatTimeHm(toTimeHm(request.nextEnd)),
+        },
+        request.serviceId,
+      );
+
+      if (overlapMinutes > 0) {
+        for (const companionId of request.continuationIds) {
+          const companion = appointmentDetails.find((item) => item.id === companionId);
+          if (!companion) continue;
+          const shifted = shiftedAppointmentTimes(
+            companion.appointment_date,
+            companion.start_time,
+            companion.end_time,
+            overlapMinutes,
+          );
+          await saveAppointmentEdits(
+            companion,
+            {
+              ...toAppointmentEditValues(companion),
+              appointment_date: shifted.appointment_date,
+              start_time: formatTimeHm(shifted.start_time),
+              end_time: formatTimeHm(shifted.end_time),
+            },
+            companion.services[0]?.serviceId ?? 0,
+          );
+        }
+      }
+
+      setPendingResize(null);
+      refresh();
+    } catch (error) {
+      const message = getAppointmentSaveErrorMessage(error);
+      if (overlapMinutes > 0) {
+        setResizeError(message);
+      } else {
+        request.revert();
+        setStatusError(message);
+      }
+      refresh();
+    } finally {
+      setIsBusy(false);
+    }
   };
 
   const closeMenu = useCallback(() => setMenu(null), []);
@@ -469,7 +554,7 @@ export default function AppointmentsPage({
           onToggleField={(key) => toggleField('appointments', key)}
           onSave={handleSave}
           startInEdit={detailsSession.editing}
-          groupAppointments={displayedGroup}
+          visitCount={displayedGroup.length}
           onClose={closePanel}
         />
       ) : null}
@@ -505,9 +590,9 @@ export default function AppointmentsPage({
             onEventDoubleClick={(appointment, serviceId) => {
               openDetails(appointment, serviceId, false);
             }}
-            onEventContextMenu={(appointmentId, serviceId, x, y) => {
+            onEventContextMenu={(appointmentId, serviceId, x, y, scope) => {
               setSlotMenu(null);
-              setMenu({ appointmentId, serviceId, x, y });
+              setMenu({ appointmentId, serviceId, x, y, scope });
             }}
             onSelectedSlotContextMenu={
               canEdit
@@ -527,7 +612,7 @@ export default function AppointmentsPage({
             selectedAppointmentId={selectedId}
             selectedServiceId={displayedServiceId}
             selectedDate={displayedDate}
-            hasPendingMove={pendingDrop !== null}
+            hasPendingMove={pendingDrop !== null || pendingResize !== null}
             onDropRequest={(request) => {
               setDropError('');
               setIsDropEditOpen(false);
@@ -535,6 +620,24 @@ export default function AppointmentsPage({
               setSelectedId(request.appointmentId);
               setSelectedServiceId(request.serviceId);
               setSelectedDate(toDateKey(request.nextStart));
+            }}
+            onResizeRequest={(request) => {
+              const next = appointmentDetails.find(
+                (item) => item.id === request.continuationIds[0],
+              );
+              const overlapMinutes = next
+                ? Math.round(
+                    (request.nextEnd.getTime() -
+                      dateAt(next.appointment_date, next.start_time).getTime()) /
+                      60000,
+                  )
+                : 0;
+              if (overlapMinutes > 0) {
+                setResizeError('');
+                setPendingResize({ ...request, overlapMinutes });
+                return;
+              }
+              void persistResize(request, 0);
             }}
             isBlocked={isBusy && pendingDrop === null}
             workingHours={calendarSettings.data.workingHours}
@@ -558,9 +661,8 @@ export default function AppointmentsPage({
               pendingDrop.previousEnd,
             ),
             to: formatMoveMoment(pendingDrop.nextStart, pendingDrop.nextEnd),
-            movesAllServices:
-              (pendingAppointment.services.length ?? 0) > 1 ||
-              pendingDrop.companionAppointmentIds.length > 0,
+            movesAllServices: (pendingAppointment.services.length ?? 0) > 1,
+            movesVisit: pendingDrop.companionAppointmentIds.length > 0,
             isPastTarget:
               pendingDrop.nextStart.getTime() < nowInTimeZone(timezone).getTime(),
           }}
@@ -627,7 +729,48 @@ export default function AppointmentsPage({
         />
       ) : null}
 
-      {menu && menuAppointment ? (
+      {menu && menuAppointment && menu.scope === 'visit' ? (
+        <AppointmentContextMenu
+          x={menu.x}
+          y={menu.y}
+          onClose={closeMenu}
+          actions={[
+            {
+              id: 'approve-visit',
+              label: 'אישור כל הביקור',
+              icon: <CheckIcon />,
+              disabled: combinedAppointmentChain(appointmentDetails, menuAppointment.id).every(
+                (item) => isApprovedStatus(item.status) || isCanceledStatus(item.status),
+              ),
+              onSelect: () => applyStatus(menuAppointment, '02', true),
+            },
+            {
+              id: 'cancel-visit',
+              label: 'ביטול כל הביקור',
+              icon: <BanIcon />,
+              onSelect: () => applyStatus(menuAppointment, '10', true),
+            },
+            {
+              id: 'move-visit',
+              label: 'הזזת כל הביקור',
+              icon: <MoveIcon />,
+              disabled: isCanceledStatus(menuAppointment.status),
+              onSelect: () => {
+                setSelectedId(menuAppointment.id);
+                setSelectedServiceId(menu.serviceId);
+                setSelectedDate(menuAppointment.appointment_date);
+                setMoveRequest({
+                  appointmentId: menuAppointment.id,
+                  serviceId: menu.serviceId,
+                  wholeVisit: true,
+                });
+              },
+            },
+          ]}
+        />
+      ) : null}
+
+      {menu && menuAppointment && menu.scope !== 'visit' ? (
         <AppointmentContextMenu
           x={menu.x}
           y={menu.y}
@@ -681,6 +824,7 @@ export default function AppointmentsPage({
                       setMoveRequest({
                         appointmentId: menuAppointment.id,
                         serviceId: menu.serviceId,
+                        wholeVisit: false,
                       });
                     },
                   },
@@ -695,6 +839,7 @@ export default function AppointmentsPage({
           appointment={moveAppointment}
           timezone={timezone}
           isSaving={isBusy}
+          movesVisit={moveRequest.wholeVisit}
           onClose={() => {
             if (!isBusy) setMoveRequest(null);
           }}
@@ -715,12 +860,11 @@ export default function AppointmentsPage({
                 appointmentId: moveAppointment.id,
                 serviceId: moveRequest.serviceId,
                 clientPhone: moveAppointment.clientPhone,
-                companionAppointmentIds: combinedAppointmentChain(
-                  appointmentDetails,
-                  moveAppointment.id,
-                )
-                  .map((item) => item.id)
-                  .filter((id) => id !== moveAppointment.id),
+                companionAppointmentIds: moveRequest.wholeVisit
+                  ? combinedAppointmentChain(appointmentDetails, moveAppointment.id)
+                      .map((item) => item.id)
+                      .filter((id) => id !== moveAppointment.id)
+                  : [],
                 previousStart,
                 previousEnd,
                 nextStart,
@@ -733,6 +877,22 @@ export default function AppointmentsPage({
                 end_time: times.end_time,
               },
             );
+          }}
+        />
+      ) : null}
+
+      {pendingResize ? (
+        <StretchContinuationPrompt
+          isSaving={isBusy}
+          errorMessage={resizeError}
+          onMoveContinuation={() => {
+            void persistResize(pendingResize, pendingResize.overlapMinutes);
+          }}
+          onCancel={() => {
+            if (isBusy) return;
+            pendingResize.revert();
+            setResizeError('');
+            setPendingResize(null);
           }}
         />
       ) : null}

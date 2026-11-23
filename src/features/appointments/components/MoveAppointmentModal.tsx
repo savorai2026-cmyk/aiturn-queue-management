@@ -19,6 +19,7 @@ interface MoveAppointmentModalProps {
   appointment: AppointmentDetails;
   timezone?: string | null;
   isSaving: boolean;
+  movesVisit?: boolean;
   onMove: (values: {
     appointment_date: string;
     start_time: string;
@@ -45,6 +46,7 @@ export default function MoveAppointmentModal({
   appointment,
   timezone = null,
   isSaving,
+  movesVisit = false,
   onMove,
   onClose,
 }: MoveAppointmentModalProps) {
@@ -180,7 +182,11 @@ export default function MoveAppointmentModal({
             </div>
           </div>
 
-          {appointment.services.length > 1 ? (
+          {movesVisit ? (
+            <p className={styles.note}>
+              שאר השירותים בביקור יוזזו באותו הפרש.
+            </p>
+          ) : appointment.services.length > 1 ? (
             <p className={styles.note}>
               כל השירותים בתור יועברו יחד למועד החדש.
             </p>

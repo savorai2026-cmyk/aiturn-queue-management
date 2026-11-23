@@ -8,7 +8,7 @@ import type {
 } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import interactionPlugin from '@fullcalendar/interaction';
+import interactionPlugin, { type EventResizeDoneArg } from '@fullcalendar/interaction';
 import heLocale from '@fullcalendar/core/locales/he';
 import { isCanceledStatus, type StatusCatalogItem } from '../appointmentStatuses';
 import type { AppointmentDetails, CalendarEventProps } from '../appointments.types';
@@ -49,6 +49,7 @@ import {
   writeCalendarLocation,
 } from '../../../app/uiLocation';
 import { allowCalendarEventOverlap } from '../calendarGrouping';
+import { collapseVisitsForMonth } from '../appointments.mappers';
 import {
   getIsraeliHolidaysInRange,
   isAgentClosedHoliday,
@@ -64,43 +65,21 @@ import styles from './CalendarView.module.css';
 const MOBILE_QUERY = '(max-width: 767px)';
 const TODAY_HINT = 'מעבר להיום ביומן';
 
-function companionAppointmentIds(props: CalendarEventProps | undefined) {
-  return (props?.segments ?? [])
-    .map((segment) => segment.appointmentId)
-    .filter((id) => id !== props?.appointmentId);
+function dragCompanionIds(props: CalendarEventProps | undefined) {
+  if (props?.groupRole !== 'combined') return [];
+  return props.continuationIds ?? [];
 }
 
-function appointmentAtPointer(
-  props: CalendarEventProps,
-  element: HTMLElement,
-  clientY: number,
-) {
-  const segments = props.segments;
-  if (!segments || segments.length < 2) {
-    return {
-      appointmentId: props.appointmentId,
-      serviceId: props.serviceId,
-    };
-  }
-
-  const rect = element.getBoundingClientRect();
-  const ratio = rect.height
-    ? Math.min(1, Math.max(0, (clientY - rect.top) / rect.height))
-    : 0;
-  const start = segments[0].startMinutes;
-  const end = segments[segments.length - 1].endMinutes;
-  const minute = start + ratio * Math.max(end - start, 1);
-  const segment =
-    segments.find(
-      (item, index) =>
-        minute >= item.startMinutes &&
-        (minute < item.endMinutes || index === segments.length - 1),
-    ) ?? segments[0];
-
+function appointmentAtPointer(props: CalendarEventProps) {
   return {
-    appointmentId: segment.appointmentId,
-    serviceId: segment.serviceId,
+    appointmentId: props.appointmentId,
+    serviceId: props.serviceId,
   };
+}
+
+function resizeKeepsStart(event: EventApi, props: CalendarEventProps) {
+  if (!event.start || !props.date || !props.startHm) return false;
+  return toDateKey(event.start) === props.date && toTimeHm(event.start) === props.startHm;
 }
 
 function DragEdgeChevron({ direction }: { direction: 'prev' | 'next' }) {
@@ -127,6 +106,15 @@ export interface AppointmentDropRequest {
   nextEnd: Date | null;
 }
 
+export interface AppointmentResizeRequest {
+  revert: () => void;
+  appointmentId: number;
+  serviceId: number;
+  nextStart: Date;
+  nextEnd: Date;
+  continuationIds: number[];
+}
+
 type DragOrigin = {
   appointmentId: number;
   serviceId: number;
@@ -136,6 +124,38 @@ type DragOrigin = {
   end: Date | null;
   label: string;
 };
+
+type VisitDrag = {
+  pointerId: number;
+  originX: number;
+  originY: number;
+  originLeft: number;
+  originTop: number;
+  frame: HTMLDivElement;
+  moved: boolean;
+  appointmentId: number;
+  serviceId: number;
+  clientPhone: string | null;
+  companionAppointmentIds: number[];
+  start: Date;
+  end: Date | null;
+  snappedMinutes: number;
+  slotHeight: number;
+};
+
+const VISIT_SNAP_MINUTES = 5;
+
+function snappedVisitMinutes(
+  originMinutes: number,
+  deltaY: number,
+  slotHeight: number,
+  slotLength: number,
+): number {
+  if (!slotHeight || !slotLength) return originMinutes;
+  const raw = originMinutes + (deltaY / slotHeight) * slotLength;
+  const snapped = snapMinutes(raw, VISIT_SNAP_MINUTES);
+  return Math.min(Math.max(snapped, 0), 23 * 60 + 55);
+}
 
 interface CalendarViewProps {
   businessCode: string;
@@ -152,6 +172,7 @@ interface CalendarViewProps {
     serviceId: number,
     x: number,
     y: number,
+    scope?: 'appointment' | 'visit',
   ) => void;
   onBackgroundClick?: (info: { date: Date; allDay: boolean }) => void;
   onSelectedSlotContextMenu?: (x: number, y: number) => void;
@@ -163,6 +184,7 @@ interface CalendarViewProps {
   selectedDate: string | null;
   hasPendingMove: boolean;
   onDropRequest: (request: AppointmentDropRequest) => void;
+  onResizeRequest: (request: AppointmentResizeRequest) => void;
   isBlocked: boolean;
   workingHours: Json | null;
   slotDurationMinutes: number | null;
@@ -284,6 +306,14 @@ function getSlotDuration(slotDurationMinutes: number | null) {
   return `${String(hours).padStart(2, '0')}:${String(rest).padStart(2, '0')}:00`;
 }
 
+function darkerVisitTone(color: string): string {
+  const channels = color.match(/\d+(?:\.\d+)?/g)?.slice(0, 3).map(Number);
+  if (!channels || channels.length < 3) return 'rgb(8, 52, 60)';
+  return `rgb(${channels
+    .map((channel) => Math.round(Math.min(255, channel * 0.62)))
+    .join(', ')})`;
+}
+
 function readSnappedTimeFromPoint(
   clientX: number,
   clientY: number,
@@ -330,6 +360,7 @@ export default function CalendarView({
   selectedDate,
   hasPendingMove,
   onDropRequest,
+  onResizeRequest,
   isBlocked,
   workingHours,
   slotDurationMinutes,
@@ -362,7 +393,7 @@ export default function CalendarView({
   const tipPendingIdRef = useRef<number | null>(null);
   const hideAppointmentTipRef = useRef<() => void>(() => {});
   const moveAppointmentTipRef = useRef<
-    (props: CalendarEventProps, element: HTMLElement, clientY: number) => void
+    (props: CalendarEventProps, element: HTMLElement) => void
   >(() => {});
   const dragTooltipRef = useRef<HTMLDivElement | null>(null);
   const dragGhostRef = useRef<HTMLDivElement | null>(null);
@@ -778,7 +809,9 @@ export default function CalendarView({
 
   const calendarEvents = useMemo(
     () => {
-      const appointmentEvents = events.map((event) => {
+      const sourceEvents =
+        calendarViewType === 'dayGridMonth' ? collapseVisitsForMonth(events) : events;
+      const appointmentEvents = sourceEvents.map((event) => {
         const props = event.extendedProps as CalendarEventProps | undefined;
         const existingNames = Array.isArray(event.classNames)
           ? event.classNames
@@ -786,20 +819,21 @@ export default function CalendarView({
             ? [event.classNames]
             : [];
         const canMove = canEdit && !isCanceledStatus(props?.status ?? '');
+        const canResize = canMove && calendarViewType !== 'dayGridMonth';
         const memberIds =
-          props?.segments?.map((segment) => segment.appointmentId) ??
-          (props?.appointmentId != null ? [props.appointmentId] : []);
+          props?.groupRole === 'combined'
+            ? (props.segments?.map((segment) => segment.appointmentId) ??
+              (props.appointmentId != null ? [props.appointmentId] : []))
+            : props?.appointmentId != null
+              ? [props.appointmentId]
+              : [];
         const isSelected =
           selectedAppointmentId != null &&
           memberIds.includes(selectedAppointmentId);
         const isFocused =
           isSelected &&
-          (props?.segments?.some(
-            (segment) =>
-              segment.appointmentId === selectedAppointmentId &&
-              segment.serviceId === selectedServiceId,
-          ) ||
-            (!props?.segments && props?.serviceId === selectedServiceId));
+          (props?.groupRole === 'combined' ||
+            props?.serviceId === selectedServiceId);
         const classNames = [
           ...existingNames,
           isSelected ? 'event-selected' : '',
@@ -811,7 +845,7 @@ export default function CalendarView({
           classNames,
           editable: canMove,
           startEditable: canMove,
-          durationEditable: false,
+          durationEditable: canResize,
         };
       });
 
@@ -876,6 +910,7 @@ export default function CalendarView({
       return [...markers, ...appointmentEvents];
     },
     [
+      calendarViewType,
       canEdit,
       events,
       exceptions,
@@ -895,12 +930,15 @@ export default function CalendarView({
 
     api.removeAllEventSources();
     api.addEventSource(calendarEvents);
+    const frame = window.requestAnimationFrame(() => syncVisitFramesRef.current());
+    return () => window.cancelAnimationFrame(frame);
   }, [calendarEvents]);
 
   const slotMinutes =
     slotDurationMinutes && slotDurationMinutes > 0 ? slotDurationMinutes : 30;
 
   const onDropRequestRef = useRef(onDropRequest);
+  const onResizeRequestRef = useRef(onResizeRequest);
   const hasPendingMoveRef = useRef(hasPendingMove);
   const onEventContextMenuRef = useRef(onEventContextMenu);
   const onEventDoubleClickRef = useRef(onEventDoubleClick);
@@ -910,6 +948,7 @@ export default function CalendarView({
 
   useEffect(() => {
     onDropRequestRef.current = onDropRequest;
+    onResizeRequestRef.current = onResizeRequest;
     hasPendingMoveRef.current = hasPendingMove;
     onEventContextMenuRef.current = onEventContextMenu;
     onEventDoubleClickRef.current = onEventDoubleClick;
@@ -920,11 +959,264 @@ export default function CalendarView({
     hasPendingMove,
     onBackgroundClick,
     onDropRequest,
+    onResizeRequest,
     onEventContextMenu,
     appointments,
     onEventDoubleClick,
     onSelectedSlotContextMenu,
   ]);
+
+  const slotMinutesRef = useRef(slotMinutes);
+  const canEditRef = useRef(canEdit);
+  slotMinutesRef.current = slotMinutes;
+  canEditRef.current = canEdit;
+
+  const visitFramesRef = useRef(new Map<string, HTMLDivElement>());
+  const visitDragRef = useRef<VisitDrag | null>(null);
+  const syncVisitFramesRef = useRef<() => void>(() => {});
+
+  const resetVisitFrame = useCallback((frame: HTMLDivElement) => {
+    frame.classList.remove(styles.visitFrameMoving);
+    frame.style.position = '';
+    frame.style.zIndex = '';
+  }, []);
+
+  const finishVisitDrag = useCallback(
+    (drag: VisitDrag, clientX: number, clientY: number) => {
+      resetVisitFrame(drag.frame);
+      const restore = () => syncVisitFramesRef.current();
+      if (!drag.moved) {
+        restore();
+        return;
+      }
+      const dateKey = readDateKeyFromPoint(clientX, clientY);
+      if (!dateKey) {
+        restore();
+        return;
+      }
+      const [year, month, day] = dateKey.split('-').map(Number);
+      const nextStart = new Date(
+        year,
+        month - 1,
+        day,
+        Math.floor(drag.snappedMinutes / 60),
+        drag.snappedMinutes % 60,
+        0,
+        0,
+      );
+      const duration =
+        (drag.end?.getTime() ?? drag.start.getTime()) - drag.start.getTime();
+      const nextEnd = new Date(nextStart.getTime() + Math.max(duration, 0));
+      if (nextStart.getTime() === drag.start.getTime()) {
+        restore();
+        return;
+      }
+      onDropRequestRef.current({
+        revert: restore,
+        appointmentId: drag.appointmentId,
+        serviceId: drag.serviceId,
+        clientPhone: drag.clientPhone,
+        companionAppointmentIds: drag.companionAppointmentIds,
+        previousStart: drag.start,
+        previousEnd: drag.end,
+        nextStart,
+        nextEnd,
+      });
+      restore();
+    },
+    [resetVisitFrame],
+  );
+
+  const onVisitHandlePointerDown = useCallback((event: PointerEvent) => {
+    if (event.button !== 0 || !canEditRef.current || hasPendingMoveRef.current) return;
+    const handle = event.currentTarget;
+    if (!(handle instanceof HTMLElement)) return;
+    const frame = handle.parentElement;
+    if (!(frame instanceof HTMLDivElement)) return;
+    const appointmentId = Number(frame.dataset.appointmentId);
+    const serviceId = Number(frame.dataset.serviceId);
+    if (!appointmentId || !serviceId) return;
+    const fcEvent = calendarRef.current?.getApi().getEventById(String(appointmentId));
+    if (!fcEvent?.start) return;
+    const props = fcEvent.extendedProps as CalendarEventProps;
+    const rect = frame.getBoundingClientRect();
+    const lane = rootRef.current?.querySelector('.fc-timegrid-slot-lane');
+    const slotHeight = lane instanceof HTMLElement ? lane.getBoundingClientRect().height : 0;
+    const originMinutes = fcEvent.start.getHours() * 60 + fcEvent.start.getMinutes();
+    try {
+      handle.setPointerCapture(event.pointerId);
+    } catch {
+      // The drag still follows pointermove when capture is unavailable.
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    visitDragRef.current = {
+      pointerId: event.pointerId,
+      originX: event.clientX,
+      originY: event.clientY,
+      originLeft: rect.left,
+      originTop: rect.top,
+      frame,
+      moved: false,
+      appointmentId,
+      serviceId,
+      clientPhone: props.clientPhone ?? null,
+      companionAppointmentIds: props.continuationIds ?? [],
+      start: fcEvent.start,
+      end: fcEvent.end,
+      snappedMinutes: originMinutes,
+      slotHeight,
+    };
+  }, []);
+
+  const onVisitHandlePointerMove = useCallback((event: PointerEvent) => {
+    const drag = visitDragRef.current;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const dx = event.clientX - drag.originX;
+    const dy = event.clientY - drag.originY;
+    if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+    drag.moved = true;
+    const originMinutes = drag.start.getHours() * 60 + drag.start.getMinutes();
+    drag.snappedMinutes = snappedVisitMinutes(
+      originMinutes,
+      dy,
+      drag.slotHeight,
+      slotMinutesRef.current,
+    );
+    const snappedDy =
+      drag.slotHeight && slotMinutesRef.current
+        ? ((drag.snappedMinutes - originMinutes) / slotMinutesRef.current) * drag.slotHeight
+        : dy;
+    drag.frame.classList.add(styles.visitFrameMoving);
+    drag.frame.style.position = 'fixed';
+    drag.frame.style.zIndex = '30';
+    drag.frame.style.left = `${drag.originLeft + dx}px`;
+    drag.frame.style.top = `${drag.originTop + snappedDy}px`;
+  }, []);
+
+  const onVisitHandlePointerUp = useCallback(
+    (event: PointerEvent) => {
+      const drag = visitDragRef.current;
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      visitDragRef.current = null;
+      const handle = event.currentTarget;
+      if (handle instanceof HTMLElement && handle.hasPointerCapture(event.pointerId)) {
+        handle.releasePointerCapture(event.pointerId);
+      }
+      finishVisitDrag(drag, event.clientX, event.clientY);
+    },
+    [finishVisitDrag],
+  );
+
+  const onVisitHandleMenu = useCallback((event: MouseEvent) => {
+    const handle = event.currentTarget;
+    if (!(handle instanceof HTMLElement)) return;
+    const frame = handle.parentElement;
+    if (!(frame instanceof HTMLElement)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const appointmentId = Number(frame.dataset.appointmentId);
+    const serviceId = Number(frame.dataset.serviceId);
+    if (!appointmentId || !serviceId || !canEditRef.current) return;
+    onEventContextMenuRef.current?.(
+      appointmentId,
+      serviceId,
+      event.clientX,
+      event.clientY,
+      'visit',
+    );
+  }, []);
+
+  syncVisitFramesRef.current = () => {
+    const root = rootRef.current;
+    if (!root) return;
+    const seen = new Set<string>();
+    if (viewTypeRef.current !== 'dayGridMonth') {
+      const groups = new Map<string, HTMLElement[]>();
+      for (const node of root.querySelectorAll<HTMLElement>('[data-visit]')) {
+        const key = node.dataset.visit;
+        if (!key) continue;
+        const list = groups.get(key) ?? [];
+        list.push(node);
+        groups.set(key, list);
+      }
+      for (const [key, list] of groups) {
+        const column = list[0].closest('.fc-timegrid-col-events');
+        if (!(column instanceof HTMLElement)) continue;
+        seen.add(key);
+        const columnRect = column.getBoundingClientRect();
+        let top = Infinity;
+        let left = Infinity;
+        let right = -Infinity;
+        let bottom = -Infinity;
+        for (const node of list) {
+          const rect = node.getBoundingClientRect();
+          top = Math.min(top, rect.top);
+          left = Math.min(left, rect.left);
+          right = Math.max(right, rect.right);
+          bottom = Math.max(bottom, rect.bottom);
+        }
+        if (!Number.isFinite(top) || right <= left || bottom <= top) continue;
+        let frame = visitFramesRef.current.get(key);
+        if (!frame) {
+          frame = document.createElement('div');
+          frame.className = styles.visitFrame;
+          const handle = document.createElement('div');
+          handle.className = styles.visitHandle;
+          handle.dataset.visitHandle = 'true';
+          handle.setAttribute('role', 'button');
+          handle.tabIndex = 0;
+          handle.setAttribute('aria-label', 'כל הביקור');
+          handle.title = 'גרירה או לחיצה ימנית פועלות על כל הביקור';
+          handle.addEventListener('pointerdown', onVisitHandlePointerDown);
+          handle.addEventListener('pointermove', onVisitHandlePointerMove);
+          handle.addEventListener('pointerup', onVisitHandlePointerUp);
+          handle.addEventListener('pointercancel', onVisitHandlePointerUp);
+          handle.addEventListener('contextmenu', onVisitHandleMenu);
+          frame.appendChild(handle);
+          visitFramesRef.current.set(key, frame);
+        }
+        if (frame.parentElement !== column) column.appendChild(frame);
+        const anchor =
+          list.find((node) => node.dataset.visitAnchor === 'true') ?? list[0];
+        frame.dataset.appointmentId = anchor.dataset.appointmentId ?? '';
+        frame.dataset.serviceId = anchor.dataset.serviceId ?? '';
+        const handle = frame.querySelector('[data-visit-handle]');
+        if (handle instanceof HTMLElement) {
+          handle.style.pointerEvents = canEditRef.current ? 'auto' : 'none';
+        }
+        const tone = darkerVisitTone(getComputedStyle(anchor).backgroundColor);
+        frame.style.borderColor = tone;
+        if (handle instanceof HTMLElement) handle.style.borderColor = tone;
+        if (visitDragRef.current?.frame === frame) continue;
+        frame.style.top = `${top - columnRect.top}px`;
+        frame.style.left = `${left - columnRect.left}px`;
+        frame.style.width = `${right - left}px`;
+        frame.style.height = `${bottom - top}px`;
+      }
+    }
+    for (const [key, frame] of visitFramesRef.current) {
+      if (seen.has(key)) continue;
+      frame.remove();
+      visitFramesRef.current.delete(key);
+    }
+  };
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const schedule = () => {
+      window.requestAnimationFrame(() => syncVisitFramesRef.current());
+    };
+    const observer = new ResizeObserver(schedule);
+    observer.observe(root);
+    schedule();
+    return () => {
+      observer.disconnect();
+      for (const frame of visitFramesRef.current.values()) frame.remove();
+      visitFramesRef.current.clear();
+    };
+  }, []);
 
   const hideAppointmentTip = useCallback(() => {
     if (tipTimerRef.current != null) {
@@ -937,12 +1229,12 @@ export default function CalendarView({
   }, []);
 
   const moveAppointmentTip = useCallback(
-    (props: CalendarEventProps, element: HTMLElement, clientY: number) => {
+    (props: CalendarEventProps, element: HTMLElement) => {
       if (document.body.classList.contains('featurn-is-event-dragging')) {
         hideAppointmentTip();
         return;
       }
-      const target = appointmentAtPointer(props, element, clientY);
+      const target = appointmentAtPointer(props);
       if (tipShownIdRef.current === target.appointmentId) return;
       if (tipPendingIdRef.current === target.appointmentId && tipTimerRef.current != null) {
         return;
@@ -1317,7 +1609,7 @@ export default function CalendarView({
               appointmentId: props.appointmentId,
               serviceId: props.serviceId,
               clientPhone: props.clientPhone,
-              companionAppointmentIds: companionAppointmentIds(props),
+              companionAppointmentIds: dragCompanionIds(props),
               start,
               end: info.event.end,
               label: label || info.event.title || 'תור',
@@ -1356,15 +1648,21 @@ export default function CalendarView({
   );
 
   const handleEventOverlap = useCallback(
-    (stillEvent: EventApi, movingEvent: EventApi | null) =>
-      allowCalendarEventOverlap({
+    (stillEvent: EventApi, movingEvent: EventApi | null) => {
+      const movingProps = movingEvent?.extendedProps as
+        | CalendarEventProps
+        | undefined;
+      return allowCalendarEventOverlap({
         stillDisplay: stillEvent.display,
         stillAppointmentId: (stillEvent.extendedProps as CalendarEventProps)
           .appointmentId,
-        movingAppointmentId: (movingEvent?.extendedProps as
-          | CalendarEventProps
-          | undefined)?.appointmentId,
-      }),
+        movingAppointmentId: movingProps?.appointmentId,
+        movingStartUnchanged: movingEvent
+          ? resizeKeepsStart(movingEvent, movingProps ?? ({} as CalendarEventProps))
+          : false,
+        continuationIds: movingProps?.continuationIds,
+      });
+    },
     [],
   );
 
@@ -1379,7 +1677,7 @@ export default function CalendarView({
             appointmentId: props.appointmentId,
             serviceId: props.serviceId,
             clientPhone: props.clientPhone,
-            companionAppointmentIds: companionAppointmentIds(props),
+            companionAppointmentIds: dragCompanionIds(props),
             start: previousStart,
             end: info.oldEvent.end,
             label: '',
@@ -1402,6 +1700,25 @@ export default function CalendarView({
       info.revert();
     }
   }, [requestMoveFromDrag]);
+
+  const handleEventResize = useCallback((info: EventResizeDoneArg) => {
+    const start = info.event.start;
+    const end = info.event.end;
+    const props = info.event.extendedProps as CalendarEventProps;
+    if (!start || !end || !props.appointmentId || end.getTime() <= start.getTime()) {
+      info.revert();
+      return;
+    }
+
+    onResizeRequestRef.current({
+      revert: () => info.revert(),
+      appointmentId: props.appointmentId,
+      serviceId: props.serviceId,
+      nextStart: start,
+      nextEnd: end,
+      continuationIds: props.continuationIds ?? [],
+    });
+  }, []);
 
   if (isLoading) {
     return <LoadingState message="טוען תורים..." />;
@@ -1511,6 +1828,7 @@ export default function CalendarView({
             }
           }
           syncTodayButton();
+          window.requestAnimationFrame(() => syncVisitFramesRef.current());
           const currentStartKey = toDateKey(info.view.currentStart);
           setCalendarViewType((current) =>
             current === nextViewType ? current : nextViewType,
@@ -1592,15 +1910,32 @@ export default function CalendarView({
         eventDragStart={startDragTracking}
         eventDragStop={handleEventDragStop}
         eventDrop={handleEventDrop}
+        eventResize={handleEventResize}
         eventDidMount={(info) => {
           const props = info.event.extendedProps as CalendarEventProps & {
             specialDayLabel?: boolean;
           };
           if (props?.specialDayLabel || props?.appointmentId == null) return;
+          info.el.dataset.appointmentId = String(props.appointmentId);
+          info.el.dataset.serviceId = String(props.serviceId);
+          if (
+            props.segments &&
+            props.segments.length > 1 &&
+            props.groupRole !== 'combined' &&
+            props.groupRole !== 'single'
+          ) {
+            info.el.dataset.visit = props.segments
+              .map((segment) => segment.appointmentId)
+              .join('-');
+            if (props.groupRole === 'start') info.el.dataset.visitAnchor = 'true';
+          } else {
+            delete info.el.dataset.visit;
+            delete info.el.dataset.visitAnchor;
+          }
           const onMenu = (event: Event) => {
             event.preventDefault();
             const mouse = event as MouseEvent;
-            const target = appointmentAtPointer(props, info.el, mouse.clientY);
+            const target = appointmentAtPointer(props);
             onEventContextMenuRef.current?.(
               target.appointmentId,
               target.serviceId,
@@ -1608,9 +1943,8 @@ export default function CalendarView({
               mouse.clientY,
             );
           };
-          const onDoubleClick = (event: Event) => {
-            const mouse = event as MouseEvent;
-            const target = appointmentAtPointer(props, info.el, mouse.clientY);
+          const onDoubleClick = () => {
+            const target = appointmentAtPointer(props);
             const appointment = appointmentsRef.current.find(
               (candidate) => candidate.id === target.appointmentId,
             );
@@ -1618,9 +1952,8 @@ export default function CalendarView({
               onEventDoubleClickRef.current?.(appointment, target.serviceId);
             }
           };
-          const onHover = (event: Event) => {
-            const mouse = event as MouseEvent;
-            moveAppointmentTipRef.current(props, info.el, mouse.clientY);
+          const onHover = () => {
+            moveAppointmentTipRef.current(props, info.el);
           };
           const onHoverEnd = () => hideAppointmentTipRef.current();
           info.el.addEventListener('mouseenter', onHover);
@@ -1677,7 +2010,9 @@ export default function CalendarView({
               {props.serviceTitle ? (
                 <span className={styles.eventService}>{props.serviceTitle}</span>
               ) : null}
-              {props.clientName ? (
+              {props.clientName &&
+              props.groupRole !== 'middle' &&
+              props.groupRole !== 'end' ? (
                 <span className={styles.eventName}>{props.clientName}</span>
               ) : null}
               {props.holdLabel ? (
@@ -1694,11 +2029,7 @@ export default function CalendarView({
           if (props?.specialDayLabel) {
             return;
           }
-          const target = appointmentAtPointer(
-            props,
-            clickInfo.el,
-            clickInfo.jsEvent.clientY,
-          );
+          const target = appointmentAtPointer(props);
           const appointment = appointments.find(
             (candidate) => candidate.id === target.appointmentId,
           );
