@@ -651,6 +651,25 @@
   cursor: grabbing;
 }
 
+.visitMirror {
+  position: fixed;
+  z-index: 30;
+  box-sizing: border-box;
+  border-radius: 4px;
+  outline: 1px solid #08343c;
+  outline-offset: -1px;
+  pointer-events: none;
+}
+
+.visitMirror,
+.visitMirror * {
+  pointer-events: none !important;
+}
+
+.visitDragSource {
+  opacity: 0.75;
+}
+
 :global(.fc-timegrid-event-short .fc-event-main) {
   padding: 2px 4px !important;
   font-size: 12px;

@@ -173,6 +173,7 @@ body, html, #root {
 
 html {
   scrollbar-gutter: stable;
+  cursor: var(--cursor-pointer);
 }
 
 html:has(.is-page-flow) {
@@ -254,7 +255,7 @@ button[aria-pressed='true']:not(:disabled):active:focus {
 button:disabled {
   transform: none;
   box-shadow: none;
-  cursor: not-allowed;
+  cursor: var(--cursor-forbidden);
   opacity: 0.55;
 }
 
@@ -281,6 +282,11 @@ textarea,
 select,
 select option {
   color: var(--color-field);
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='button']):not([type='submit']):not([type='reset']):not([type='file']),
+textarea {
+  cursor: text;
 }
 
 input[type='checkbox'] {
