@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import FullCalendar from '@fullcalendar/react';
 import type {
   EventApi,
@@ -141,6 +142,8 @@ type VisitDrag = {
   end: Date | null;
   snappedMinutes: number;
   slotHeight: number;
+  mirror: HTMLDivElement | null;
+  sources: HTMLElement[];
 };
 
 const VISIT_SNAP_MINUTES = 5;
@@ -250,52 +253,147 @@ function findTimegridSlotLane(root: HTMLElement, timeHm: string) {
   return match;
 }
 
-function contextHitsSelectedEmptyArea(
+function columnAtPoint(root: HTMLElement, clientX: number, clientY: number) {
+  const columns = root.querySelectorAll<HTMLElement>('.fc-timegrid-col[data-date]');
+  for (const column of columns) {
+    const box = column.getBoundingClientRect();
+    if (
+      clientX >= box.left &&
+      clientX <= box.right &&
+      clientY >= box.top &&
+      clientY <= box.bottom
+    ) {
+      return column;
+    }
+  }
+  return null;
+}
+
+function yForTimeHm(root: HTMLElement, timeHm: string, slotLength: number) {
+  const lane = findTimegridSlotLane(root, timeHm);
+  if (!lane || !slotLength) return null;
+  const [hours, minutes] = timeHm.split(':').map(Number);
+  const [laneHours, laneMinutes] = (lane.dataset.time ?? '').split(':').map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  if (!Number.isFinite(laneHours) || !Number.isFinite(laneMinutes)) return null;
+  const ratio = Math.min(
+    Math.max((hours * 60 + minutes - (laneHours * 60 + laneMinutes)) / slotLength, 0),
+    1,
+  );
+  const box = lane.getBoundingClientRect();
+  return box.top + ratio * box.height;
+}
+
+function readEmptySlotAtPoint(
   root: HTMLElement,
-  event: MouseEvent,
-  selectedDate: string | null,
-  selectedTime: string | null,
-  selectedAppointmentId: number | null,
+  clientX: number,
+  clientY: number,
   viewType: string,
 ) {
-  const target = event.target;
-  if (!(target instanceof Element) || !selectedDate) return false;
-  if (
-    target.closest(
-      '.fc-event, .fc-header-toolbar, .fc-col-header, .fc-timegrid-slot-label, .fc-timegrid-axis, .fc-popover',
-    )
-  ) {
-    return false;
+  if (viewType === 'dayGridMonth') {
+    const hit = document.elementFromPoint(clientX, clientY);
+    const cell =
+      hit instanceof Element
+        ? hit.closest<HTMLElement>('.fc-daygrid-day[data-date]')
+        : null;
+    if (!cell?.dataset.date || !root.contains(cell)) return null;
+    return { dateKey: cell.dataset.date, timeHm: null as string | null };
   }
 
-  const dayCell = target.closest<HTMLElement>('.fc-daygrid-day[data-date]');
-  if (dayCell && viewType === 'dayGridMonth') {
-    if (dayCell.dataset.date !== selectedDate) return false;
-    return selectedAppointmentId == null || Boolean(selectedTime);
-  }
-
-  if (!selectedTime) return false;
-  const columns = root.querySelectorAll<HTMLElement>('.fc-timegrid-col[data-date]');
-  let column: HTMLElement | null = null;
-  for (const candidate of columns) {
-    if (candidate.dataset.date !== selectedDate) continue;
+  const column = columnAtPoint(root, clientX, clientY);
+  if (!column?.dataset.date) return null;
+  const lanes = root.querySelectorAll<HTMLElement>('.fc-timegrid-slot-lane[data-time]');
+  let lane: HTMLElement | null = null;
+  for (const candidate of lanes) {
     const box = candidate.getBoundingClientRect();
-    if (
-      event.clientX >= box.left &&
-      event.clientX <= box.right &&
-      event.clientY >= box.top &&
-      event.clientY <= box.bottom
-    ) {
-      column = candidate;
+    if (clientY >= box.top && clientY <= box.bottom) {
+      lane = candidate;
       break;
     }
   }
-  if (!column) return false;
+  if (!lane?.dataset.time) return null;
+  return {
+    dateKey: column.dataset.date,
+    timeHm: snapTimeHm(lane.dataset.time.slice(0, 5)),
+  };
+}
 
-  const lane = findTimegridSlotLane(root, selectedTime);
-  if (!lane) return false;
-  const laneBox = lane.getBoundingClientRect();
-  return event.clientY >= laneBox.top && event.clientY <= laneBox.bottom;
+function collectVisitEvents(root: HTMLElement, appointmentId: string) {
+  const anchor = root.querySelector<HTMLElement>(
+    `[data-appointment-id="${appointmentId}"][data-visit-anchor="true"]`,
+  );
+  const key = anchor?.dataset.visit;
+  if (!key) return [];
+  return [...root.querySelectorAll<HTMLElement>(`[data-visit="${CSS.escape(key)}"]`)]
+    .filter((node) => node.classList.contains('fc-timegrid-event'))
+    .sort(
+      (left, right) =>
+        left.getBoundingClientRect().top - right.getBoundingClientRect().top,
+    );
+}
+
+function buildVisitMirror(
+  root: HTMLElement,
+  frame: HTMLDivElement,
+  mirrorClass: string,
+  sourceClass: string,
+  handleClass: string,
+) {
+  const nodes = collectVisitEvents(root, frame.dataset.appointmentId ?? '');
+  if (nodes.length === 0) return null;
+  const rects = nodes.map((node) => node.getBoundingClientRect());
+  const top = Math.min(...rects.map((rect) => rect.top));
+  const bottom = Math.max(...rects.map((rect) => rect.bottom));
+  const mirror = document.createElement('div');
+  mirror.className = mirrorClass;
+  mirror.style.height = `${bottom - top}px`;
+  mirror.style.outlineColor = frame.style.borderColor;
+  nodes.forEach((node, index) => {
+    const clone = node.cloneNode(true);
+    if (!(clone instanceof HTMLElement)) return;
+    clone.removeAttribute('data-visit');
+    clone.removeAttribute('data-visit-anchor');
+    clone.removeAttribute('data-appointment-id');
+    clone.style.position = 'absolute';
+    clone.style.top = `${rects[index].top - top}px`;
+    clone.style.left = '0';
+    clone.style.right = 'auto';
+    clone.style.bottom = 'auto';
+    clone.style.width = '100%';
+    clone.style.height = `${rects[index].height}px`;
+    clone.style.margin = '0';
+    mirror.appendChild(clone);
+    node.classList.add(sourceClass);
+  });
+  const handle = document.createElement('div');
+  handle.className = handleClass;
+  handle.style.borderColor = frame.style.borderColor;
+  mirror.appendChild(handle);
+  frame.classList.add(sourceClass);
+  document.body.appendChild(mirror);
+  return { mirror, sources: [...nodes, frame] };
+}
+
+function placeVisitMirror(
+  mirror: HTMLDivElement,
+  root: HTMLElement,
+  clientX: number,
+  clientY: number,
+  slotLength: number,
+) {
+  const column = columnAtPoint(root, clientX, clientY);
+  const host = column?.querySelector<HTMLElement>('.fc-timegrid-col-events');
+  const time = readSnappedTimeFromPoint(clientX, clientY, slotLength);
+  const top = time ? yForTimeHm(root, time, slotLength) : null;
+  if (!host || top == null) {
+    mirror.style.visibility = 'hidden';
+    return;
+  }
+  const box = host.getBoundingClientRect();
+  mirror.style.visibility = 'visible';
+  mirror.style.left = `${box.left}px`;
+  mirror.style.width = `${box.width}px`;
+  mirror.style.top = `${top}px`;
 }
 
 function getSlotDuration(slotDurationMinutes: number | null) {
@@ -304,6 +402,50 @@ function getSlotDuration(slotDurationMinutes: number | null) {
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
   return `${String(hours).padStart(2, '0')}:${String(rest).padStart(2, '0')}:00`;
+}
+
+function visitRangeHitsAnotherEvent(
+  events: EventApi[],
+  nextStart: Date,
+  nextEnd: Date,
+  ownIds: Set<number>,
+) {
+  return events.some((event) => {
+    if (event.display === 'background' || !event.start) return false;
+    const appointmentId = (event.extendedProps as CalendarEventProps).appointmentId;
+    if (appointmentId == null || ownIds.has(appointmentId)) return false;
+    const eventEnd = event.end ?? event.start;
+    return event.start < nextEnd && eventEnd > nextStart;
+  });
+}
+
+function visitDragOverlaps(
+  events: EventApi[],
+  origin: {
+    appointmentId: number;
+    companionAppointmentIds: number[];
+    start: Date;
+    end: Date | null;
+  },
+  dateKey: string,
+  time: string | null,
+  month: boolean,
+) {
+  const moved = buildDropRange(dateKey, time, origin.start, origin.end, month);
+  const ownIds = new Set([origin.appointmentId, ...origin.companionAppointmentIds]);
+  let visitEndMs = origin.end?.getTime() ?? origin.start.getTime();
+  for (const event of events) {
+    const appointmentId = (event.extendedProps as CalendarEventProps).appointmentId;
+    if (appointmentId == null || !ownIds.has(appointmentId) || !event.end) continue;
+    visitEndMs = Math.max(visitEndMs, event.end.getTime());
+  }
+  const visitEnd = new Date(
+    moved.nextStart.getTime() + (visitEndMs - origin.start.getTime()),
+  );
+  return {
+    moved,
+    overlaps: visitRangeHitsAnotherEvent(events, moved.nextStart, visitEnd, ownIds),
+  };
 }
 
 function darkerVisitTone(color: string): string {
@@ -945,6 +1087,8 @@ export default function CalendarView({
   const appointmentsRef = useRef(appointments);
   const onBackgroundClickRef = useRef(onBackgroundClick);
   const onSelectedSlotContextMenuRef = useRef(onSelectedSlotContextMenu);
+  const onSelectDateRef = useRef(onSelectDate);
+  const onSelectTimeRef = useRef(onSelectTime);
 
   useEffect(() => {
     onDropRequestRef.current = onDropRequest;
@@ -955,6 +1099,8 @@ export default function CalendarView({
     appointmentsRef.current = appointments;
     onBackgroundClickRef.current = onBackgroundClick;
     onSelectedSlotContextMenuRef.current = onSelectedSlotContextMenu;
+    onSelectDateRef.current = onSelectDate;
+    onSelectTimeRef.current = onSelectTime;
   }, [
     hasPendingMove,
     onBackgroundClick,
@@ -964,6 +1110,8 @@ export default function CalendarView({
     appointments,
     onEventDoubleClick,
     onSelectedSlotContextMenu,
+    onSelectDate,
+    onSelectTime,
   ]);
 
   const slotMinutesRef = useRef(slotMinutes);
@@ -974,58 +1122,16 @@ export default function CalendarView({
   const visitFramesRef = useRef(new Map<string, HTMLDivElement>());
   const visitDragRef = useRef<VisitDrag | null>(null);
   const syncVisitFramesRef = useRef<() => void>(() => {});
+  const visitDragMoveRef = useRef<(event: PointerEvent) => void>(() => {});
+  const visitDragFinishRef = useRef<
+    (drag: VisitDrag, clientX: number, clientY: number) => void
+  >(() => {});
 
   const resetVisitFrame = useCallback((frame: HTMLDivElement) => {
     frame.classList.remove(styles.visitFrameMoving);
     frame.style.position = '';
     frame.style.zIndex = '';
   }, []);
-
-  const finishVisitDrag = useCallback(
-    (drag: VisitDrag, clientX: number, clientY: number) => {
-      resetVisitFrame(drag.frame);
-      const restore = () => syncVisitFramesRef.current();
-      if (!drag.moved) {
-        restore();
-        return;
-      }
-      const dateKey = readDateKeyFromPoint(clientX, clientY);
-      if (!dateKey) {
-        restore();
-        return;
-      }
-      const [year, month, day] = dateKey.split('-').map(Number);
-      const nextStart = new Date(
-        year,
-        month - 1,
-        day,
-        Math.floor(drag.snappedMinutes / 60),
-        drag.snappedMinutes % 60,
-        0,
-        0,
-      );
-      const duration =
-        (drag.end?.getTime() ?? drag.start.getTime()) - drag.start.getTime();
-      const nextEnd = new Date(nextStart.getTime() + Math.max(duration, 0));
-      if (nextStart.getTime() === drag.start.getTime()) {
-        restore();
-        return;
-      }
-      onDropRequestRef.current({
-        revert: restore,
-        appointmentId: drag.appointmentId,
-        serviceId: drag.serviceId,
-        clientPhone: drag.clientPhone,
-        companionAppointmentIds: drag.companionAppointmentIds,
-        previousStart: drag.start,
-        previousEnd: drag.end,
-        nextStart,
-        nextEnd,
-      });
-      restore();
-    },
-    [resetVisitFrame],
-  );
 
   const onVisitHandlePointerDown = useCallback((event: PointerEvent) => {
     if (event.button !== 0 || !canEditRef.current || hasPendingMoveRef.current) return;
@@ -1050,6 +1156,18 @@ export default function CalendarView({
     }
     event.preventDefault();
     event.stopPropagation();
+    const label = [props.clientName, props.timeLabel].filter(Boolean).join(' · ');
+    dragOriginRef.current = {
+      appointmentId,
+      serviceId,
+      clientPhone: props.clientPhone ?? null,
+      companionAppointmentIds: props.continuationIds ?? [],
+      start: fcEvent.start,
+      end: fcEvent.end,
+      label: label || 'תור',
+    };
+    document.body.classList.add('featurn-is-event-dragging');
+    rootRef.current?.classList.add(styles.isDragging);
     visitDragRef.current = {
       pointerId: event.pointerId,
       originX: event.clientX,
@@ -1066,6 +1184,8 @@ export default function CalendarView({
       end: fcEvent.end,
       snappedMinutes: originMinutes,
       slotHeight,
+      mirror: null,
+      sources: [],
     };
   }, []);
 
@@ -1077,21 +1197,53 @@ export default function CalendarView({
     if (!drag.moved && Math.hypot(dx, dy) < 4) return;
     drag.moved = true;
     const originMinutes = drag.start.getHours() * 60 + drag.start.getMinutes();
-    drag.snappedMinutes = snappedVisitMinutes(
-      originMinutes,
-      dy,
-      drag.slotHeight,
+    const pointedTime = readSnappedTimeFromPoint(
+      event.clientX,
+      event.clientY,
       slotMinutesRef.current,
     );
-    const snappedDy =
-      drag.slotHeight && slotMinutesRef.current
-        ? ((drag.snappedMinutes - originMinutes) / slotMinutesRef.current) * drag.slotHeight
-        : dy;
-    drag.frame.classList.add(styles.visitFrameMoving);
-    drag.frame.style.position = 'fixed';
-    drag.frame.style.zIndex = '30';
-    drag.frame.style.left = `${drag.originLeft + dx}px`;
-    drag.frame.style.top = `${drag.originTop + snappedDy}px`;
+    if (pointedTime) {
+      const [hours, minutes] = pointedTime.split(':').map(Number);
+      drag.snappedMinutes = hours * 60 + minutes;
+    } else {
+      drag.snappedMinutes = snappedVisitMinutes(
+        originMinutes,
+        dy,
+        drag.slotHeight,
+        slotMinutesRef.current,
+      );
+    }
+    const root = rootRef.current;
+    if (root && !drag.mirror) {
+      const built = buildVisitMirror(
+        root,
+        drag.frame,
+        styles.visitMirror,
+        styles.visitDragSource,
+        styles.visitHandle,
+      );
+      if (built) {
+        drag.mirror = built.mirror;
+        drag.sources = built.sources;
+      }
+    }
+    if (root && drag.mirror) {
+      placeVisitMirror(drag.mirror, root, event.clientX, event.clientY, slotMinutesRef.current);
+    }
+    const dateKey = readDateKeyFromPoint(event.clientX, event.clientY);
+    const viewType = calendarRef.current?.getApi().view.type ?? viewTypeRef.current;
+    const blocked =
+      dateKey != null &&
+      pointedTime != null &&
+      visitDragOverlaps(
+        calendarRef.current?.getApi().getEvents() ?? [],
+        drag,
+        dateKey,
+        pointedTime,
+        viewType === 'dayGridMonth',
+      ).overlaps;
+    document.body.classList.toggle('fc-not-allowed', blocked);
+    visitDragMoveRef.current(event);
   }, []);
 
   const onVisitHandlePointerUp = useCallback(
@@ -1103,9 +1255,9 @@ export default function CalendarView({
       if (handle instanceof HTMLElement && handle.hasPointerCapture(event.pointerId)) {
         handle.releasePointerCapture(event.pointerId);
       }
-      finishVisitDrag(drag, event.clientX, event.clientY);
+      visitDragFinishRef.current(drag, event.clientX, event.clientY);
     },
-    [finishVisitDrag],
+    [],
   );
 
   const onVisitHandleMenu = useCallback((event: MouseEvent) => {
@@ -1288,25 +1440,35 @@ export default function CalendarView({
     if (!root || !canEdit) return;
 
     const onContextMenu = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
       if (
-        !contextHitsSelectedEmptyArea(
-          root,
-          event,
-          selectedDate,
-          selectedTime,
-          selectedAppointmentId,
-          viewTypeRef.current,
+        target.closest(
+          '.fc-event, [data-visit-handle], .fc-header-toolbar, .fc-col-header, .fc-timegrid-slot-label, .fc-timegrid-axis, .fc-popover',
         )
       ) {
         return;
       }
+      const slot = readEmptySlotAtPoint(
+        root,
+        event.clientX,
+        event.clientY,
+        viewTypeRef.current,
+      );
+      if (!slot) return;
       event.preventDefault();
+      onSelectDateRef.current(slot.dateKey);
+      onSelectTimeRef.current?.(slot.timeHm);
+      onBackgroundClickRef.current?.({
+        date: toLocalDateFromKey(slot.dateKey, slot.timeHm ?? '00:00'),
+        allDay: slot.timeHm == null,
+      });
       onSelectedSlotContextMenuRef.current?.(event.clientX, event.clientY);
     };
 
     root.addEventListener('contextmenu', onContextMenu);
     return () => root.removeEventListener('contextmenu', onContextMenu);
-  }, [canEdit, selectedAppointmentId, selectedDate, selectedTime]);
+  }, [canEdit, error, isLoading]);
 
   const hideDragTooltip = useCallback(() => {
     const tooltip = dragTooltipRef.current;
@@ -1586,6 +1748,55 @@ export default function CalendarView({
 
   handleDragMoveRef.current = handleDragMove;
   handlePointerUpRef.current = handlePointerUp;
+  visitDragMoveRef.current = handleDragMove;
+  visitDragFinishRef.current = (drag, clientX, clientY) => {
+    drag.mirror?.remove();
+    for (const node of drag.sources) node.classList.remove(styles.visitDragSource);
+    resetVisitFrame(drag.frame);
+    hideDragTooltip();
+    hideDragGhost();
+    clearDragHot();
+    document.body.classList.remove('fc-not-allowed');
+    document.body.classList.remove('featurn-is-event-dragging');
+    rootRef.current?.classList.remove(styles.isDragging);
+    const restore = () => syncVisitFramesRef.current();
+    const origin = dragOriginRef.current;
+    dragOriginRef.current = null;
+    syntheticDragRef.current = false;
+    navigatingRef.current = false;
+    if (!drag.moved || !origin) {
+      restore();
+      return;
+    }
+
+    const dateKey = readDateKeyFromPoint(clientX, clientY);
+    const time = readSnappedTimeFromPoint(clientX, clientY, slotMinutesRef.current);
+    const viewType = calendarRef.current?.getApi().view.type ?? viewTypeRef.current;
+    if (!dateKey) {
+      restore();
+      return;
+    }
+
+    const { moved, overlaps } = visitDragOverlaps(
+      calendarRef.current?.getApi().getEvents() ?? [],
+      origin,
+      dateKey,
+      time,
+      viewType === 'dayGridMonth',
+    );
+    if (overlaps) {
+      restore();
+      return;
+    }
+
+    const applied = requestMoveFromDrag(
+      origin,
+      moved.nextStart,
+      moved.nextEnd,
+      restore,
+    );
+    if (!applied) restore();
+  };
 
   const startDragTracking = useCallback(
     (info: { event: EventApi; jsEvent: MouseEvent }) => {
@@ -1643,6 +1854,7 @@ export default function CalendarView({
       document.removeEventListener('pointerup', onDragPointerUp);
       document.removeEventListener('pointercancel', onDragPointerUp);
       document.body.classList.remove('featurn-is-event-dragging');
+      document.body.classList.remove('fc-not-allowed');
     },
     [onDragPointerMove, onDragPointerUp],
   );
@@ -1797,6 +2009,7 @@ export default function CalendarView({
           meridiem: false,
         }}
         snapDuration="00:05:00"
+        eventMinHeight={0}
         validRange={navigationRangeEnd ? { end: navigationRangeEnd } : undefined}
         businessHours={businessHours.length > 0 ? businessHours : undefined}
         eventOverlap={handleEventOverlap}
@@ -2060,8 +2273,13 @@ export default function CalendarView({
         />
       ) : null}
 
-      <div ref={dragTooltipRef} className={styles.dragTooltip} />
-      <div ref={dragGhostRef} className={styles.dragGhost} />
+      {createPortal(
+        <>
+          <div ref={dragTooltipRef} className={styles.dragTooltip} />
+          <div ref={dragGhostRef} className={styles.dragGhost} />
+        </>,
+        document.body,
+      )}
     </div>
   );
 }

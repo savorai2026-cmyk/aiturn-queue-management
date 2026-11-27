@@ -275,8 +275,10 @@ export default function AppointmentsPage({
           serviceId,
           currentAppointmentTime: previousTime,
           newAppointmentTime: nextTime,
-          ownerApprovedMove:
-            isApprovedStatus(baseline.status) && isApprovedStatus(values.status),
+          // Every move from this screen is the business. The flag must be set for
+          // any status: otherwise the scheduler treats it as a customer move,
+          // alerts the owner, and skips the client.
+          ownerApprovedMove: true,
         });
         return 'moved';
       }

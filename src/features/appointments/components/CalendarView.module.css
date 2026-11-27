@@ -241,6 +241,13 @@
   cursor: grabbing;
 }
 
+/* Beats `.fc-event.fc-event-draggable { cursor: pointer }`, which otherwise
+   hides FullCalendar's not-allowed cursor on the event under a visit drag. */
+:global(body.fc-not-allowed .fc-event),
+:global(body.fc-not-allowed .fc-event *) {
+  cursor: not-allowed;
+}
+
 :global(.fc-event.event-selected),
 :global(.fc-event.event-focused) {
   filter: none;
@@ -649,6 +656,25 @@
 .visitHandle:active,
 .visitFrameMoving .visitHandle {
   cursor: grabbing;
+}
+
+.visitMirror {
+  position: fixed;
+  z-index: 30;
+  box-sizing: border-box;
+  border-radius: 4px;
+  outline: 1px solid #08343c;
+  outline-offset: -1px;
+  pointer-events: none;
+}
+
+.visitMirror,
+.visitMirror * {
+  pointer-events: none !important;
+}
+
+.visitDragSource {
+  opacity: 0.75;
 }
 
 :global(.fc-timegrid-event-short .fc-event-main) {
